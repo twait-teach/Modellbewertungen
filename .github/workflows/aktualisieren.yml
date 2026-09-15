@@ -1,0 +1,63 @@
+name: Daten holen und Seite bauen
+
+on:
+  schedule:
+    - cron: "25 10 * * *"
+    - cron: "55 11 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daten
+  cancel-in-progress: false
+
+jobs:
+  aktualisieren:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Abhängigkeiten
+        run: pip install --quiet requests
+
+      - name: Welcher Lauf ist dran?
+        id: wahl
+        run: |
+          case "${{ github.event.schedule }}" in
+            "25 10 * * *") echo "args=--modell gfs"              >> "$GITHUB_OUTPUT" ;;
+            "55 11 * * *") echo "args=--modell ecmwf --messwerte" >> "$GITHUB_OUTPUT" ;;
+            *)             echo "args=--alles"                    >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Daten holen
+        run: python3 skripte/sammeln.py ${{ steps.wahl.outputs.args }}
+
+      - name: Historie der Hauptläufe auffrischen (sonntags)
+        if: github.event.schedule == '55 11 * * *'
+        run: |
+          if [ "$(date -u +%u)" = "7" ]; then
+            python3 skripte/historie.py
+          else
+            echo "heute nicht — läuft sonntags"
+          fi
+
+      - name: Seite bauen
+        run: python3 skripte/bauen.py
+
+      - name: Änderungen sichern
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add daten docs
+          if git diff --staged --quiet; then
+            echo "Nichts verändert."
+          else
+            git commit -m "Daten ${{ github.event.schedule && 'automatisch' || 'manuell' }} $(date -u '+%Y-%m-%d %H:%MZ')"
+            git push
+          fi
