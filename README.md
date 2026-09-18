@@ -1,8 +1,14 @@
 # Regenprognose Mühldorf
 
-Vergleicht täglich die Niederschlagsvorhersagen von **ECMWF** und **GFS** — jeweils Hauptlauf und
-Ensemble-Mittel — gegen die tatsächlich gemessenen Tagessummen der DWD-Station Mühldorf am Inn.
-Die Auswertung steht als Webseite im Ordner `docs/` und wird zweimal täglich automatisch erneuert.
+Ensemble-Meteogramm und Modellvergleich für die DWD-Station Mühldorf am Inn. Die Seite hat zwei
+Bereiche:
+
+- **Vorhersage** — Ensemble-Meteogramm für **GFS** und **ECMWF-IFS** (das klassische physikalische
+  Modell, nicht die KI-Variante AIFS), mit Umschaltung zwischen Modell und den letzten gespeicherten
+  Läufen ("aktuell / vorheriger Lauf / davorliegender Lauf").
+- **Analyse** — wie genau frühere Vorhersagen waren: tagesgenaue Güte (Tag 1–5), Bias, 5-mm-Schwelle,
+  Rückblick, Ensemble-Spannweite, und ein Witterungs-/Summenvergleich über die Zeitfenster Tag 1–3,
+  4–7 und 8–14 gegen die tatsächlich gemessenen Tagessummen der DWD-Station.
 
 Die Seite läuft ohne Server und ohne Datenbank: `docs/index.html` ist eine einzige Datei mit allen
 Daten darin.
@@ -36,32 +42,30 @@ Das prüft in einem Zug, ob Berechtigungen und Zeitplan stimmen.
 
 ## Wie es läuft
 
-| Zeit (UTC) | Was passiert |
-|---|---|
-| 10:25 | GFS holen — Hauptlauf und Ensemble |
-| 11:55 | ECMWF holen, Messwerte der Station nachtragen, Seite neu bauen |
-| sonntags 11:55 | zusätzlich die Vorgeschichte der Hauptläufe auffrischen |
+Der Workflow läuft **stündlich** (Minute 17), statt zu wenigen festen Uhrzeiten zu raten, wann ein
+Modelllauf fertig ist. Jeder Durchlauf prüft zuerst nur die Metadaten von open-meteo (billig — ein
+kleiner JSON-Abruf) und lädt die vollen Ensembledaten nur, wenn tatsächlich ein neuer oder noch
+unvollständiger Lauf vorliegt. Ist der aktuell erwartete Lauf schon vollständig gespeichert,
+überspringt das Skript den teuren Teil und es passiert nichts weiter in diesem Durchlauf.
 
-Die beiden Zeiten sind kein Zufall. Beide Modelle rechnen viermal täglich (00, 06, 12, 18 UTC),
-und erfasst werden soll nur der **00-UTC-Lauf**, damit alle zehn Vorhersagetage aus einem Guss
-stammen. Die Daten brauchen nach dem Lauf unterschiedlich lange, bis sie abrufbar sind:
+Erfasst werden:
 
-| | Verzögerung | 00Z abrufbar ab | wird ersetzt ab |
+| Modell | Datensatz (Ensemble) | erlaubte Läufe | Horizont |
 |---|---|---|---|
-| GFS-Ensemble | 5,8 h | ~05:50 | ~11:50 |
-| GFS Hauptlauf | 5,9–7,0 h | ~07:00 | ~13:00 |
-| ECMWF Hauptlauf | 7,2 h | ~07:15 | ~13:10 |
-| ECMWF-Ensemble | 9,5 h | ~09:30 | ~15:30 |
+| GFS | `gfs_seamless` (GEFS, 31 Läufe) | 00, 06, 12, 18 UTC | 16 Tage |
+| ECMWF-IFS | `ecmwf_ifs025` (51 Läufe) | **nur** 00 und 12 UTC | 15 Tage |
 
-Daraus ergeben sich die Fenster: GFS etwa 07:00–11:50 UTC, ECMWF etwa 09:30–13:10 UTC. Deshalb
-zwei getrennte Läufe statt einem.
+Die 06- und 18-UTC-Ensembleläufe von ECMWF-IFS reichen offiziell nur rund sechs Tage weit und
+werden deshalb absichtlich **nicht** als 15-Tage-Lauf erfasst — ein Live-Test während der
+Entwicklung hat das bestätigt: ein solcher Lauf bricht nach wenigen Tagen tatsächlich ab.
 
-**Der Haken, den man kennen muss:** Ist der 00-UTC-Lauf noch nicht fertig, liefert open-meteo
-klaglos den vorherigen — ohne Fehlermeldung. Man bekommt dann ältere Daten und merkt es nicht.
-Das Sammelskript prüft deshalb vor jedem Abruf, welcher Lauf tatsächlich veröffentlicht ist, und
-schreibt das in den Tageseintrag (`modelllaeufe`, `lauf_wie_erwartet`, `laufhinweise`). Wer wissen
-will, ob die Uhrzeiten passen, schaut nach ein paar Tagen in `daten/forecasts_*.json` unter
-`verfuegbar_seit` nach.
+Für die tagesgenaue Analyse (Seite „Analyse") gilt weiterhin: erfasst wird nur der **00-UTC-Lauf**,
+damit die Kalendertag-Einträge in `daten/forecasts_*.json` aus einem Guss stammen. Auch hier prüft
+das Skript vor jedem Abruf per Metadaten, welcher Lauf tatsächlich veröffentlicht ist — open-meteo
+liefert bei einem noch nicht fertigen 00-UTC-Lauf klaglos den vorherigen, ohne Fehlermeldung. Ist
+der 00-UTC-Lauf für ein Modell schon vollständig eingetragen, überspringt auch dieses Skript den
+erneuten Abruf für den Rest des Tages; die laufenden Metadaten-Prüfungen zeigen bei Bedarf
+(`modelllaeufe`, `lauf_wie_erwartet`, `laufhinweise`) an, was tatsächlich ankam.
 
 Fällt ein Abruf ganz aus, wiederholt das Skript viermal mit wachsendem Abstand. Danach bleibt das
 Feld leer — **nie ein geschätzter Wert**.
@@ -70,38 +74,59 @@ Feld leer — **nie ein geschätzter Wert**.
 
 ## Was nachholbar ist und was nicht
 
-Vergangene **Hauptläufe** lassen sich bei open-meteo rückwirkend abrufen, rund 90 Tage weit. Genau
-daher stammt die Vorgeschichte in `daten/history_*.json`, und `skripte/historie.py` schließt damit
-auch Lücken.
+Vergangene **Hauptläufe** (für die tagesgenaue Analyse) lassen sich bei open-meteo rückwirkend
+abrufen, rund 90 Tage weit. Genau daher stammt die Vorgeschichte in `daten/history_*.json`, und
+`skripte/historie.py` schließt damit auch Lücken.
 
-**Ensembles gibt es nur live.** Ein Tag, an dem der Lauf ausfällt, fehlt in der Ensemble-Statistik
-für immer. Messwerte sind unkritisch: das DWD-Archiv reicht rund 500 Tage zurück.
+**Ensembles gibt es nur live** — sowohl für die tagesgenaue Analyse als auch für das
+Meteogramm auf der Vorhersage-Seite. Ein Lauf, der ausfällt oder falsch erkannt wird, fehlt in der
+Ensemble-Statistik für immer; für das Meteogramm bedeutet das schlicht, dass für diesen Lauf kein
+Dokument entsteht. Messwerte sind unkritisch: das DWD-Archiv reicht rund 500 Tage zurück, ältere
+Monatsdateien bleiben unabhängig davon erhalten (siehe unten, „Speicherung der Messwerte").
+
+**Für das Meteogramm** werden zudem nur die letzten 12 Läufe je Modell mit vollen
+Ensemblemitgliedern aufbewahrt (`skripte/sammeln_vorhersage.py`, Konstante `AUFBEWAHREN`) — ältere
+Laufdateien werden automatisch gelöscht. Das ist beabsichtigt: die Rohdaten mit 30–50 Mitgliedern
+pro Lauf müssen für den Laufvergleich nicht unbegrenzt archiviert werden.
 
 ---
 
 ## Aufbau
 
 ```
-daten/                     der Datenbestand, in git versioniert
-  forecasts_JJJJ-MM-TT.json   ein Eintrag je Tag: 10 Vorlaufzeiten × 2 Modelle
-  messungen_JJJJ-MM.json      Tagessummen der Station, ein Dokument je Monat
-  history_gfs.json            rückwirkend abgerufene Hauptläufe, Vorlauf 1–7
+daten/                       der Datenbestand, in git versioniert
+  forecasts_JJJJ-MM-TT.json     ein Eintrag je Kalendertag: 14 Vorlaufzeiten × 2 Modelle
+                                 (für die tagesgenaue Analyse und den Witterungsvergleich)
+  messungen_JJJJ-MM.json        Tagessummen der Station, ein Dokument je Monat
+  history_gfs.json              rückwirkend abgerufene Hauptläufe, Vorlauf 1–7
   history_ecmwf.json
-docs/index.html            die fertige Seite — wird gebaut, nicht von Hand geändert
+  vorhersage/                   Ensemble-Meteogrammdaten, ein Dokument je erkanntem Modelllauf
+    gfs_JJJJ-MM-TTThh.json         (nur die letzten 12 Läufe je Modell, siehe oben)
+    ecmwf_JJJJ-MM-TTThh.json
+docs/index.html               die fertige Seite — wird gebaut, nicht von Hand geändert
 skripte/
-  sammeln.py               holt Vorhersagen und Messwerte
-  historie.py              lädt vergangene Hauptläufe nach
-  bauen.py                 baut aus daten/ + vorlage.html die Seite
-  vorlage.html             Gestaltung und Auswertungslogik
+  gemeinsam.py                 geteilte Hilfsfunktionen: Abruf mit Wiederholung, atomares
+                                 Schreiben, Perzentil
+  sammeln.py                    holt die tagesgenauen Hauptlauf-/Ensemble-Kennzahlen und die
+                                 Stationsmesswerte (Analyse-Seite)
+  sammeln_vorhersage.py         holt die vollen Ensemblemitglieder je Modelllauf (Meteogramm
+                                 auf der Vorhersage-Seite)
+  historie.py                   lädt vergangene Hauptläufe nach
+  bauen.py                      baut aus daten/ + vorlage.html die Seite
+  vorlage.html                  Gestaltung und Auswertungslogik (beide Seiten)
+tests/                        automatisierte Tests (pytest; einige nutzen Playwright und
+                                 brauchen dafür `playwright install chromium`)
 ```
 
 Von Hand laufen lassen:
 
 ```bash
-pip install requests
-python3 skripte/sammeln.py --alles     # beide Modelle und Messwerte
-python3 skripte/historie.py            # Vorgeschichte der Hauptläufe
-python3 skripte/bauen.py               # docs/index.html neu bauen
+pip install requests pytest
+python3 -m pytest tests/ -q --ignore=tests/test_js_analyse.py   # Selbsttests ohne Browser
+python3 skripte/sammeln.py --alles              # tagesgenaue Daten + Messwerte
+python3 skripte/sammeln_vorhersage.py --modell beide  # Ensemble-Meteogrammdaten
+python3 skripte/historie.py                     # Vorgeschichte der Hauptläufe
+python3 skripte/bauen.py                        # docs/index.html neu bauen
 ```
 
 Änderungen am Aussehen gehören in `skripte/vorlage.html`; `docs/index.html` wird bei jedem Lauf
@@ -133,10 +158,19 @@ Bewusst **nicht** der fertige DWD-Tageswert (RSK): der läuft von 06 bis 06 UTC 
 Tagesraster der Vorhersagen um Stunden versetzt. Am 10./11. September 2026 hätte das 5,6 mm
 komplett auf den falschen Tag geschoben.
 
+**Speicherung der Messwerte:** Das DWD-„akt"-Archiv liefert nur ein rollierendes Zeitfenster von
+rund 500 Tagen. `skripte/sammeln.py` führt neu abgerufene Tage deshalb mit der vorhandenen
+Monatsdatei zusammen, statt sie zu überschreiben — ältere Tage, die inzwischen außerhalb dieses
+Fensters liegen, bleiben dadurch erhalten; nur Tage, die der aktuelle Abruf tatsächlich liefert,
+werden aktualisiert (etwa bei nachträglichen DWD-Korrekturen).
+
 **Vorhersagen:** [open-meteo.com](https://open-meteo.com) — Hauptläufe `ecmwf_ifs025` und
-`gfs_seamless`, Ensembles `ecmwf_ifs025` (51 Läufe) und `gfs025` (31 Läufe). Eine fertige
-Ensemble-Mittelwert-Reihe liefert die Schnittstelle nicht; Mittel, Perzentile und der Anteil der
-Läufe über 5 mm werden aus den Einzelläufen selbst gebildet.
+`gfs_seamless`, Ensembles `ecmwf_ifs025` (51 Läufe) und `gfs_seamless` (31 Läufe — `gfs025` allein
+liefert Mitgliederdaten nur bis Tag 10). Eine fertige Ensemble-Mittelwert-Reihe liefert die
+Schnittstelle nicht; Mittel, Perzentile und der Anteil der Läufe über 5 mm werden aus den
+Einzelläufen selbst gebildet — für das Meteogramm ausdrücklich **aus den bereits je Mitglied
+akkumulierten Kurven**, nicht aus aufsummierten Tageswert-Perzentilen (die beiden Wege liefern bei
+Perzentilen unterschiedliche, und nur der erste methodisch korrekte, Ergebnisse).
 
 **Was der Vergleich nicht kann:** Die Station liegt rund 4 km vom Modellgitterpunkt entfernt. Bei
 Schauern und Gewittern können allein daraus mehrere Millimeter Unterschied entstehen — ein Teil des

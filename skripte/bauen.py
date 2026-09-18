@@ -9,7 +9,11 @@ eine einzige Datei, funktioniert ohne Server und auch lokal im Browser.
 import datetime as dt
 import glob
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gemeinsam import atomar_schreiben
 
 WURZEL = Path(__file__).resolve().parent.parent
 DATEN = WURZEL / "daten"
@@ -52,10 +56,23 @@ def main():
     if not forecasts:
         raise SystemExit("Keine Vorhersagedaten in daten/ gefunden — erst skripte/sammeln.py laufen lassen.")
 
+    # Ensemble-Meteogrammlaeufe fuer die Vorhersage-Seite: je Modell absteigend
+    # nach Initialisierung sortiert, damit "aktuell / vorheriger / davor" auf
+    # der Seite einfach die ersten drei Eintraege sind.
+    vorhersage = {"gfs": [], "ecmwf": []}
+    for pfad in sorted((DATEN / "vorhersage").glob("*.json")) if (DATEN / "vorhersage").exists() else []:
+        d = json.loads(pfad.read_text(encoding="utf-8"))
+        modell = d.get("modell")
+        if modell in vorhersage:
+            vorhersage[modell].append(d)
+    for modell in vorhersage:
+        vorhersage[modell].sort(key=lambda d: d["init"], reverse=True)
+
     paket = {
         "messungen": dict(sorted(messungen.items())),
         "history": history,
         "forecasts": forecasts,
+        "vorhersage": vorhersage,
         "gebaut": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"),
     }
 
@@ -77,13 +94,14 @@ def main():
              + seite.split("</style>", 1)[1] + "\n</body>\n</html>\n")
 
     ZIEL.parent.mkdir(parents=True, exist_ok=True)
-    ZIEL.write_text(seite, encoding="utf-8")
+    atomar_schreiben(ZIEL, seite)
 
     tage = sorted(messungen)
     print(f"docs/index.html gebaut — {len(seite)} Bytes")
-    print(f"  Messreihe:  {len(tage)} Tage ({tage[0] if tage else '–'} bis {tage[-1] if tage else '–'})")
-    print(f"  Läufe:      {len(forecasts)} ({min(forecasts)} bis {max(forecasts)})")
-    print(f"  Historie:   " + ", ".join(f"{m} {len(history[m]['tage'])} Tage" for m in history))
+    print(f"  Messreihe:   {len(tage)} Tage ({tage[0] if tage else '–'} bis {tage[-1] if tage else '–'})")
+    print(f"  Läufe:       {len(forecasts)} ({min(forecasts)} bis {max(forecasts)})")
+    print(f"  Historie:    " + ", ".join(f"{m} {len(history[m]['tage'])} Tage" for m in history))
+    print(f"  Meteogramm:  " + ", ".join(f"{m} {len(vorhersage[m])} Lauf/Läufe" for m in vorhersage))
 
 
 if __name__ == "__main__":

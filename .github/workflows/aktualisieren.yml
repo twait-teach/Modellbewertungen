@@ -1,9 +1,15 @@
 name: Daten holen und Seite bauen
 
+# Laeuft ungefaehr stuendlich zu einer versetzten Minute (17), statt zu wenigen
+# festen Uhrzeiten zu raten, wann ein Modelllauf fertig sein koennte. Jeder
+# Durchlauf prueft zuerst nur Metadaten (billig) und laedt volle Ensemble-
+# daten nur, wenn tatsaechlich ein neuer, noch nicht vollstaendig gespeicherter
+# Lauf vorliegt -- sammeln_vorhersage.py und sammeln.py implementieren diese
+# Pruefung selbst und ueberspringen den teuren Teil sonst (siehe dortige
+# Kommentare "bereits gespeichert" / "bereits erledigt").
 on:
   schedule:
-    - cron: "25 10 * * *"
-    - cron: "55 11 * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -24,28 +30,20 @@ jobs:
           python-version: "3.12"
 
       - name: Abhängigkeiten
-        run: pip install --quiet requests
+        run: pip install --quiet requests pytest
 
-      - name: Welcher Lauf ist dran?
-        id: wahl
-        run: |
-          case "${{ github.event.schedule }}" in
-            "25 10 * * *") echo "args=--modell gfs"              >> "$GITHUB_OUTPUT" ;;
-            "55 11 * * *") echo "args=--modell ecmwf --messwerte" >> "$GITHUB_OUTPUT" ;;
-            *)             echo "args=--alles"                    >> "$GITHUB_OUTPUT" ;;
-          esac
+      - name: Selbsttests (vor jedem Datenabruf — kein Schreiben auf Basis kaputten Codes)
+        run: python3 -m pytest tests/ -q --ignore=tests/test_js_analyse.py
 
-      - name: Daten holen
-        run: python3 skripte/sammeln.py ${{ steps.wahl.outputs.args }}
+      - name: Ensemble-Meteogrammdaten (Vorhersage-Seite) — nur neue/unvollständige Läufe
+        run: python3 skripte/sammeln_vorhersage.py --modell beide
 
-      - name: Historie der Hauptläufe auffrischen (sonntags)
-        if: github.event.schedule == '55 11 * * *'
-        run: |
-          if [ "$(date -u +%u)" = "7" ]; then
-            python3 skripte/historie.py
-          else
-            echo "heute nicht — läuft sonntags"
-          fi
+      - name: Tagesgenaue Vorhersage- und Messdaten (Analyse-Seite) — nur falls nötig
+        run: python3 skripte/sammeln.py --alles
+
+      - name: Historie der Hauptläufe auffrischen (einmal täglich, gegen 12 UTC)
+        if: github.event.schedule == '17 12 * * *' || github.event_name == 'workflow_dispatch'
+        run: python3 skripte/historie.py
 
       - name: Seite bauen
         run: python3 skripte/bauen.py
@@ -54,7 +52,11 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add daten docs
+          # -A statt nur "daten docs": sammeln_vorhersage.py raeumt alte
+          # Laufdateien nach AUFBEWAHREN auch mal ab (loescht sie) -- ohne -A
+          # wuerden Loeschungen von "git add" nicht erfasst und blieben ewig
+          # im Arbeitsverzeichnis liegen, ohne je committet zu werden.
+          git add -A daten docs
           if git diff --staged --quiet; then
             echo "Nichts verändert."
           else

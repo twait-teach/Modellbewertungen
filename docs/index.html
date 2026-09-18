@@ -47,21 +47,39 @@ body{
   padding-inline:20px; padding-block:0;
   -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:980px; margin:0 auto; padding-block:36px 72px}
+.wrap{max-width:980px; margin:0 auto; padding-block:24px 72px}
 
 /* ---------- Kopf ---------- */
-.kopf{display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px 28px; padding-bottom:20px; border-bottom:2px solid var(--ink)}
+.kopf{display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px 28px; padding-bottom:16px}
 .kopf h1{
   font-family:"IBM Plex Serif",Georgia,serif; font-weight:600;
-  font-size:clamp(26px,4.4vw,38px); line-height:1.1; margin:0; letter-spacing:-.015em;
-  text-wrap:balance; flex:1 1 320px;
+  font-size:clamp(24px,4.2vw,34px); line-height:1.1; margin:0; letter-spacing:-.015em;
+  text-wrap:balance; flex:1 1 280px;
 }
 .kopf .stand{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; color:var(--ink-2); text-align:right; flex:0 1 auto}
 .kopf .stand b{display:block; color:var(--ink); font-weight:500; font-size:13px}
-.unterzeile{color:var(--ink-2); font-size:14px; margin:14px 0 0; max-width:66ch}
+.unterzeile{color:var(--ink-2); font-size:14px; margin:10px 0 0; max-width:66ch}
+
+/* ---------- Navigation ---------- */
+nav.hauptnav{
+  display:flex; gap:4px; border-bottom:2px solid var(--ink); padding-bottom:0; margin-top:18px;
+}
+nav.hauptnav a{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12.5px; letter-spacing:.06em;
+  text-transform:uppercase; text-decoration:none; color:var(--ink-2); font-weight:500;
+  padding:9px 16px 10px; border:1px solid transparent; border-bottom:none;
+  border-radius:3px 3px 0 0; margin-bottom:-2px;
+}
+nav.hauptnav a:hover{color:var(--ink)}
+nav.hauptnav a[aria-current="page"]{
+  color:var(--ink); background:var(--panel); border-color:var(--rule);
+  border-bottom:2px solid var(--panel);
+}
+main[hidden]{display:none!important}
 
 /* ---------- Sektionen ---------- */
-section{margin-top:52px}
+section{margin-top:44px}
+section:first-of-type{margin-top:32px}
 section > h2{
   font-family:"IBM Plex Serif",Georgia,serif; font-weight:600; font-size:20px;
   margin:0 0 4px; letter-spacing:-.01em;
@@ -72,6 +90,29 @@ section > h2{
 }
 .hinweis{color:var(--ink-2); font-size:13.5px; margin:0 0 20px; max-width:72ch}
 .hinweis strong{color:var(--ink); font-weight:600}
+
+/* ---------- Bedienleiste (Modell-/Laufwahl) ---------- */
+.bedienleiste{display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; margin-bottom:16px}
+.schaltergruppe{display:inline-flex; border:1px solid var(--rule); border-radius:4px; overflow:hidden; background:var(--panel)}
+.schaltergruppe button{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12.5px; font-weight:500;
+  background:transparent; border:none; color:var(--ink-2); padding:8px 14px; cursor:pointer;
+  border-right:1px solid var(--rule);
+}
+.schaltergruppe button:last-child{border-right:none}
+.schaltergruppe button:hover{color:var(--ink); background:var(--rule-soft)}
+.schaltergruppe button[aria-pressed="true"]{background:var(--ink); color:var(--panel)}
+.schaltergruppe button:disabled{opacity:.35; cursor:default}
+.schaltergruppe button:disabled:hover{background:transparent; color:var(--ink-2)}
+.laufinfo{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; color:var(--ink-2)}
+.laufinfo b{color:var(--ink); font-weight:500}
+.mitgliederschalter{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-2); margin-left:auto}
+.mitgliederschalter input{accent-color:var(--ink)}
+.warnzeile{
+  font-size:12.5px; color:var(--warn); background:color-mix(in srgb,var(--warn) 10%,transparent);
+  border:1px solid color-mix(in srgb,var(--warn) 35%,transparent); border-radius:3px;
+  padding:8px 12px; margin-bottom:14px;
+}
 
 /* ---------- Legende ---------- */
 .legende{display:flex; flex-wrap:wrap; gap:8px 20px; margin:0 0 14px; align-items:center}
@@ -84,6 +125,7 @@ section > h2{
   padding:16px 14px 10px; overflow-x:auto; box-shadow:var(--schatten);
 }
 .plot svg{display:block; min-width:520px; width:100%; height:auto}
+.plot.gross svg{min-width:640px}
 text{font-family:"IBM Plex Mono",ui-monospace,monospace}
 .ax{fill:var(--ink-3); font-size:10.5px}
 .axl{fill:var(--ink-2); font-size:10.5px; font-weight:500}
@@ -132,12 +174,16 @@ summary:focus-visible{outline:2px solid var(--ecmwf); outline-offset:3px; border
 .befund p + p{margin-top:8px}
 .befund strong{color:var(--ink)}
 
+/* ---------- Unterabschnitte der Analyse ---------- */
+.unterabschnitt{margin-top:36px; padding-top:28px; border-top:1px solid var(--rule)}
+.unterabschnitt > .dachzeile{margin-top:0}
+
 /* ---------- Tooltip ---------- */
 #tip{
   position:fixed; pointer-events:none; opacity:0; transition:opacity .1s;
   background:var(--ink); color:var(--ground); padding:7px 10px; border-radius:3px;
   font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; line-height:1.5;
-  z-index:50; max-width:260px; box-shadow:0 4px 14px rgba(0,0,0,.2); white-space:pre;
+  z-index:50; max-width:280px; box-shadow:0 4px 14px rgba(0,0,0,.2); white-space:pre;
 }
 .treffer{fill:transparent; cursor:crosshair}
 .treffer:hover{fill:color-mix(in srgb,var(--ink) 5%,transparent)}
@@ -149,8 +195,10 @@ footer a{color:var(--ink-2)}
 
 @media (max-width:560px){
   .kopf .stand{text-align:left}
-  .wrap{padding-block:26px 48px}
-  section{margin-top:40px}
+  .wrap{padding-block:18px 48px}
+  section{margin-top:34px}
+  nav.hauptnav a{padding:8px 11px 9px; font-size:11.5px}
+  .mitgliederschalter{margin-left:0; width:100%; order:9}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
 </style>
@@ -169,115 +217,171 @@ footer a{color:var(--ink-2)}
     </div>
   </header>
   <p class="unterzeile">
-    Welche Niederschlagsvorhersage trifft zu? Verglichen werden die Hauptläufe und Ensemble-Mittel
-    von <strong>ECMWF</strong> und <strong>GFS</strong> gegen die tatsächlich gemessenen Tagessummen
-    der DWD-Station Mühldorf am Inn.
+    Ensemble-Meteogramm und Modellvergleich für die DWD-Station Mühldorf am Inn. Verglichen werden
+    <strong>GFS</strong> und <strong>ECMWF-IFS</strong> — jeweils als volles Ensemble und als
+    deterministischer Hauptlauf — gegen die tatsächlich gemessenen Tagessummen.
   </p>
+  <nav class="hauptnav" id="hauptnav">
+    <a href="#vorhersage" data-seite="vorhersage">Vorhersage</a>
+    <a href="#analyse" data-seite="analyse">Analyse</a>
+  </nav>
 
-  <section id="s-aktuell">
-    <p class="dachzeile">Was kommt</p>
-    <h2>Vorhersage für die nächsten zehn Tage</h2>
-    <p class="hinweis">
-      Balken: Hauptlauf. Band: Streuung der Ensemble-Läufe vom 10. bis 90. Perzentil — je breiter,
-      desto uneiniger sind die Modellläufe untereinander. Der Strich im Band ist das Ensemble-Mittel.
-    </p>
-    <div class="legende" id="leg-aktuell"></div>
-    <div class="plot"><svg id="chart-aktuell" role="img" aria-label="Niederschlagsvorhersage der nächsten zehn Tage"></svg></div>
-    <details>
-      <summary>Zahlen als Tabelle</summary>
-      <div class="tabellenhuelle"><table id="tab-aktuell"></table></div>
-    </details>
-  </section>
+  <!-- ======================================================= SEITE: VORHERSAGE ======================================================= -->
+  <main id="seite-vorhersage">
 
-  <section id="s-guete">
-    <p class="dachzeile">Der Kern</p>
-    <h2>Wie gut wird die Vorhersage mit kürzerem Vorlauf?</h2>
-    <p class="hinweis">
-      Mittlerer absoluter Fehler in Millimetern: um wie viel lag die Vorhersage für einen Tag daneben,
-      je nachdem wie viele Tage vorher sie gemacht wurde. <strong>Niedriger ist besser.</strong>
-    </p>
-    <div class="legende" id="leg-guete"></div>
-    <div class="plot"><svg id="chart-guete" role="img" aria-label="Mittlerer absoluter Fehler nach Vorlaufzeit"></svg></div>
-    <div class="tabellenhuelle"><table id="tab-guete"></table></div>
-    <div class="befund" id="befund-guete"></div>
-  </section>
+    <section id="s-meteogramm">
+      <p class="dachzeile">Ensemble-Meteogramm</p>
+      <h2>Aufsummierter Niederschlag über den Vorhersagezeitraum</h2>
+      <p class="hinweis">
+        Jede dünne Linie ist ein einzelnes Ensemblemitglied — zuerst wird je Mitglied über die Zeit
+        aufsummiert, erst danach werden daraus Mittelwert und Streuung gebildet. Das dunkle Band zeigt
+        das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel. Kontrolllauf und deterministischer
+        Hauptlauf sind gesondert hervorgehoben.
+      </p>
 
-  <section id="s-rueckblick">
-    <p class="dachzeile">Der Abgleich</p>
-    <h2>Die letzten zehn Tage: angekündigt und eingetreten</h2>
-    <p class="hinweis">
-      Graue Balken sind das, was die Station gemessen hat. Die Punkte zeigen, was die Modelle
-      einen Tag bzw. fünf Tage vorher für diesen Tag angesagt hatten.
-    </p>
-    <div class="legende" id="leg-rueck"></div>
-    <div class="plot"><svg id="chart-rueck" role="img" aria-label="Gemessener Niederschlag der letzten zehn Tage gegen die Vorhersagen"></svg></div>
-    <details>
-      <summary>Zahlen als Tabelle</summary>
-      <div class="tabellenhuelle"><table id="tab-rueck"></table></div>
-    </details>
-  </section>
+      <div class="bedienleiste">
+        <div class="schaltergruppe" id="modellwahl" role="group" aria-label="Modell"></div>
+        <div class="schaltergruppe" id="laufwahl" role="group" aria-label="Modelllauf"></div>
+        <label class="mitgliederschalter">
+          <input type="checkbox" id="mitgliederEin" checked>
+          Einzelne Läufe zeigen
+        </label>
+      </div>
+      <div class="laufinfo" id="laufinfoZeile"></div>
+      <div id="laufwarnung"></div>
 
-  <section id="s-schwelle">
-    <p class="dachzeile">Die Alltagsfrage</p>
-    <h2>Fällt mehr als 5 mm — ja oder nein?</h2>
-    <p class="hinweis">
-      Für die Entscheidung „gießen oder nicht" zählt nicht der Millimeterwert, sondern ob nennenswerter
-      Regen kommt. Die Trefferquote allein täuscht dabei: An den meisten Tagen fällt kein Regen, also
-      liegt schon richtig, wer immer „trocken" sagt. Deshalb steht diese Vergleichsmarke daneben.
-    </p>
-    <div class="kacheln" id="kacheln-schwelle"></div>
-    <div class="tabellenhuelle"><table id="tab-schwelle"></table></div>
-    <div class="befund" id="befund-schwelle"></div>
-  </section>
+      <div class="legende" id="leg-meteogramm"></div>
+      <div class="plot gross"><svg id="chart-meteogramm" role="img" aria-label="Ensemble-Meteogramm der Niederschlagssumme"></svg></div>
+      <details>
+        <summary>Zahlen als Tabelle</summary>
+        <div class="tabellenhuelle"><table id="tab-meteogramm"></table></div>
+      </details>
+    </section>
 
-  <section id="s-bias">
-    <p class="dachzeile">Systematik</p>
-    <h2>Zu viel oder zu wenig?</h2>
-    <p class="hinweis">
-      Der mittlere Fehler mit Vorzeichen zeigt, ob ein Modell den Niederschlag im Schnitt
-      <strong>überschätzt</strong> (über der Nulllinie) oder <strong>unterschätzt</strong>.
-      Darunter die aufsummierte Menge über den ganzen Zeitraum.
-    </p>
-    <div class="legende" id="leg-bias"></div>
-    <div class="plot"><svg id="chart-bias" role="img" aria-label="Mittlerer Fehler mit Vorzeichen nach Vorlaufzeit"></svg></div>
-    <div class="tabellenhuelle"><table id="tab-summen"></table></div>
-    <div class="befund" id="befund-bias"></div>
-  </section>
+  </main>
 
-  <section id="s-streuung">
-    <p class="dachzeile">Ehrlichkeit der Unsicherheit</p>
-    <h2>Trifft die Ensemble-Spannweite zu?</h2>
-    <p class="hinweis">
-      Wenn ein Ensemble seine eigene Unsicherheit richtig einschätzt, muss der gemessene Wert in
-      etwa <strong>80 %</strong> der Fälle innerhalb des 10-bis-90-Perzentil-Bands liegen. Deutlich
-      weniger heißt: das Band ist zu schmal, die Modelle sind sich zu sicher.
-    </p>
-    <div id="streuung-inhalt"></div>
-  </section>
+  <!-- ======================================================= SEITE: ANALYSE ======================================================= -->
+  <main id="seite-analyse" hidden>
 
-  <footer>
-    <p>
-      <strong>Messwerte:</strong> DWD-Klimastation Mühldorf am Inn (03366), stündliche Niederschlagswerte
-      aus dem offenen Datenarchiv, zu Tagessummen von 0 bis 24 Uhr Ortszeit verdichtet. Nur Tage mit
-      vollständigen 24 Stundenwerten gehen ein.
-    </p>
-    <p>
-      <strong>Vorhersagen:</strong> open-meteo.com. Hauptläufe ECMWF IFS 0,25° und GFS; Ensembles mit
-      51 bzw. 31 Einzelläufen, deren Mittel und Perzentile hier selbst gebildet werden — eine fertige
-      Mittelwert-Reihe liefert die Schnittstelle nicht.
-    </p>
-    <p>
-      <strong>Wichtige Einschränkung:</strong> Die Station liegt rund 4 km vom Modellgitterpunkt entfernt.
-      Bei Schauern und Gewittern kann dieser Abstand allein schon mehrere Millimeter Unterschied bedeuten —
-      ein Teil des ausgewiesenen Fehlers ist also keine Fehlleistung des Modells.
-    </p>
-    <p class="status" id="statuszeile"></p>
-  </footer>
+    <section id="s-guete">
+      <p class="dachzeile">Tagesgenaue Vorhersagegüte</p>
+      <h2>Wie genau wurde der Niederschlag eines bestimmten Tages vorhergesagt?</h2>
+      <p class="hinweis">
+        Mittlerer absoluter Fehler in Millimetern, für die kurzfristigen Vorlaufzeiten 1 bis 5 Tage,
+        getrennt nach Hauptlauf und Ensemble-Mittel. <strong>Niedriger ist besser.</strong>
+      </p>
+      <div class="legende" id="leg-guete"></div>
+      <div class="plot"><svg id="chart-guete" role="img" aria-label="Mittlerer absoluter Fehler nach Vorlaufzeit"></svg></div>
+      <div class="tabellenhuelle"><table id="tab-guete"></table></div>
+      <div class="befund" id="befund-guete"></div>
+
+      <div class="unterabschnitt">
+        <p class="dachzeile">Systematik</p>
+        <h2>Zu viel oder zu wenig?</h2>
+        <p class="hinweis">
+          Mittlerer Fehler mit Vorzeichen: liegt ein Modell im Schnitt <strong>über</strong> der Nulllinie,
+          sagt es mehr Regen an, als fällt (und umgekehrt).
+        </p>
+        <div class="legende" id="leg-bias"></div>
+        <div class="plot"><svg id="chart-bias" role="img" aria-label="Mittlerer Fehler mit Vorzeichen nach Vorlaufzeit"></svg></div>
+        <div class="befund" id="befund-bias"></div>
+      </div>
+
+      <div class="unterabschnitt">
+        <p class="dachzeile">Die Alltagsfrage</p>
+        <h2>Fällt mehr als 5 mm — ja oder nein?</h2>
+        <p class="hinweis">
+          Für „gießen oder nicht" zählt oft nicht der Millimeterwert, sondern ob nennenswerter Regen
+          kommt. Die reine Trefferquote täuscht dabei: meist regnet es nicht, also liegt schon richtig,
+          wer immer „trocken" sagt. Deshalb steht die Vergleichsmarke daneben.
+        </p>
+        <div class="kacheln" id="kacheln-schwelle"></div>
+        <div class="tabellenhuelle"><table id="tab-schwelle"></table></div>
+        <div class="befund" id="befund-schwelle"></div>
+      </div>
+
+      <div class="unterabschnitt">
+        <p class="dachzeile">Der Abgleich</p>
+        <h2>Die letzten zehn Tage: angekündigt und eingetreten</h2>
+        <p class="hinweis">
+          Graue Balken sind das, was die Station gemessen hat. Die Punkte zeigen, was die Hauptläufe
+          einen bzw. fünf Tage vorher für diesen Tag angesagt hatten.
+        </p>
+        <div class="legende" id="leg-rueck"></div>
+        <div class="plot"><svg id="chart-rueck" role="img" aria-label="Gemessener Niederschlag der letzten zehn Tage gegen die Vorhersagen"></svg></div>
+        <details>
+          <summary>Zahlen als Tabelle</summary>
+          <div class="tabellenhuelle"><table id="tab-rueck"></table></div>
+        </details>
+      </div>
+
+      <div class="unterabschnitt">
+        <p class="dachzeile">Ehrlichkeit der Unsicherheit</p>
+        <h2>Trifft die Ensemble-Spannweite zu?</h2>
+        <p class="hinweis">
+          Schätzt ein Ensemble seine eigene Unsicherheit richtig ein, muss der gemessene Wert in etwa
+          <strong>80 %</strong> der Fälle innerhalb des 10-bis-90-Perzentil-Bands liegen.
+        </p>
+        <div id="streuung-inhalt"></div>
+      </div>
+    </section>
+
+    <section id="s-witterung">
+      <p class="dachzeile">Witterungs- und Summenvergleich</p>
+      <h2>Hat das Modell die Niederschlagswitterung eines Zeitraums richtig eingeschätzt?</h2>
+      <p class="hinweis">
+        Für feste Zeitfenster wird die vorhergesagte Niederschlagssumme <b>F</b> mit der tatsächlich
+        gemessenen Summe <b>O</b> verglichen: Fehler <b>E = F − O</b>. E &gt; 0 heißt, das Modell war
+        zu nass, E &lt; 0 zu trocken. Ein Fenster geht erst ein, wenn es vollständig vergangen und die
+        Messreihe für den ganzen Zeitraum lückenlos ist. Schwerpunkt ist das Ensemble-Mittel.
+      </p>
+      <div class="kacheln" id="kacheln-witterung"></div>
+
+      <div class="tabellenhuelle"><table id="tab-witterung"></table></div>
+
+      <div class="unterabschnitt">
+        <p class="dachzeile">Witterungskategorien</p>
+        <h2>Trefferquote nach Kategorie</h2>
+        <p class="hinweis" id="schwellen-text"></p>
+        <div class="tabellenhuelle"><table id="tab-witterung-kategorien"></table></div>
+      </div>
+
+      <div class="unterabschnitt">
+        <p class="dachzeile">Vorhersage gegen Beobachtung</p>
+        <h2>Streudiagramm je Zeitfenster</h2>
+        <div class="legende" id="leg-streu-witterung"></div>
+        <div class="plot"><svg id="chart-streu-witterung" role="img" aria-label="Vorhergesagte gegen gemessene Niederschlagssumme je Zeitfenster"></svg></div>
+      </div>
+
+      <div class="befund" id="befund-witterung"></div>
+    </section>
+
+    <footer>
+      <p>
+        <strong>Messwerte:</strong> DWD-Klimastation Mühldorf am Inn (03366), stündliche Niederschlagswerte
+        aus dem offenen Datenarchiv, zu Tagessummen von 0 bis 24 Uhr Ortszeit verdichtet. Nur Tage mit
+        vollständigen 24 Stundenwerten gehen ein.
+      </p>
+      <p>
+        <strong>Vorhersagen:</strong> open-meteo.com. Ensembles: ECMWF-IFS 0,25° (51 Läufe, nur 00/12-UTC-Initialisierung
+        bis Tag 15) und GFS/GEFS (31 Läufe, 00/06/12/18 UTC, bis Tag 16). Mittel, Perzentile und
+        Trefferquoten werden aus den Einzelläufen selbst gebildet.
+      </p>
+      <p>
+        <strong>Wichtige Einschränkung:</strong> Die Station liegt rund 4 km vom Modellgitterpunkt entfernt.
+        Bei Schauern und Gewittern kann dieser Abstand allein schon mehrere Millimeter Unterschied bedeuten —
+        ein Teil des ausgewiesenen Fehlers ist also keine Fehlleistung des Modells. Und ein Ensemble-Mittel
+        schneidet beim mittleren Fehler fast zwangsläufig besser ab, weil Mittelung Spitzen glättet.
+      </p>
+      <p class="status" id="statuszeile"></p>
+    </footer>
+  </main>
+
 </div>
 <div id="tip" role="status" aria-live="polite"></div>
 
 <script>
-const DATEN = {"messungen":{"2026-01-01":0.0,"2026-01-02":0.5,"2026-01-03":0.0,"2026-01-04":0.0,"2026-01-05":0.0,"2026-01-06":0.0,"2026-01-07":0.0,"2026-01-08":1.1,"2026-01-09":8.5,"2026-01-10":1.8,"2026-01-11":0.7,"2026-01-12":7.7,"2026-01-13":0.0,"2026-01-14":0.0,"2026-01-15":0.0,"2026-01-16":0.0,"2026-01-17":0.0,"2026-01-18":0.0,"2026-01-19":0.0,"2026-01-20":0.0,"2026-01-21":0.0,"2026-01-22":0.0,"2026-01-23":0.0,"2026-01-24":0.0,"2026-01-25":0.3,"2026-01-26":0.3,"2026-01-27":0.0,"2026-01-28":0.0,"2026-01-29":5.1,"2026-01-30":0.0,"2026-01-31":0.0,"2026-02-01":0.0,"2026-02-02":0.0,"2026-02-03":0.0,"2026-02-04":0.0,"2026-02-05":0.2,"2026-02-06":0.4,"2026-02-07":0.1,"2026-02-08":0.0,"2026-02-09":0.0,"2026-02-10":0.0,"2026-02-11":4.7,"2026-02-12":3.6,"2026-02-13":1.8,"2026-02-14":7.8,"2026-02-15":0.9,"2026-02-16":9.0,"2026-02-17":4.0,"2026-02-18":0.0,"2026-02-19":11.0,"2026-02-20":3.0,"2026-02-21":5.9,"2026-02-22":2.3,"2026-02-23":2.1,"2026-02-24":11.2,"2026-02-25":0.2,"2026-02-26":0.3,"2026-02-27":0.0,"2026-02-28":0.0,"2026-03-01":3.7,"2026-03-02":0.0,"2026-03-03":0.0,"2026-03-04":0.0,"2026-03-05":0.0,"2026-03-06":0.0,"2026-03-07":0.0,"2026-03-08":0.0,"2026-03-09":0.0,"2026-03-10":0.0,"2026-03-11":0.8,"2026-03-12":7.9,"2026-03-13":0.0,"2026-03-14":0.5,"2026-03-15":0.1,"2026-03-16":2.4,"2026-03-17":0.0,"2026-03-18":0.0,"2026-03-19":0.0,"2026-03-20":0.0,"2026-03-21":0.0,"2026-03-22":0.0,"2026-03-23":0.0,"2026-03-24":0.0,"2026-03-25":0.9,"2026-03-26":1.7,"2026-03-27":0.0,"2026-03-28":0.0,"2026-03-30":1.3,"2026-03-31":0.2,"2026-04-01":0.0,"2026-04-02":0.0,"2026-04-03":0.0,"2026-04-04":2.3,"2026-04-05":0.2,"2026-04-06":0.2,"2026-04-07":0.0,"2026-04-08":0.0,"2026-04-09":0.0,"2026-04-10":8.6,"2026-04-11":0.0,"2026-04-12":0.0,"2026-04-13":0.0,"2026-04-14":0.5,"2026-04-15":0.1,"2026-04-16":0.0,"2026-04-17":0.0,"2026-04-18":0.0,"2026-04-19":0.6,"2026-04-20":0.0,"2026-04-21":0.0,"2026-04-22":0.0,"2026-04-23":0.0,"2026-04-24":0.0,"2026-04-25":0.0,"2026-04-26":0.0,"2026-04-27":0.0,"2026-04-28":0.0,"2026-04-29":0.0,"2026-04-30":0.0,"2026-05-01":0.0,"2026-05-02":0.0,"2026-05-03":0.0,"2026-05-04":0.0,"2026-05-05":0.1,"2026-05-06":17.9,"2026-05-07":0.0,"2026-05-08":0.0,"2026-05-09":0.0,"2026-05-10":0.0,"2026-05-11":9.0,"2026-05-12":2.4,"2026-05-13":0.0,"2026-05-14":1.1,"2026-05-15":5.8,"2026-05-16":1.2,"2026-05-17":0.0,"2026-05-18":0.0,"2026-05-19":0.7,"2026-05-20":2.6,"2026-05-21":0.0,"2026-05-22":0.0,"2026-05-23":0.0,"2026-05-24":0.0,"2026-05-25":0.0,"2026-05-26":0.0,"2026-05-27":0.0,"2026-05-28":0.0,"2026-05-29":0.0,"2026-05-30":1.9,"2026-05-31":5.7,"2026-06-01":2.1,"2026-06-02":9.3,"2026-06-03":1.9,"2026-06-04":0.0,"2026-06-05":7.6,"2026-06-06":0.1,"2026-06-07":0.2,"2026-06-08":0.0,"2026-06-09":12.6,"2026-06-10":13.4,"2026-06-11":5.5,"2026-06-12":5.8,"2026-06-13":0.6,"2026-06-14":0.0,"2026-06-15":0.0,"2026-06-16":0.0,"2026-06-17":0.8,"2026-06-18":0.0,"2026-06-19":0.0,"2026-06-20":0.0,"2026-06-21":0.0,"2026-06-22":0.0,"2026-06-23":0.8,"2026-06-24":0.0,"2026-06-25":0.0,"2026-06-26":0.0,"2026-06-27":0.0,"2026-06-28":0.0,"2026-06-29":21.5,"2026-06-30":8.3,"2026-07-01":26.5,"2026-07-02":0.3,"2026-07-03":0.0,"2026-07-04":0.0,"2026-07-05":7.6,"2026-07-06":1.0,"2026-07-07":0.4,"2026-07-08":0.6,"2026-07-09":0.0,"2026-07-10":0.0,"2026-07-11":0.0,"2026-07-12":0.0,"2026-07-13":0.0,"2026-07-14":1.0,"2026-07-15":0.0,"2026-07-16":0.0,"2026-07-17":1.1,"2026-07-18":0.1,"2026-07-19":10.6,"2026-07-20":0.0,"2026-07-21":0.0,"2026-07-22":0.0,"2026-07-23":0.0,"2026-07-24":0.0,"2026-07-25":0.0,"2026-07-26":0.0,"2026-07-27":0.0,"2026-07-28":0.0,"2026-07-29":0.0,"2026-07-30":0.0,"2026-07-31":4.6,"2026-08-01":1.6,"2026-08-02":0.0,"2026-08-03":0.0,"2026-08-04":0.0,"2026-08-05":1.4,"2026-08-06":1.2,"2026-08-07":0.0,"2026-08-08":0.0,"2026-08-09":0.0,"2026-08-10":0.0,"2026-08-11":0.0,"2026-08-12":0.0,"2026-08-13":0.0,"2026-08-14":0.0,"2026-08-15":0.0,"2026-08-16":0.0,"2026-08-17":30.3,"2026-08-18":12.9,"2026-08-19":1.0,"2026-08-20":0.2,"2026-08-21":14.2,"2026-08-22":1.0,"2026-08-23":0.0,"2026-08-24":0.0,"2026-08-25":1.0,"2026-08-26":1.4,"2026-08-27":0.0,"2026-08-28":10.1,"2026-08-29":2.5,"2026-08-30":0.0,"2026-08-31":0.2,"2026-09-01":0.0,"2026-09-02":0.0,"2026-09-03":0.0,"2026-09-04":0.1,"2026-09-06":0.0,"2026-09-07":0.0,"2026-09-08":0.0,"2026-09-09":6.0,"2026-09-10":0.0,"2026-09-11":5.6,"2026-09-12":0.0,"2026-09-13":6.1,"2026-09-14":3.9,"2026-09-15":0.0,"2026-09-16":20.3,"2026-09-17":1.1},"history":{"gfs":{"modell":"gfs","quelle":"open-meteo Previous-Runs-API, Hauptlauf, stündliche Werte zu Tagessummen 00–24 Uhr Ortszeit","leads":[1,2,3,4,5,6,7],"stand":"2026-09-14","tage":{"2026-06-14":{"1":0.1,"2":0.0,"3":0.0,"4":0.0,"5":0.3,"6":0.0,"7":0.7},"2026-06-15":{"1":0.0,"2":0.0,"3":0.2,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-16":{"1":0.7,"2":0.3,"3":0.1,"4":0.0,"5":0.0,"6":0.0,"7":0.3},"2026-06-17":{"1":2.9,"2":6.0,"3":0.1,"4":0.0,"5":0.0,"6":0.0,"7":0.6},"2026-06-18":{"1":2.3,"2":0.1,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-19":{"1":0.0,"2":0.0,"3":0.0,"4":0.1,"5":0.0,"6":0.4,"7":1.5},"2026-06-20":{"1":0.1,"2":0.8,"3":0.6,"4":0.6,"5":0.0,"6":0.1,"7":0.2},"2026-06-21":{"1":0.9,"2":0.8,"3":0.6,"4":0.0,"5":1.1,"6":1.9,"7":0.0},"2026-06-22":{"1":1.5,"2":0.1,"3":0.3,"4":0.8,"5":2.9,"6":0.0,"7":0.8},"2026-06-23":{"1":0.6,"2":0.6,"3":2.1,"4":4.2,"5":3.9,"6":1.1,"7":1.9},"2026-06-24":{"1":0.0,"2":0.0,"3":1.8,"4":0.9,"5":0.0,"6":0.0,"7":0.0},"2026-06-25":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-26":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-27":{"1":0.0,"2":0.0,"3":0.0,"4":0.6,"5":0.0,"6":0.0,"7":0.0},"2026-06-28":{"1":0.5,"2":0.7,"3":0.8,"4":3.7,"5":3.1,"6":0.3,"7":0.1},"2026-06-29":{"1":9.0,"2":11.0,"3":26.5,"4":7.9,"5":5.5,"6":2.6,"7":1.0},"2026-06-30":{"1":8.1,"2":0.0,"3":5.3,"4":4.5,"5":5.0,"6":4.3,"7":1.5},"2026-07-01":{"1":14.8,"2":20.2,"3":12.2,"4":17.0,"5":3.4,"6":0.2,"7":0.1},"2026-07-02":{"1":0.0,"2":0.0,"3":0.3,"4":0.0,"5":0.9,"6":0.0,"7":0.2},"2026-07-03":{"1":2.3,"2":0.6,"3":1.1,"4":0.2,"5":1.5,"6":1.0,"7":0.0},"2026-07-04":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-05":{"1":6.9,"2":5.9,"3":3.7,"4":0.2,"5":0.7,"6":0.0,"7":0.0},"2026-07-06":{"1":2.0,"2":2.7,"3":1.5,"4":4.7,"5":0.0,"6":0.0,"7":0.2},"2026-07-07":{"1":0.0,"2":0.0,"3":0.2,"4":0.0,"5":0.1,"6":0.3,"7":0.0},"2026-07-08":{"1":3.1,"2":4.4,"3":0.2,"4":0.3,"5":0.7,"6":0.5,"7":0.0},"2026-07-09":{"1":0.1,"2":0.1,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-10":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-11":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.5},"2026-07-12":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.2},"2026-07-13":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":1.2},"2026-07-14":{"1":1.5,"2":1.6,"3":0.0,"4":0.1,"5":0.0,"6":0.0,"7":0.2},"2026-07-15":{"1":7.3,"2":4.7,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.2},"2026-07-16":{"1":0.6,"2":0.3,"3":0.5,"4":0.0,"5":0.0,"6":0.0,"7":0.8},"2026-07-17":{"1":2.2,"2":1.3,"3":8.6,"4":3.2,"5":5.6,"6":0.0,"7":2.7},"2026-07-18":{"1":2.7,"2":3.1,"3":13.7,"4":1.6,"5":2.2,"6":0.1,"7":0.4},"2026-07-19":{"1":5.2,"2":5.0,"3":3.2,"4":6.6,"5":1.0,"6":0.0,"7":0.0},"2026-07-20":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.5,"6":0.0,"7":0.1},"2026-07-21":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.1,"6":3.3,"7":0.0},"2026-07-22":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.4},"2026-07-23":{"1":0.8,"2":0.0,"3":1.1,"4":2.5,"5":12.1,"6":11.8,"7":0.6},"2026-07-24":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.4,"6":2.5,"7":10.4},"2026-07-25":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-26":{"1":1.8,"2":2.6,"3":6.5,"4":1.9,"5":6.2,"6":7.7,"7":1.2},"2026-07-27":{"1":1.6,"2":1.9,"3":2.2,"4":5.0,"5":2.8,"6":6.5,"7":1.8},"2026-07-28":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-29":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":4.4,"6":0.2,"7":0.3},"2026-07-30":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-31":{"1":3.2,"2":9.9,"3":0.3,"4":3.2,"5":0.0,"6":0.3,"7":0.0},"2026-08-01":{"1":1.7,"2":4.9,"3":0.6,"4":0.6,"5":0.9,"6":0.2,"7":0.0},"2026-08-02":{"1":4.3,"2":6.2,"3":2.0,"4":0.5,"5":0.0,"6":0.0,"7":0.5},"2026-08-03":{"1":0.0,"2":0.0,"3":0.0,"4":0.1,"5":0.6,"6":1.4,"7":3.8},"2026-08-04":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":3.0,"6":8.9,"7":0.7},"2026-08-05":{"1":1.8,"2":8.3,"3":2.4,"4":1.8,"5":1.8,"6":0.6,"7":0.3},"2026-08-06":{"1":13.1,"2":4.8,"3":9.2,"4":74.4,"5":10.3,"6":8.4,"7":1.8},"2026-08-07":{"1":0.1,"2":0.9,"3":19.1,"4":2.7,"5":0.4,"6":5.9,"7":2.2},"2026-08-08":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":1.8,"7":0.0},"2026-08-09":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":13.8},"2026-08-10":{"1":0.2,"2":1.2,"3":0.3,"4":0.4,"5":0.0,"6":0.0,"7":1.7},"2026-08-11":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":2.6,"7":3.4},"2026-08-12":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.1,"6":0.3,"7":0.6},"2026-08-13":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.1,"7":0.8},"2026-08-14":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":1.0},"2026-08-15":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-16":{"1":6.6,"2":2.4,"3":1.7,"4":0.0,"5":0.0,"6":8.8,"7":0.0},"2026-08-17":{"1":8.5,"2":15.8,"3":5.0,"4":4.0,"5":10.6,"6":2.7,"7":14.7},"2026-08-18":{"1":12.3,"2":7.9,"3":19.5,"4":1.1,"5":4.0,"6":2.0,"7":2.1},"2026-08-19":{"1":1.0,"2":0.9,"3":1.1,"4":1.8,"5":0.0,"6":0.0,"7":1.2},"2026-08-20":{"1":6.0,"2":2.2,"3":4.8,"4":9.2,"5":9.0,"6":4.4,"7":0.0},"2026-08-21":{"1":19.5,"2":15.9,"3":29.2,"4":49.1,"5":2.7,"6":1.3,"7":2.5},"2026-08-22":{"1":0.0,"2":0.2,"3":0.0,"4":12.1,"5":3.0,"6":0.0,"7":8.3},"2026-08-23":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":2.8,"7":0.0},"2026-08-24":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":1.3,"7":2.0},"2026-08-25":{"1":5.2,"2":3.5,"3":2.6,"4":0.2,"5":0.0,"6":2.0,"7":2.2},"2026-08-26":{"1":0.1,"2":0.1,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.8},"2026-08-27":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":2.4,"6":7.3,"7":0.0},"2026-08-28":{"1":6.3,"2":3.7,"3":10.3,"4":7.3,"5":1.9,"6":0.3,"7":11.7},"2026-08-29":{"1":9.2,"2":12.1,"3":7.5,"4":0.5,"5":9.9,"6":5.0,"7":6.9},"2026-08-30":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.7,"6":0.0,"7":1.0},"2026-08-31":{"1":9.1,"2":10.7,"3":3.1,"4":2.0,"5":1.6,"6":0.4,"7":0.7},"2026-09-01":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.1},"2026-09-02":{"1":0.2,"2":1.5,"3":0.0,"4":0.0,"5":2.8,"6":15.6,"7":7.3},"2026-09-03":{"1":0.5,"2":0.2,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.3},"2026-09-04":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":1.8,"7":16.7},"2026-09-05":{"1":5.9,"2":4.6,"3":11.5,"4":3.5,"5":17.1,"6":2.2,"7":0.0},"2026-09-06":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-09-07":{"1":0.6,"2":0.4,"3":1.2,"4":0.1,"5":3.0,"6":0.3,"7":0.0},"2026-09-08":{"1":0.9,"2":0.0,"3":4.0,"4":5.1,"5":4.2,"6":8.9,"7":0.0},"2026-09-09":{"1":18.0,"2":5.5,"3":10.7,"4":6.3,"5":35.1,"6":14.1,"7":5.9},"2026-09-10":{"1":0.2,"2":0.0,"3":0.3,"4":4.5,"5":1.4,"6":0.3,"7":0.0},"2026-09-11":{"1":0.2,"2":0.9,"3":0.0,"4":3.6,"5":0.0,"6":4.7,"7":0.6},"2026-09-12":{"1":0.0,"2":0.0,"3":0.0,"4":1.1,"5":1.3,"6":0.0,"7":2.0},"2026-09-13":{"1":1.1,"2":0.0,"3":0.3,"4":0.0,"5":0.5,"6":0.1,"7":0.0}}},"ecmwf":{"modell":"ecmwf","quelle":"open-meteo Previous-Runs-API, Hauptlauf, stündliche Werte zu Tagessummen 00–24 Uhr Ortszeit","leads":[1,2,3,4,5,6,7],"stand":"2026-09-14","tage":{"2026-06-14":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.3,"6":0.0,"7":0.0},"2026-06-15":{"1":0.0,"2":0.6,"3":0.0,"4":0.6,"5":0.3,"6":0.0,"7":0.0},"2026-06-16":{"1":1.2,"2":0.6,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-17":{"1":0.3,"2":2.4,"3":0.6,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-18":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-19":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-20":{"1":1.5,"2":0.9,"3":0.9,"4":0.6,"5":0.6,"6":2.4,"7":1.2},"2026-06-21":{"1":0.6,"2":0.6,"3":2.1,"4":1.5,"5":0.0,"6":0.0,"7":0.0},"2026-06-22":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-23":{"1":0.3,"2":2.1,"3":0.3,"4":0.3,"5":0.0,"6":0.3,"7":0.0},"2026-06-24":{"1":0.0,"2":0.3,"3":0.3,"4":0.0,"5":0.3,"6":0.0,"7":0.3},"2026-06-25":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-26":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-27":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-28":{"1":0.6,"2":0.3,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-29":{"1":8.4,"2":5.7,"3":4.8,"4":17.4,"5":13.5,"6":5.4,"7":3.9},"2026-06-30":{"1":3.0,"2":0.9,"3":3.0,"4":10.8,"5":10.5,"6":8.4,"7":5.7},"2026-07-01":{"1":23.4,"2":18.3,"3":30.0,"4":23.7,"5":27.9,"6":7.2,"7":9.6},"2026-07-02":{"1":1.2,"2":0.3,"3":0.9,"4":0.6,"5":3.3,"6":0.6,"7":0.9},"2026-07-03":{"1":0.3,"2":0.3,"3":1.5,"4":2.4,"5":0.6,"6":0.6,"7":0.9},"2026-07-04":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-05":{"1":5.1,"2":4.5,"3":2.4,"4":2.1,"5":1.2,"6":0.0,"7":0.0},"2026-07-06":{"1":1.8,"2":6.6,"3":0.9,"4":0.3,"5":4.8,"6":0.6,"7":0.0},"2026-07-07":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":9.6,"7":3.3},"2026-07-08":{"1":3.0,"2":1.5,"3":0.0,"4":0.0,"5":7.2,"6":11.7,"7":8.7},"2026-07-09":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-10":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-11":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":2.4,"7":3.3},"2026-07-12":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":5.1},"2026-07-13":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-14":{"1":3.9,"2":6.9,"3":0.9,"4":0.3,"5":0.3,"6":0.0,"7":0.0},"2026-07-15":{"1":0.9,"2":5.1,"3":6.6,"4":0.6,"5":0.0,"6":0.0,"7":0.6},"2026-07-16":{"1":0.9,"2":2.4,"3":0.0,"4":0.0,"5":0.6,"6":0.6,"7":3.3},"2026-07-17":{"1":4.2,"2":4.5,"3":3.9,"4":4.5,"5":6.9,"6":0.6,"7":0.6},"2026-07-18":{"1":1.8,"2":4.5,"3":3.6,"4":4.5,"5":4.5,"6":15.3,"7":9.0},"2026-07-19":{"1":6.9,"2":4.5,"3":3.0,"4":1.5,"5":0.0,"6":6.9,"7":0.6},"2026-07-20":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.3},"2026-07-21":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":1.8,"6":0.0,"7":0.3},"2026-07-22":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":2.4,"7":0.0},"2026-07-23":{"1":0.9,"2":0.3,"3":0.6,"4":0.6,"5":1.8,"6":10.2,"7":20.7},"2026-07-24":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":3.9},"2026-07-25":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":1.8},"2026-07-26":{"1":2.1,"2":1.2,"3":1.8,"4":0.6,"5":3.3,"6":9.0,"7":0.0},"2026-07-27":{"1":0.6,"2":0.9,"3":0.9,"4":2.4,"5":6.9,"6":9.9,"7":2.1},"2026-07-28":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-29":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.6,"7":0.0},"2026-07-30":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-31":{"1":0.3,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-01":{"1":5.7,"2":3.0,"3":1.2,"4":7.2,"5":0.0,"6":0.0,"7":0.0},"2026-08-02":{"1":0.0,"2":0.0,"3":0.3,"4":0.3,"5":0.3,"6":0.0,"7":0.0},"2026-08-03":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.3,"6":1.2,"7":1.8},"2026-08-04":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.6,"7":0.0},"2026-08-05":{"1":2.7,"2":1.8,"3":0.9,"4":1.2,"5":0.0,"6":0.0,"7":0.0},"2026-08-06":{"1":6.9,"2":1.2,"3":0.9,"4":10.2,"5":3.6,"6":1.2,"7":4.2},"2026-08-07":{"1":0.3,"2":0.0,"3":0.3,"4":0.9,"5":6.6,"6":0.0,"7":0.0},"2026-08-08":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":1.5,"7":3.0},"2026-08-09":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-10":{"1":0.0,"2":0.6,"3":0.9,"4":1.5,"5":0.6,"6":0.6,"7":2.1},"2026-08-11":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.3},"2026-08-12":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-13":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-14":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-15":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-16":{"1":0.6,"2":2.1,"3":2.1,"4":0.0,"5":0.9,"6":1.2,"7":0.0},"2026-08-17":{"1":16.2,"2":10.2,"3":5.7,"4":8.1,"5":4.5,"6":3.0,"7":0.6},"2026-08-18":{"1":23.4,"2":5.1,"3":0.9,"4":0.0,"5":0.3,"6":2.4,"7":0.3},"2026-08-19":{"1":3.6,"2":1.5,"3":0.0,"4":1.2,"5":0.6,"6":0.0,"7":3.3},"2026-08-20":{"1":3.9,"2":5.7,"3":7.2,"4":14.4,"5":4.2,"6":0.0,"7":0.0},"2026-08-21":{"1":22.2,"2":18.0,"3":12.9,"4":2.7,"5":18.0,"6":2.4,"7":6.9},"2026-08-22":{"1":1.8,"2":1.2,"3":0.3,"4":0.0,"5":0.9,"6":3.0,"7":2.4},"2026-08-23":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":3.0,"6":6.3,"7":0.0},"2026-08-24":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":1.2,"7":0.0},"2026-08-25":{"1":1.8,"2":0.0,"3":1.2,"4":0.0,"5":0.0,"6":1.5,"7":13.5},"2026-08-26":{"1":0.0,"2":2.4,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-27":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-28":{"1":6.0,"2":3.6,"3":5.7,"4":5.4,"5":2.1,"6":0.6,"7":5.4},"2026-08-29":{"1":1.2,"2":9.0,"3":0.6,"4":3.6,"5":1.5,"6":14.4,"7":6.6},"2026-08-30":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-31":{"1":1.2,"2":2.7,"3":2.4,"4":0.6,"5":0.6,"6":0.6,"7":0.6},"2026-09-01":{"1":0.9,"2":0.9,"3":0.6,"4":0.0,"5":0.0,"6":2.1,"7":8.4},"2026-09-02":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":5.7,"7":1.2},"2026-09-03":{"1":0.3,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-09-04":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-09-05":{"1":4.2,"2":4.5,"3":5.7,"4":0.6,"5":0.0,"6":0.0,"7":0.0},"2026-09-06":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-09-07":{"1":0.0,"2":0.9,"3":0.3,"4":0.0,"5":0.0,"6":1.5,"7":0.0},"2026-09-08":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":4.2,"6":6.6,"7":0.0},"2026-09-09":{"1":11.1,"2":3.6,"3":14.4,"4":23.4,"5":7.5,"6":3.9,"7":0.0},"2026-09-10":{"1":0.0,"2":0.0,"3":0.0,"4":2.7,"5":0.0,"6":9.6,"7":0.3},"2026-09-11":{"1":15.3,"2":7.5,"3":0.0,"4":2.1,"5":0.0,"6":0.3,"7":0.0},"2026-09-12":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.3,"7":10.5},"2026-09-13":{"1":4.8,"2":7.5,"3":0.3,"4":0.0,"5":0.0,"6":0.0,"7":0.0}}}},"forecasts":{"2026-09-14":{"lauf":"2026-09-14","abgerufen":"2026-09-14T19:56+02:00","erfasste_modelle":["ecmwf","gfs"],"ensemble_n":{"gfs":31,"ecmwf":51},"modelllaeufe":{"gfs/hl":{"lauf":"2026-09-14T06:00Z","verfuegbar_seit":"2026-09-14T12:58Z"},"gfs/ens":{"lauf":"2026-09-14T06:00Z","verfuegbar_seit":"2026-09-14T12:08Z"},"ecmwf/hl":{"lauf":"2026-09-14T06:00Z","verfuegbar_seit":"2026-09-14T13:11Z"},"ecmwf/ens":{"lauf":"2026-09-14T06:00Z","verfuegbar_seit":"2026-09-14T15:30Z"}},"lauf_wie_erwartet":false,"laufhinweise":["gfs hl: 14.09. 06Z statt 14.09. 00Z","gfs ens: 14.09. 06Z statt 14.09. 00Z","ecmwf hl: 14.09. 06Z statt 14.09. 00Z","ecmwf ens: 14.09. 06Z statt 14.09. 00Z"],"leads":[{"lead":1,"ziel":"2026-09-15","gfs":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.0,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.0,"p_ueber5":0.0}},{"lead":2,"ziel":"2026-09-16","gfs":{"hl":22.1,"ens":5.07,"p10":0.8,"p90":9.1,"min":0.5,"max":12.8,"p_ueber5":0.452},"ecmwf":{"hl":13.0,"ens":8.21,"p10":3.6,"p90":14.5,"min":1.4,"max":17.1,"p_ueber5":0.765}},{"lead":3,"ziel":"2026-09-17","gfs":{"hl":13.7,"ens":11.13,"p10":1.9,"p90":21.6,"min":0.8,"max":30.0,"p_ueber5":0.742},"ecmwf":{"hl":19.3,"ens":14.08,"p10":5.1,"p90":23.9,"min":0.2,"max":26.3,"p_ueber5":0.941}},{"lead":4,"ziel":"2026-09-18","gfs":{"hl":0.9,"ens":0.88,"p10":0.0,"p90":2.2,"min":0.0,"max":6.8,"p_ueber5":0.032},"ecmwf":{"hl":0.3,"ens":1.45,"p10":0.0,"p90":4.2,"min":0.0,"max":14.1,"p_ueber5":0.098}},{"lead":5,"ziel":"2026-09-19","gfs":{"hl":0.0,"ens":0.6,"p10":0.0,"p90":1.0,"min":0.0,"max":8.5,"p_ueber5":0.065},"ecmwf":{"hl":0.0,"ens":0.35,"p10":0.0,"p90":0.7,"min":0.0,"max":6.2,"p_ueber5":0.02}},{"lead":6,"ziel":"2026-09-20","gfs":{"hl":0.0,"ens":0.39,"p10":0.0,"p90":1.4,"min":0.0,"max":4.1,"p_ueber5":0.0},"ecmwf":{"hl":0.4,"ens":0.93,"p10":0.0,"p90":2.8,"min":0.0,"max":9.8,"p_ueber5":0.059}},{"lead":7,"ziel":"2026-09-21","gfs":{"hl":0.0,"ens":0.64,"p10":0.0,"p90":1.1,"min":0.0,"max":8.2,"p_ueber5":0.032},"ecmwf":{"hl":0.4,"ens":1.47,"p10":0.0,"p90":3.2,"min":0.0,"max":17.4,"p_ueber5":0.059}},{"lead":8,"ziel":"2026-09-22","gfs":{"hl":0.0,"ens":0.22,"p10":0.0,"p90":0.3,"min":0.0,"max":5.2,"p_ueber5":0.032},"ecmwf":{"hl":3.4,"ens":1.82,"p10":0.0,"p90":6.0,"min":0.0,"max":14.6,"p_ueber5":0.157}},{"lead":9,"ziel":"2026-09-23","gfs":{"hl":0.0,"ens":0.45,"p10":0.0,"p90":2.0,"min":0.0,"max":4.6,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":1.8,"p10":0.0,"p90":5.2,"min":0.0,"max":28.6,"p_ueber5":0.137}},{"lead":10,"ziel":"2026-09-24","gfs":{"hl":0.0,"ens":null,"p10":null,"p90":null,"min":null,"max":null,"p_ueber5":null},"ecmwf":{"hl":0.0,"ens":1.93,"p10":0.0,"p90":4.2,"min":0.0,"max":55.4,"p_ueber5":0.039}}]},"2026-09-15":{"lauf":"2026-09-15","abgerufen":"2026-09-15T13:56+02:00","erfasste_modelle":["ecmwf","gfs"],"ensemble_n":{"gfs":31,"ecmwf":51},"modelllaeufe":{"gfs/hl":{"lauf":"2026-09-15T00:00Z","verfuegbar_seit":"2026-09-15T05:55Z"},"gfs/ens":{"lauf":"2026-09-15T00:00Z","verfuegbar_seit":"2026-09-15T05:45Z"},"ecmwf/hl":{"lauf":"2026-09-15T00:00Z","verfuegbar_seit":"2026-09-15T07:44Z"},"ecmwf/ens":{"lauf":"2026-09-14T18:00Z","verfuegbar_seit":"2026-09-15T03:19Z"}},"lauf_wie_erwartet":false,"laufhinweise":["ecmwf ens: 14.09. 18Z statt 15.09. 00Z"],"leads":[{"lead":1,"ziel":"2026-09-16","gfs":{"hl":20.1,"ens":6.98,"p10":2.1,"p90":12.5,"min":0.7,"max":15.1,"p_ueber5":0.71},"ecmwf":{"hl":4.6,"ens":6.38,"p10":3.3,"p90":9.9,"min":2.0,"max":13.5,"p_ueber5":0.667}},{"lead":2,"ziel":"2026-09-17","gfs":{"hl":4.7,"ens":9.66,"p10":1.5,"p90":18.9,"min":0.6,"max":22.3,"p_ueber5":0.677},"ecmwf":{"hl":1.9,"ens":7.99,"p10":1.0,"p90":15.6,"min":0.3,"max":23.0,"p_ueber5":0.588}},{"lead":3,"ziel":"2026-09-18","gfs":{"hl":0.0,"ens":0.58,"p10":0.0,"p90":0.7,"min":0.0,"max":11.0,"p_ueber5":0.032},"ecmwf":{"hl":0.4,"ens":0.84,"p10":0.0,"p90":2.7,"min":0.0,"max":11.9,"p_ueber5":0.039}},{"lead":4,"ziel":"2026-09-19","gfs":{"hl":0.0,"ens":0.06,"p10":0.0,"p90":0.3,"min":0.0,"max":0.7,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.09,"p10":0.0,"p90":0.0,"min":0.0,"max":3.4,"p_ueber5":0.0}},{"lead":5,"ziel":"2026-09-20","gfs":{"hl":0.3,"ens":1.29,"p10":0.0,"p90":1.5,"min":0.0,"max":23.0,"p_ueber5":0.065},"ecmwf":{"hl":0.0,"ens":1.37,"p10":0.0,"p90":5.4,"min":0.0,"max":9.8,"p_ueber5":0.118}},{"lead":6,"ziel":"2026-09-21","gfs":{"hl":0.9,"ens":1.07,"p10":0.0,"p90":3.3,"min":0.0,"max":12.8,"p_ueber5":0.065},"ecmwf":{"hl":2.2,"ens":2.23,"p10":0.0,"p90":6.0,"min":0.0,"max":11.6,"p_ueber5":0.176}},{"lead":7,"ziel":"2026-09-22","gfs":{"hl":1.8,"ens":1.86,"p10":0.0,"p90":5.5,"min":0.0,"max":18.8,"p_ueber5":0.129},"ecmwf":{"hl":0.0,"ens":2.32,"p10":0.0,"p90":6.0,"min":0.0,"max":17.2,"p_ueber5":0.176}},{"lead":8,"ziel":"2026-09-23","gfs":{"hl":0.0,"ens":2.56,"p10":0.0,"p90":6.4,"min":0.0,"max":47.0,"p_ueber5":0.129},"ecmwf":{"hl":0.4,"ens":1.34,"p10":0.0,"p90":3.0,"min":0.0,"max":20.6,"p_ueber5":0.059}},{"lead":9,"ziel":"2026-09-24","gfs":{"hl":0.0,"ens":1.28,"p10":0.0,"p90":4.3,"min":0.0,"max":14.8,"p_ueber5":0.097},"ecmwf":{"hl":0.0,"ens":0.73,"p10":0.0,"p90":2.4,"min":0.0,"max":10.2,"p_ueber5":0.039}},{"lead":10,"ziel":"2026-09-25","gfs":{"hl":7.5,"ens":null,"p10":null,"p90":null,"min":null,"max":null,"p_ueber5":null},"ecmwf":{"hl":0.0,"ens":2.78,"p10":0.0,"p90":9.4,"min":0.0,"max":28.4,"p_ueber5":0.196}}]},"2026-09-16":{"lauf":"2026-09-16","abgerufen":"2026-09-16T13:57+02:00","erfasste_modelle":["ecmwf","gfs"],"ensemble_n":{"gfs":31,"ecmwf":51},"modelllaeufe":{"gfs/hl":{"lauf":"2026-09-16T00:00Z","verfuegbar_seit":"2026-09-16T06:39Z"},"gfs/ens":{"lauf":"2026-09-16T00:00Z","verfuegbar_seit":"2026-09-16T05:51Z"},"ecmwf/hl":{"lauf":"2026-09-16T00:00Z","verfuegbar_seit":"2026-09-16T07:45Z"},"ecmwf/ens":{"lauf":"2026-09-16T00:00Z","verfuegbar_seit":"2026-09-16T11:28Z"}},"lauf_wie_erwartet":true,"laufhinweise":[],"leads":[{"lead":1,"ziel":"2026-09-17","gfs":{"hl":5.2,"ens":11.47,"p10":4.6,"p90":19.1,"min":2.6,"max":24.5,"p_ueber5":0.871},"ecmwf":{"hl":0.9,"ens":4.84,"p10":0.9,"p90":10.7,"min":0.4,"max":13.5,"p_ueber5":0.392}},{"lead":2,"ziel":"2026-09-18","gfs":{"hl":0.0,"ens":0.22,"p10":0.0,"p90":0.5,"min":0.0,"max":3.3,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.52,"p10":0.0,"p90":1.9,"min":0.0,"max":5.5,"p_ueber5":0.02}},{"lead":3,"ziel":"2026-09-19","gfs":{"hl":0.0,"ens":0.01,"p10":0.0,"p90":0.0,"min":0.0,"max":0.1,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.01,"p10":0.0,"p90":0.0,"min":0.0,"max":0.1,"p_ueber5":0.0}},{"lead":4,"ziel":"2026-09-20","gfs":{"hl":0.0,"ens":0.35,"p10":0.0,"p90":1.1,"min":0.0,"max":5.9,"p_ueber5":0.032},"ecmwf":{"hl":0.0,"ens":0.72,"p10":0.0,"p90":2.3,"min":0.0,"max":6.8,"p_ueber5":0.02}},{"lead":5,"ziel":"2026-09-21","gfs":{"hl":0.3,"ens":0.98,"p10":0.0,"p90":2.9,"min":0.0,"max":7.0,"p_ueber5":0.032},"ecmwf":{"hl":4.4,"ens":2.6,"p10":0.2,"p90":5.8,"min":0.0,"max":11.3,"p_ueber5":0.118}},{"lead":6,"ziel":"2026-09-22","gfs":{"hl":0.0,"ens":0.92,"p10":0.0,"p90":1.8,"min":0.0,"max":9.6,"p_ueber5":0.065},"ecmwf":{"hl":2.7,"ens":1.88,"p10":0.0,"p90":5.8,"min":0.0,"max":13.8,"p_ueber5":0.137}},{"lead":7,"ziel":"2026-09-23","gfs":{"hl":0.0,"ens":0.61,"p10":0.0,"p90":0.3,"min":0.0,"max":11.5,"p_ueber5":0.065},"ecmwf":{"hl":0.0,"ens":0.78,"p10":0.0,"p90":2.2,"min":0.0,"max":11.6,"p_ueber5":0.039}},{"lead":8,"ziel":"2026-09-24","gfs":{"hl":0.0,"ens":0.42,"p10":0.0,"p90":1.3,"min":0.0,"max":4.6,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.49,"p10":0.0,"p90":1.0,"min":0.0,"max":8.0,"p_ueber5":0.02}},{"lead":9,"ziel":"2026-09-25","gfs":{"hl":0.0,"ens":0.57,"p10":0.0,"p90":1.5,"min":0.0,"max":6.1,"p_ueber5":0.065},"ecmwf":{"hl":0.0,"ens":0.64,"p10":0.0,"p90":0.6,"min":0.0,"max":12.4,"p_ueber5":0.039}},{"lead":10,"ziel":"2026-09-26","gfs":{"hl":0.0,"ens":null,"p10":null,"p90":null,"min":null,"max":null,"p_ueber5":null},"ecmwf":{"hl":0.0,"ens":0.48,"p10":0.0,"p90":1.0,"min":0.0,"max":8.0,"p_ueber5":0.059}}]},"2026-09-17":{"lauf":"2026-09-17","abgerufen":"2026-09-17T13:56+02:00","erfasste_modelle":["ecmwf","gfs"],"ensemble_n":{"gfs":31,"ecmwf":51},"modelllaeufe":{"gfs/hl":{"lauf":"2026-09-17T00:00Z","verfuegbar_seit":"2026-09-17T06:26Z"},"gfs/ens":{"lauf":"2026-09-17T00:00Z","verfuegbar_seit":"2026-09-17T05:41Z"},"ecmwf/hl":{"lauf":"2026-09-17T00:00Z","verfuegbar_seit":"2026-09-17T07:47Z"},"ecmwf/ens":{"lauf":"2026-09-17T00:00Z","verfuegbar_seit":"2026-09-17T11:53Z"}},"lauf_wie_erwartet":true,"laufhinweise":[],"leads":[{"lead":1,"ziel":"2026-09-18","gfs":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.1,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.1,"p_ueber5":0.0}},{"lead":2,"ziel":"2026-09-19","gfs":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.0,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.0,"p_ueber5":0.0}},{"lead":3,"ziel":"2026-09-20","gfs":{"hl":0.0,"ens":0.01,"p10":0.0,"p90":0.0,"min":0.0,"max":0.2,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.2,"p_ueber5":0.0}},{"lead":4,"ziel":"2026-09-21","gfs":{"hl":0.6,"ens":1.15,"p10":0.0,"p90":2.9,"min":0.0,"max":9.6,"p_ueber5":0.032},"ecmwf":{"hl":1.2,"ens":1.64,"p10":0.0,"p90":4.7,"min":0.0,"max":7.6,"p_ueber5":0.078}},{"lead":5,"ziel":"2026-09-22","gfs":{"hl":0.0,"ens":0.31,"p10":0.0,"p90":0.9,"min":0.0,"max":4.0,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.35,"p10":0.0,"p90":0.7,"min":0.0,"max":7.0,"p_ueber5":0.02}},{"lead":6,"ziel":"2026-09-23","gfs":{"hl":0.0,"ens":0.02,"p10":0.0,"p90":0.0,"min":0.0,"max":0.5,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.27,"p10":0.0,"p90":0.2,"min":0.0,"max":7.9,"p_ueber5":0.02}},{"lead":7,"ziel":"2026-09-24","gfs":{"hl":0.0,"ens":0.11,"p10":0.0,"p90":0.2,"min":0.0,"max":1.8,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.56,"p10":0.0,"p90":0.0,"min":0.0,"max":26.2,"p_ueber5":0.02}},{"lead":8,"ziel":"2026-09-25","gfs":{"hl":0.0,"ens":0.21,"p10":0.0,"p90":0.2,"min":0.0,"max":2.5,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":1.22,"p10":0.0,"p90":1.0,"min":0.0,"max":37.8,"p_ueber5":0.039}},{"lead":9,"ziel":"2026-09-26","gfs":{"hl":0.0,"ens":0.37,"p10":0.0,"p90":0.1,"min":0.0,"max":8.9,"p_ueber5":0.032},"ecmwf":{"hl":0.0,"ens":0.62,"p10":0.0,"p90":1.8,"min":0.0,"max":8.4,"p_ueber5":0.039}},{"lead":10,"ziel":"2026-09-27","gfs":{"hl":0.0,"ens":null,"p10":null,"p90":null,"min":null,"max":null,"p_ueber5":null},"ecmwf":{"hl":0.0,"ens":0.53,"p10":0.0,"p90":0.6,"min":0.0,"max":19.6,"p_ueber5":0.02}}]},"2026-09-18":{"lauf":"2026-09-18","abgerufen":"2026-09-18T13:56+02:00","erfasste_modelle":["ecmwf","gfs"],"ensemble_n":{"gfs":31,"ecmwf":51},"modelllaeufe":{"gfs/hl":{"lauf":"2026-09-18T00:00Z","verfuegbar_seit":"2026-09-18T06:32Z"},"gfs/ens":{"lauf":"2026-09-18T00:00Z","verfuegbar_seit":"2026-09-18T05:44Z"},"ecmwf/hl":{"lauf":"2026-09-18T00:00Z","verfuegbar_seit":"2026-09-18T07:43Z"},"ecmwf/ens":{"lauf":"2026-09-18T00:00Z","verfuegbar_seit":"2026-09-18T11:30Z"}},"lauf_wie_erwartet":true,"laufhinweise":[],"leads":[{"lead":1,"ziel":"2026-09-19","gfs":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.0,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.0,"p_ueber5":0.0}},{"lead":2,"ziel":"2026-09-20","gfs":{"hl":0.0,"ens":0.01,"p10":0.0,"p90":0.0,"min":0.0,"max":0.3,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.03,"p10":0.0,"p90":0.1,"min":0.0,"max":0.4,"p_ueber5":0.0}},{"lead":3,"ziel":"2026-09-21","gfs":{"hl":1.0,"ens":0.64,"p10":0.0,"p90":1.5,"min":0.0,"max":4.1,"p_ueber5":0.0},"ecmwf":{"hl":0.1,"ens":1.16,"p10":0.0,"p90":2.6,"min":0.0,"max":8.6,"p_ueber5":0.039}},{"lead":4,"ziel":"2026-09-22","gfs":{"hl":0.0,"ens":0.06,"p10":0.0,"p90":0.1,"min":0.0,"max":0.6,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.4,"p10":0.0,"p90":0.6,"min":0.0,"max":7.0,"p_ueber5":0.039}},{"lead":5,"ziel":"2026-09-23","gfs":{"hl":0.0,"ens":0.06,"p10":0.0,"p90":0.1,"min":0.0,"max":1.6,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.14,"p10":0.0,"p90":0.2,"min":0.0,"max":3.1,"p_ueber5":0.0}},{"lead":6,"ziel":"2026-09-24","gfs":{"hl":0.0,"ens":0.36,"p10":0.0,"p90":1.3,"min":0.0,"max":2.8,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.93,"p10":0.0,"p90":3.2,"min":0.0,"max":8.2,"p_ueber5":0.039}},{"lead":7,"ziel":"2026-09-25","gfs":{"hl":0.0,"ens":0.78,"p10":0.0,"p90":2.5,"min":0.0,"max":10.1,"p_ueber5":0.065},"ecmwf":{"hl":0.0,"ens":0.35,"p10":0.0,"p90":0.8,"min":0.0,"max":7.2,"p_ueber5":0.02}},{"lead":8,"ziel":"2026-09-26","gfs":{"hl":0.0,"ens":0.2,"p10":0.0,"p90":1.1,"min":0.0,"max":2.5,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.02,"p10":0.0,"p90":0.0,"min":0.0,"max":0.8,"p_ueber5":0.0}},{"lead":9,"ziel":"2026-09-27","gfs":{"hl":0.0,"ens":0.12,"p10":0.0,"p90":0.0,"min":0.0,"max":3.0,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.09,"p10":0.0,"p90":0.0,"min":0.0,"max":3.0,"p_ueber5":0.0}},{"lead":10,"ziel":"2026-09-28","gfs":{"hl":0.0,"ens":null,"p10":null,"p90":null,"min":null,"max":null,"p_ueber5":null},"ecmwf":{"hl":0.0,"ens":0.54,"p10":0.0,"p90":1.6,"min":0.0,"max":7.2,"p_ueber5":0.039}}]}},"gebaut":"2026-09-18T11:56Z"};
+const DATEN = {"messungen":{"2026-01-01":0.0,"2026-01-02":0.5,"2026-01-03":0.0,"2026-01-04":0.0,"2026-01-05":0.0,"2026-01-06":0.0,"2026-01-07":0.0,"2026-01-08":1.1,"2026-01-09":8.5,"2026-01-10":1.8,"2026-01-11":0.7,"2026-01-12":7.7,"2026-01-13":0.0,"2026-01-14":0.0,"2026-01-15":0.0,"2026-01-16":0.0,"2026-01-17":0.0,"2026-01-18":0.0,"2026-01-19":0.0,"2026-01-20":0.0,"2026-01-21":0.0,"2026-01-22":0.0,"2026-01-23":0.0,"2026-01-24":0.0,"2026-01-25":0.3,"2026-01-26":0.3,"2026-01-27":0.0,"2026-01-28":0.0,"2026-01-29":5.1,"2026-01-30":0.0,"2026-01-31":0.0,"2026-02-01":0.0,"2026-02-02":0.0,"2026-02-03":0.0,"2026-02-04":0.0,"2026-02-05":0.2,"2026-02-06":0.4,"2026-02-07":0.1,"2026-02-08":0.0,"2026-02-09":0.0,"2026-02-10":0.0,"2026-02-11":4.7,"2026-02-12":3.6,"2026-02-13":1.8,"2026-02-14":7.8,"2026-02-15":0.9,"2026-02-16":9.0,"2026-02-17":4.0,"2026-02-18":0.0,"2026-02-19":11.0,"2026-02-20":3.0,"2026-02-21":5.9,"2026-02-22":2.3,"2026-02-23":2.1,"2026-02-24":11.2,"2026-02-25":0.2,"2026-02-26":0.3,"2026-02-27":0.0,"2026-02-28":0.0,"2026-03-01":3.7,"2026-03-02":0.0,"2026-03-03":0.0,"2026-03-04":0.0,"2026-03-05":0.0,"2026-03-06":0.0,"2026-03-07":0.0,"2026-03-08":0.0,"2026-03-09":0.0,"2026-03-10":0.0,"2026-03-11":0.8,"2026-03-12":7.9,"2026-03-13":0.0,"2026-03-14":0.5,"2026-03-15":0.1,"2026-03-16":2.4,"2026-03-17":0.0,"2026-03-18":0.0,"2026-03-19":0.0,"2026-03-20":0.0,"2026-03-21":0.0,"2026-03-22":0.0,"2026-03-23":0.0,"2026-03-24":0.0,"2026-03-25":0.9,"2026-03-26":1.7,"2026-03-27":0.0,"2026-03-28":0.0,"2026-03-30":1.3,"2026-03-31":0.2,"2026-04-01":0.0,"2026-04-02":0.0,"2026-04-03":0.0,"2026-04-04":2.3,"2026-04-05":0.2,"2026-04-06":0.2,"2026-04-07":0.0,"2026-04-08":0.0,"2026-04-09":0.0,"2026-04-10":8.6,"2026-04-11":0.0,"2026-04-12":0.0,"2026-04-13":0.0,"2026-04-14":0.5,"2026-04-15":0.1,"2026-04-16":0.0,"2026-04-17":0.0,"2026-04-18":0.0,"2026-04-19":0.6,"2026-04-20":0.0,"2026-04-21":0.0,"2026-04-22":0.0,"2026-04-23":0.0,"2026-04-24":0.0,"2026-04-25":0.0,"2026-04-26":0.0,"2026-04-27":0.0,"2026-04-28":0.0,"2026-04-29":0.0,"2026-04-30":0.0,"2026-05-01":0.0,"2026-05-02":0.0,"2026-05-03":0.0,"2026-05-04":0.0,"2026-05-05":0.1,"2026-05-06":17.9,"2026-05-07":0.0,"2026-05-08":0.0,"2026-05-09":0.0,"2026-05-10":0.0,"2026-05-11":9.0,"2026-05-12":2.4,"2026-05-13":0.0,"2026-05-14":1.1,"2026-05-15":5.8,"2026-05-16":1.2,"2026-05-17":0.0,"2026-05-18":0.0,"2026-05-19":0.7,"2026-05-20":2.6,"2026-05-21":0.0,"2026-05-22":0.0,"2026-05-23":0.0,"2026-05-24":0.0,"2026-05-25":0.0,"2026-05-26":0.0,"2026-05-27":0.0,"2026-05-28":0.0,"2026-05-29":0.0,"2026-05-30":1.9,"2026-05-31":5.7,"2026-06-01":2.1,"2026-06-02":9.3,"2026-06-03":1.9,"2026-06-04":0.0,"2026-06-05":7.6,"2026-06-06":0.1,"2026-06-07":0.2,"2026-06-08":0.0,"2026-06-09":12.6,"2026-06-10":13.4,"2026-06-11":5.5,"2026-06-12":5.8,"2026-06-13":0.6,"2026-06-14":0.0,"2026-06-15":0.0,"2026-06-16":0.0,"2026-06-17":0.8,"2026-06-18":0.0,"2026-06-19":0.0,"2026-06-20":0.0,"2026-06-21":0.0,"2026-06-22":0.0,"2026-06-23":0.8,"2026-06-24":0.0,"2026-06-25":0.0,"2026-06-26":0.0,"2026-06-27":0.0,"2026-06-28":0.0,"2026-06-29":21.5,"2026-06-30":8.3,"2026-07-01":26.5,"2026-07-02":0.3,"2026-07-03":0.0,"2026-07-04":0.0,"2026-07-05":7.6,"2026-07-06":1.0,"2026-07-07":0.4,"2026-07-08":0.6,"2026-07-09":0.0,"2026-07-10":0.0,"2026-07-11":0.0,"2026-07-12":0.0,"2026-07-13":0.0,"2026-07-14":1.0,"2026-07-15":0.0,"2026-07-16":0.0,"2026-07-17":1.1,"2026-07-18":0.1,"2026-07-19":10.6,"2026-07-20":0.0,"2026-07-21":0.0,"2026-07-22":0.0,"2026-07-23":0.0,"2026-07-24":0.0,"2026-07-25":0.0,"2026-07-26":0.0,"2026-07-27":0.0,"2026-07-28":0.0,"2026-07-29":0.0,"2026-07-30":0.0,"2026-07-31":4.6,"2026-08-01":1.6,"2026-08-02":0.0,"2026-08-03":0.0,"2026-08-04":0.0,"2026-08-05":1.4,"2026-08-06":1.2,"2026-08-07":0.0,"2026-08-08":0.0,"2026-08-09":0.0,"2026-08-10":0.0,"2026-08-11":0.0,"2026-08-12":0.0,"2026-08-13":0.0,"2026-08-14":0.0,"2026-08-15":0.0,"2026-08-16":0.0,"2026-08-17":30.3,"2026-08-18":12.9,"2026-08-19":1.0,"2026-08-20":0.2,"2026-08-21":14.2,"2026-08-22":1.0,"2026-08-23":0.0,"2026-08-24":0.0,"2026-08-25":1.0,"2026-08-26":1.4,"2026-08-27":0.0,"2026-08-28":10.1,"2026-08-29":2.5,"2026-08-30":0.0,"2026-08-31":0.2,"2026-09-01":0.0,"2026-09-02":0.0,"2026-09-03":0.0,"2026-09-04":0.1,"2026-09-06":0.0,"2026-09-07":0.0,"2026-09-08":0.0,"2026-09-09":6.0,"2026-09-10":0.0,"2026-09-11":5.6,"2026-09-12":0.0,"2026-09-13":6.1,"2026-09-14":3.9,"2026-09-15":0.0,"2026-09-16":20.3},"history":{"gfs":{"modell":"gfs","quelle":"open-meteo Previous-Runs-API, Hauptlauf, stündliche Werte zu Tagessummen 00–24 Uhr Ortszeit","leads":[1,2,3,4,5,6,7],"stand":"2026-09-18","tage":{"2026-06-18":{"1":2.3,"2":0.1,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-19":{"1":0.0,"2":0.0,"3":0.0,"4":0.1,"5":0.0,"6":0.4,"7":1.5},"2026-06-20":{"1":0.1,"2":0.8,"3":0.6,"4":0.6,"5":0.0,"6":0.1,"7":0.2},"2026-06-21":{"1":0.9,"2":0.8,"3":0.6,"4":0.0,"5":1.1,"6":1.9,"7":0.0},"2026-06-22":{"1":1.5,"2":0.1,"3":0.3,"4":0.8,"5":2.9,"6":0.0,"7":0.8},"2026-06-23":{"1":0.6,"2":0.6,"3":2.1,"4":4.2,"5":3.9,"6":1.1,"7":1.9},"2026-06-24":{"1":0.0,"2":0.0,"3":1.8,"4":0.9,"5":0.0,"6":0.0,"7":0.0},"2026-06-25":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-26":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-27":{"1":0.0,"2":0.0,"3":0.0,"4":0.6,"5":0.0,"6":0.0,"7":0.0},"2026-06-28":{"1":0.5,"2":0.7,"3":0.8,"4":3.7,"5":3.1,"6":0.3,"7":0.1},"2026-06-29":{"1":9.0,"2":11.0,"3":26.5,"4":7.9,"5":5.5,"6":2.6,"7":1.0},"2026-06-30":{"1":8.1,"2":0.0,"3":5.3,"4":4.5,"5":5.0,"6":4.3,"7":1.5},"2026-07-01":{"1":14.8,"2":20.2,"3":12.2,"4":17.0,"5":3.4,"6":0.2,"7":0.1},"2026-07-02":{"1":0.0,"2":0.0,"3":0.3,"4":0.0,"5":0.9,"6":0.0,"7":0.2},"2026-07-03":{"1":2.3,"2":0.6,"3":1.1,"4":0.2,"5":1.5,"6":1.0,"7":0.0},"2026-07-04":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-05":{"1":6.9,"2":5.9,"3":3.7,"4":0.2,"5":0.7,"6":0.0,"7":0.0},"2026-07-06":{"1":2.0,"2":2.7,"3":1.5,"4":4.7,"5":0.0,"6":0.0,"7":0.2},"2026-07-07":{"1":0.0,"2":0.0,"3":0.2,"4":0.0,"5":0.1,"6":0.3,"7":0.0},"2026-07-08":{"1":3.1,"2":4.4,"3":0.2,"4":0.3,"5":0.7,"6":0.5,"7":0.0},"2026-07-09":{"1":0.1,"2":0.1,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-10":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-11":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.5},"2026-07-12":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.2},"2026-07-13":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":1.2},"2026-07-14":{"1":1.5,"2":1.6,"3":0.0,"4":0.1,"5":0.0,"6":0.0,"7":0.2},"2026-07-15":{"1":7.3,"2":4.7,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.2},"2026-07-16":{"1":0.6,"2":0.3,"3":0.5,"4":0.0,"5":0.0,"6":0.0,"7":0.8},"2026-07-17":{"1":2.2,"2":1.3,"3":8.6,"4":3.2,"5":5.6,"6":0.0,"7":2.7},"2026-07-18":{"1":2.7,"2":3.1,"3":13.7,"4":1.6,"5":2.2,"6":0.1,"7":0.4},"2026-07-19":{"1":5.2,"2":5.0,"3":3.2,"4":6.6,"5":1.0,"6":0.0,"7":0.0},"2026-07-20":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.5,"6":0.0,"7":0.1},"2026-07-21":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.1,"6":3.3,"7":0.0},"2026-07-22":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.4},"2026-07-23":{"1":0.8,"2":0.0,"3":1.1,"4":2.5,"5":12.1,"6":11.8,"7":0.6},"2026-07-24":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.4,"6":2.5,"7":10.4},"2026-07-25":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-26":{"1":1.8,"2":2.6,"3":6.5,"4":1.9,"5":6.2,"6":7.7,"7":1.2},"2026-07-27":{"1":1.6,"2":1.9,"3":2.2,"4":5.0,"5":2.8,"6":6.5,"7":1.8},"2026-07-28":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-29":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":4.4,"6":0.2,"7":0.3},"2026-07-30":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-31":{"1":3.2,"2":9.9,"3":0.3,"4":3.2,"5":0.0,"6":0.3,"7":0.0},"2026-08-01":{"1":1.7,"2":4.9,"3":0.6,"4":0.6,"5":0.9,"6":0.2,"7":0.0},"2026-08-02":{"1":4.3,"2":6.2,"3":2.0,"4":0.5,"5":0.0,"6":0.0,"7":0.5},"2026-08-03":{"1":0.0,"2":0.0,"3":0.0,"4":0.1,"5":0.6,"6":1.4,"7":3.8},"2026-08-04":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":3.0,"6":8.9,"7":0.7},"2026-08-05":{"1":1.8,"2":8.3,"3":2.4,"4":1.8,"5":1.8,"6":0.6,"7":0.3},"2026-08-06":{"1":13.1,"2":4.8,"3":9.2,"4":74.4,"5":10.3,"6":8.4,"7":1.8},"2026-08-07":{"1":0.1,"2":0.9,"3":19.1,"4":2.7,"5":0.4,"6":5.9,"7":2.2},"2026-08-08":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":1.8,"7":0.0},"2026-08-09":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":13.8},"2026-08-10":{"1":0.2,"2":1.2,"3":0.3,"4":0.4,"5":0.0,"6":0.0,"7":1.7},"2026-08-11":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":2.6,"7":3.4},"2026-08-12":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.1,"6":0.3,"7":0.6},"2026-08-13":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.1,"7":0.8},"2026-08-14":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":1.0},"2026-08-15":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-16":{"1":6.6,"2":2.4,"3":1.7,"4":0.0,"5":0.0,"6":8.8,"7":0.0},"2026-08-17":{"1":8.5,"2":15.8,"3":5.0,"4":4.0,"5":10.6,"6":2.7,"7":14.7},"2026-08-18":{"1":12.3,"2":7.9,"3":19.5,"4":1.1,"5":4.0,"6":2.0,"7":2.1},"2026-08-19":{"1":1.0,"2":0.9,"3":1.1,"4":1.8,"5":0.0,"6":0.0,"7":1.2},"2026-08-20":{"1":6.0,"2":2.2,"3":4.8,"4":9.2,"5":9.0,"6":4.4,"7":0.0},"2026-08-21":{"1":19.5,"2":15.9,"3":29.2,"4":49.1,"5":2.7,"6":1.3,"7":2.5},"2026-08-22":{"1":0.0,"2":0.2,"3":0.0,"4":12.1,"5":3.0,"6":0.0,"7":8.3},"2026-08-23":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":2.8,"7":0.0},"2026-08-24":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":1.3,"7":2.0},"2026-08-25":{"1":5.2,"2":3.5,"3":2.6,"4":0.2,"5":0.0,"6":2.0,"7":2.2},"2026-08-26":{"1":0.1,"2":0.1,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.8},"2026-08-27":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":2.4,"6":7.3,"7":0.0},"2026-08-28":{"1":6.3,"2":3.7,"3":10.3,"4":7.3,"5":1.9,"6":0.3,"7":11.7},"2026-08-29":{"1":9.2,"2":12.1,"3":7.5,"4":0.5,"5":9.9,"6":5.0,"7":6.9},"2026-08-30":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.7,"6":0.0,"7":1.0},"2026-08-31":{"1":9.1,"2":10.7,"3":3.1,"4":2.0,"5":1.6,"6":0.4,"7":0.7},"2026-09-01":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.1},"2026-09-02":{"1":0.2,"2":1.5,"3":0.0,"4":0.0,"5":2.8,"6":15.6,"7":7.3},"2026-09-03":{"1":0.5,"2":0.2,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.3},"2026-09-04":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":1.8,"7":16.7},"2026-09-05":{"1":5.9,"2":4.6,"3":11.5,"4":3.5,"5":17.1,"6":2.2,"7":0.0},"2026-09-06":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-09-07":{"1":0.6,"2":0.4,"3":1.2,"4":0.1,"5":3.0,"6":0.3,"7":0.0},"2026-09-08":{"1":0.9,"2":0.0,"3":4.0,"4":5.1,"5":4.2,"6":8.9,"7":0.0},"2026-09-09":{"1":18.0,"2":5.5,"3":10.7,"4":6.3,"5":35.1,"6":14.1,"7":5.9},"2026-09-10":{"1":0.2,"2":0.0,"3":0.3,"4":4.5,"5":1.4,"6":0.3,"7":0.0},"2026-09-11":{"1":0.2,"2":0.9,"3":0.0,"4":3.6,"5":0.0,"6":4.7,"7":0.6},"2026-09-12":{"1":0.0,"2":0.0,"3":0.0,"4":1.1,"5":1.3,"6":0.0,"7":2.0},"2026-09-13":{"1":1.1,"2":0.0,"3":0.3,"4":0.0,"5":0.5,"6":0.1,"7":0.0},"2026-09-14":{"1":3.5,"2":6.7,"3":4.2,"4":3.9,"5":5.9,"6":1.8,"7":0.3},"2026-09-15":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-09-16":{"1":26.8,"2":16.3,"3":29.2,"4":15.4,"5":18.7,"6":19.6,"7":0.9},"2026-09-17":{"1":3.0,"2":2.3,"3":2.6,"4":9.7,"5":5.4,"6":12.2,"7":4.9}}},"ecmwf":{"modell":"ecmwf","quelle":"open-meteo Previous-Runs-API, Hauptlauf, stündliche Werte zu Tagessummen 00–24 Uhr Ortszeit","leads":[1,2,3,4,5,6,7],"stand":"2026-09-18","tage":{"2026-06-18":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-19":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-20":{"1":1.5,"2":0.9,"3":0.9,"4":0.6,"5":0.6,"6":2.4,"7":1.2},"2026-06-21":{"1":0.6,"2":0.6,"3":2.1,"4":1.5,"5":0.0,"6":0.0,"7":0.0},"2026-06-22":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-23":{"1":0.3,"2":2.1,"3":0.3,"4":0.3,"5":0.0,"6":0.3,"7":0.0},"2026-06-24":{"1":0.0,"2":0.3,"3":0.3,"4":0.0,"5":0.3,"6":0.0,"7":0.3},"2026-06-25":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-26":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-27":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-28":{"1":0.6,"2":0.3,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-06-29":{"1":8.4,"2":5.7,"3":4.8,"4":17.4,"5":13.5,"6":5.4,"7":3.9},"2026-06-30":{"1":3.0,"2":0.9,"3":3.0,"4":10.8,"5":10.5,"6":8.4,"7":5.7},"2026-07-01":{"1":23.4,"2":18.3,"3":30.0,"4":23.7,"5":27.9,"6":7.2,"7":9.6},"2026-07-02":{"1":1.2,"2":0.3,"3":0.9,"4":0.6,"5":3.3,"6":0.6,"7":0.9},"2026-07-03":{"1":0.3,"2":0.3,"3":1.5,"4":2.4,"5":0.6,"6":0.6,"7":0.9},"2026-07-04":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-05":{"1":5.1,"2":4.5,"3":2.4,"4":2.1,"5":1.2,"6":0.0,"7":0.0},"2026-07-06":{"1":1.8,"2":6.6,"3":0.9,"4":0.3,"5":4.8,"6":0.6,"7":0.0},"2026-07-07":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":9.6,"7":3.3},"2026-07-08":{"1":3.0,"2":1.5,"3":0.0,"4":0.0,"5":7.2,"6":11.7,"7":8.7},"2026-07-09":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-10":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-11":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":2.4,"7":3.3},"2026-07-12":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":5.1},"2026-07-13":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-14":{"1":3.9,"2":6.9,"3":0.9,"4":0.3,"5":0.3,"6":0.0,"7":0.0},"2026-07-15":{"1":0.9,"2":5.1,"3":6.6,"4":0.6,"5":0.0,"6":0.0,"7":0.6},"2026-07-16":{"1":0.9,"2":2.4,"3":0.0,"4":0.0,"5":0.6,"6":0.6,"7":3.3},"2026-07-17":{"1":4.2,"2":4.5,"3":3.9,"4":4.5,"5":6.9,"6":0.6,"7":0.6},"2026-07-18":{"1":1.8,"2":4.5,"3":3.6,"4":4.5,"5":4.5,"6":15.3,"7":9.0},"2026-07-19":{"1":6.9,"2":4.5,"3":3.0,"4":1.5,"5":0.0,"6":6.9,"7":0.6},"2026-07-20":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.3},"2026-07-21":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":1.8,"6":0.0,"7":0.3},"2026-07-22":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":2.4,"7":0.0},"2026-07-23":{"1":0.9,"2":0.3,"3":0.6,"4":0.6,"5":1.8,"6":10.2,"7":20.7},"2026-07-24":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":3.9},"2026-07-25":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":1.8},"2026-07-26":{"1":2.1,"2":1.2,"3":1.8,"4":0.6,"5":3.3,"6":9.0,"7":0.0},"2026-07-27":{"1":0.6,"2":0.9,"3":0.9,"4":2.4,"5":6.9,"6":9.9,"7":2.1},"2026-07-28":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-29":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.6,"7":0.0},"2026-07-30":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-07-31":{"1":0.3,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-01":{"1":5.7,"2":3.0,"3":1.2,"4":7.2,"5":0.0,"6":0.0,"7":0.0},"2026-08-02":{"1":0.0,"2":0.0,"3":0.3,"4":0.3,"5":0.3,"6":0.0,"7":0.0},"2026-08-03":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.3,"6":1.2,"7":1.8},"2026-08-04":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.6,"7":0.0},"2026-08-05":{"1":2.7,"2":1.8,"3":0.9,"4":1.2,"5":0.0,"6":0.0,"7":0.0},"2026-08-06":{"1":6.9,"2":1.2,"3":0.9,"4":10.2,"5":3.6,"6":1.2,"7":4.2},"2026-08-07":{"1":0.3,"2":0.0,"3":0.3,"4":0.9,"5":6.6,"6":0.0,"7":0.0},"2026-08-08":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":1.5,"7":3.0},"2026-08-09":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-10":{"1":0.0,"2":0.6,"3":0.9,"4":1.5,"5":0.6,"6":0.6,"7":2.1},"2026-08-11":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.3},"2026-08-12":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-13":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-14":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-15":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-16":{"1":0.6,"2":2.1,"3":2.1,"4":0.0,"5":0.9,"6":1.2,"7":0.0},"2026-08-17":{"1":16.2,"2":10.2,"3":5.7,"4":8.1,"5":4.5,"6":3.0,"7":0.6},"2026-08-18":{"1":23.4,"2":5.1,"3":0.9,"4":0.0,"5":0.3,"6":2.4,"7":0.3},"2026-08-19":{"1":3.6,"2":1.5,"3":0.0,"4":1.2,"5":0.6,"6":0.0,"7":3.3},"2026-08-20":{"1":3.9,"2":5.7,"3":7.2,"4":14.4,"5":4.2,"6":0.0,"7":0.0},"2026-08-21":{"1":22.2,"2":18.0,"3":12.9,"4":2.7,"5":18.0,"6":2.4,"7":6.9},"2026-08-22":{"1":1.8,"2":1.2,"3":0.3,"4":0.0,"5":0.9,"6":3.0,"7":2.4},"2026-08-23":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":3.0,"6":6.3,"7":0.0},"2026-08-24":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":1.2,"7":0.0},"2026-08-25":{"1":1.8,"2":0.0,"3":1.2,"4":0.0,"5":0.0,"6":1.5,"7":13.5},"2026-08-26":{"1":0.0,"2":2.4,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-27":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-28":{"1":6.0,"2":3.6,"3":5.7,"4":5.4,"5":2.1,"6":0.6,"7":5.4},"2026-08-29":{"1":1.2,"2":9.0,"3":0.6,"4":3.6,"5":1.5,"6":14.4,"7":6.6},"2026-08-30":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-08-31":{"1":1.2,"2":2.7,"3":2.4,"4":0.6,"5":0.6,"6":0.6,"7":0.6},"2026-09-01":{"1":0.9,"2":0.9,"3":0.6,"4":0.0,"5":0.0,"6":2.1,"7":8.4},"2026-09-02":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":5.7,"7":1.2},"2026-09-03":{"1":0.3,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-09-04":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-09-05":{"1":4.2,"2":4.5,"3":5.7,"4":0.6,"5":0.0,"6":0.0,"7":0.0},"2026-09-06":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-09-07":{"1":0.0,"2":0.9,"3":0.3,"4":0.0,"5":0.0,"6":1.5,"7":0.0},"2026-09-08":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":4.2,"6":6.6,"7":0.0},"2026-09-09":{"1":11.1,"2":3.6,"3":14.4,"4":23.4,"5":7.5,"6":3.9,"7":0.0},"2026-09-10":{"1":0.0,"2":0.0,"3":0.0,"4":2.7,"5":0.0,"6":9.6,"7":0.3},"2026-09-11":{"1":15.3,"2":7.5,"3":0.0,"4":2.1,"5":0.0,"6":0.3,"7":0.0},"2026-09-12":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.0,"6":0.3,"7":10.5},"2026-09-13":{"1":4.8,"2":7.5,"3":0.3,"4":0.0,"5":0.0,"6":0.0,"7":0.0},"2026-09-14":{"1":3.6,"2":8.1,"3":7.8,"4":2.1,"5":1.8,"6":1.8,"7":0.0},"2026-09-15":{"1":0.0,"2":0.0,"3":0.0,"4":0.0,"5":0.3,"6":0.0,"7":0.0},"2026-09-16":{"1":5.4,"2":7.8,"3":15.0,"4":18.6,"5":13.5,"6":4.2,"7":2.4},"2026-09-17":{"1":0.9,"2":1.5,"3":8.1,"4":4.5,"5":0.3,"6":0.0,"7":0.0}}}},"forecasts":{"2026-09-14":{"lauf":"2026-09-14","abgerufen":"2026-09-14T19:56+02:00","erfasste_modelle":["ecmwf","gfs"],"ensemble_n":{"gfs":31,"ecmwf":51},"modelllaeufe":{"gfs/hl":{"lauf":"2026-09-14T06:00Z","verfuegbar_seit":"2026-09-14T12:58Z"},"gfs/ens":{"lauf":"2026-09-14T06:00Z","verfuegbar_seit":"2026-09-14T12:08Z"},"ecmwf/hl":{"lauf":"2026-09-14T06:00Z","verfuegbar_seit":"2026-09-14T13:11Z"},"ecmwf/ens":{"lauf":"2026-09-14T06:00Z","verfuegbar_seit":"2026-09-14T15:30Z"}},"lauf_wie_erwartet":false,"laufhinweise":["gfs hl: 14.09. 06Z statt 14.09. 00Z","gfs ens: 14.09. 06Z statt 14.09. 00Z","ecmwf hl: 14.09. 06Z statt 14.09. 00Z","ecmwf ens: 14.09. 06Z statt 14.09. 00Z"],"leads":[{"lead":1,"ziel":"2026-09-15","gfs":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.0,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.0,"p_ueber5":0.0}},{"lead":2,"ziel":"2026-09-16","gfs":{"hl":22.1,"ens":5.07,"p10":0.8,"p90":9.1,"min":0.5,"max":12.8,"p_ueber5":0.452},"ecmwf":{"hl":13.0,"ens":8.21,"p10":3.6,"p90":14.5,"min":1.4,"max":17.1,"p_ueber5":0.765}},{"lead":3,"ziel":"2026-09-17","gfs":{"hl":13.7,"ens":11.13,"p10":1.9,"p90":21.6,"min":0.8,"max":30.0,"p_ueber5":0.742},"ecmwf":{"hl":19.3,"ens":14.08,"p10":5.1,"p90":23.9,"min":0.2,"max":26.3,"p_ueber5":0.941}},{"lead":4,"ziel":"2026-09-18","gfs":{"hl":0.9,"ens":0.88,"p10":0.0,"p90":2.2,"min":0.0,"max":6.8,"p_ueber5":0.032},"ecmwf":{"hl":0.3,"ens":1.45,"p10":0.0,"p90":4.2,"min":0.0,"max":14.1,"p_ueber5":0.098}},{"lead":5,"ziel":"2026-09-19","gfs":{"hl":0.0,"ens":0.6,"p10":0.0,"p90":1.0,"min":0.0,"max":8.5,"p_ueber5":0.065},"ecmwf":{"hl":0.0,"ens":0.35,"p10":0.0,"p90":0.7,"min":0.0,"max":6.2,"p_ueber5":0.02}},{"lead":6,"ziel":"2026-09-20","gfs":{"hl":0.0,"ens":0.39,"p10":0.0,"p90":1.4,"min":0.0,"max":4.1,"p_ueber5":0.0},"ecmwf":{"hl":0.4,"ens":0.93,"p10":0.0,"p90":2.8,"min":0.0,"max":9.8,"p_ueber5":0.059}},{"lead":7,"ziel":"2026-09-21","gfs":{"hl":0.0,"ens":0.64,"p10":0.0,"p90":1.1,"min":0.0,"max":8.2,"p_ueber5":0.032},"ecmwf":{"hl":0.4,"ens":1.47,"p10":0.0,"p90":3.2,"min":0.0,"max":17.4,"p_ueber5":0.059}},{"lead":8,"ziel":"2026-09-22","gfs":{"hl":0.0,"ens":0.22,"p10":0.0,"p90":0.3,"min":0.0,"max":5.2,"p_ueber5":0.032},"ecmwf":{"hl":3.4,"ens":1.82,"p10":0.0,"p90":6.0,"min":0.0,"max":14.6,"p_ueber5":0.157}},{"lead":9,"ziel":"2026-09-23","gfs":{"hl":0.0,"ens":0.45,"p10":0.0,"p90":2.0,"min":0.0,"max":4.6,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":1.8,"p10":0.0,"p90":5.2,"min":0.0,"max":28.6,"p_ueber5":0.137}},{"lead":10,"ziel":"2026-09-24","gfs":{"hl":0.0,"ens":null,"p10":null,"p90":null,"min":null,"max":null,"p_ueber5":null},"ecmwf":{"hl":0.0,"ens":1.93,"p10":0.0,"p90":4.2,"min":0.0,"max":55.4,"p_ueber5":0.039}}]},"2026-09-15":{"lauf":"2026-09-15","abgerufen":"2026-09-15T13:56+02:00","erfasste_modelle":["ecmwf","gfs"],"ensemble_n":{"gfs":31,"ecmwf":51},"modelllaeufe":{"gfs/hl":{"lauf":"2026-09-15T00:00Z","verfuegbar_seit":"2026-09-15T05:55Z"},"gfs/ens":{"lauf":"2026-09-15T00:00Z","verfuegbar_seit":"2026-09-15T05:45Z"},"ecmwf/hl":{"lauf":"2026-09-15T00:00Z","verfuegbar_seit":"2026-09-15T07:44Z"},"ecmwf/ens":{"lauf":"2026-09-14T18:00Z","verfuegbar_seit":"2026-09-15T03:19Z"}},"lauf_wie_erwartet":false,"laufhinweise":["ecmwf ens: 14.09. 18Z statt 15.09. 00Z"],"leads":[{"lead":1,"ziel":"2026-09-16","gfs":{"hl":20.1,"ens":6.98,"p10":2.1,"p90":12.5,"min":0.7,"max":15.1,"p_ueber5":0.71},"ecmwf":{"hl":4.6,"ens":6.38,"p10":3.3,"p90":9.9,"min":2.0,"max":13.5,"p_ueber5":0.667}},{"lead":2,"ziel":"2026-09-17","gfs":{"hl":4.7,"ens":9.66,"p10":1.5,"p90":18.9,"min":0.6,"max":22.3,"p_ueber5":0.677},"ecmwf":{"hl":1.9,"ens":7.99,"p10":1.0,"p90":15.6,"min":0.3,"max":23.0,"p_ueber5":0.588}},{"lead":3,"ziel":"2026-09-18","gfs":{"hl":0.0,"ens":0.58,"p10":0.0,"p90":0.7,"min":0.0,"max":11.0,"p_ueber5":0.032},"ecmwf":{"hl":0.4,"ens":0.84,"p10":0.0,"p90":2.7,"min":0.0,"max":11.9,"p_ueber5":0.039}},{"lead":4,"ziel":"2026-09-19","gfs":{"hl":0.0,"ens":0.06,"p10":0.0,"p90":0.3,"min":0.0,"max":0.7,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.09,"p10":0.0,"p90":0.0,"min":0.0,"max":3.4,"p_ueber5":0.0}},{"lead":5,"ziel":"2026-09-20","gfs":{"hl":0.3,"ens":1.29,"p10":0.0,"p90":1.5,"min":0.0,"max":23.0,"p_ueber5":0.065},"ecmwf":{"hl":0.0,"ens":1.37,"p10":0.0,"p90":5.4,"min":0.0,"max":9.8,"p_ueber5":0.118}},{"lead":6,"ziel":"2026-09-21","gfs":{"hl":0.9,"ens":1.07,"p10":0.0,"p90":3.3,"min":0.0,"max":12.8,"p_ueber5":0.065},"ecmwf":{"hl":2.2,"ens":2.23,"p10":0.0,"p90":6.0,"min":0.0,"max":11.6,"p_ueber5":0.176}},{"lead":7,"ziel":"2026-09-22","gfs":{"hl":1.8,"ens":1.86,"p10":0.0,"p90":5.5,"min":0.0,"max":18.8,"p_ueber5":0.129},"ecmwf":{"hl":0.0,"ens":2.32,"p10":0.0,"p90":6.0,"min":0.0,"max":17.2,"p_ueber5":0.176}},{"lead":8,"ziel":"2026-09-23","gfs":{"hl":0.0,"ens":2.56,"p10":0.0,"p90":6.4,"min":0.0,"max":47.0,"p_ueber5":0.129},"ecmwf":{"hl":0.4,"ens":1.34,"p10":0.0,"p90":3.0,"min":0.0,"max":20.6,"p_ueber5":0.059}},{"lead":9,"ziel":"2026-09-24","gfs":{"hl":0.0,"ens":1.28,"p10":0.0,"p90":4.3,"min":0.0,"max":14.8,"p_ueber5":0.097},"ecmwf":{"hl":0.0,"ens":0.73,"p10":0.0,"p90":2.4,"min":0.0,"max":10.2,"p_ueber5":0.039}},{"lead":10,"ziel":"2026-09-25","gfs":{"hl":7.5,"ens":null,"p10":null,"p90":null,"min":null,"max":null,"p_ueber5":null},"ecmwf":{"hl":0.0,"ens":2.78,"p10":0.0,"p90":9.4,"min":0.0,"max":28.4,"p_ueber5":0.196}}]},"2026-09-16":{"lauf":"2026-09-16","abgerufen":"2026-09-16T13:57+02:00","erfasste_modelle":["ecmwf","gfs"],"ensemble_n":{"gfs":31,"ecmwf":51},"modelllaeufe":{"gfs/hl":{"lauf":"2026-09-16T00:00Z","verfuegbar_seit":"2026-09-16T06:39Z"},"gfs/ens":{"lauf":"2026-09-16T00:00Z","verfuegbar_seit":"2026-09-16T05:51Z"},"ecmwf/hl":{"lauf":"2026-09-16T00:00Z","verfuegbar_seit":"2026-09-16T07:45Z"},"ecmwf/ens":{"lauf":"2026-09-16T00:00Z","verfuegbar_seit":"2026-09-16T11:28Z"}},"lauf_wie_erwartet":true,"laufhinweise":[],"leads":[{"lead":1,"ziel":"2026-09-17","gfs":{"hl":5.2,"ens":11.47,"p10":4.6,"p90":19.1,"min":2.6,"max":24.5,"p_ueber5":0.871},"ecmwf":{"hl":0.9,"ens":4.84,"p10":0.9,"p90":10.7,"min":0.4,"max":13.5,"p_ueber5":0.392}},{"lead":2,"ziel":"2026-09-18","gfs":{"hl":0.0,"ens":0.22,"p10":0.0,"p90":0.5,"min":0.0,"max":3.3,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.52,"p10":0.0,"p90":1.9,"min":0.0,"max":5.5,"p_ueber5":0.02}},{"lead":3,"ziel":"2026-09-19","gfs":{"hl":0.0,"ens":0.01,"p10":0.0,"p90":0.0,"min":0.0,"max":0.1,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.01,"p10":0.0,"p90":0.0,"min":0.0,"max":0.1,"p_ueber5":0.0}},{"lead":4,"ziel":"2026-09-20","gfs":{"hl":0.0,"ens":0.35,"p10":0.0,"p90":1.1,"min":0.0,"max":5.9,"p_ueber5":0.032},"ecmwf":{"hl":0.0,"ens":0.72,"p10":0.0,"p90":2.3,"min":0.0,"max":6.8,"p_ueber5":0.02}},{"lead":5,"ziel":"2026-09-21","gfs":{"hl":0.3,"ens":0.98,"p10":0.0,"p90":2.9,"min":0.0,"max":7.0,"p_ueber5":0.032},"ecmwf":{"hl":4.4,"ens":2.6,"p10":0.2,"p90":5.8,"min":0.0,"max":11.3,"p_ueber5":0.118}},{"lead":6,"ziel":"2026-09-22","gfs":{"hl":0.0,"ens":0.92,"p10":0.0,"p90":1.8,"min":0.0,"max":9.6,"p_ueber5":0.065},"ecmwf":{"hl":2.7,"ens":1.88,"p10":0.0,"p90":5.8,"min":0.0,"max":13.8,"p_ueber5":0.137}},{"lead":7,"ziel":"2026-09-23","gfs":{"hl":0.0,"ens":0.61,"p10":0.0,"p90":0.3,"min":0.0,"max":11.5,"p_ueber5":0.065},"ecmwf":{"hl":0.0,"ens":0.78,"p10":0.0,"p90":2.2,"min":0.0,"max":11.6,"p_ueber5":0.039}},{"lead":8,"ziel":"2026-09-24","gfs":{"hl":0.0,"ens":0.42,"p10":0.0,"p90":1.3,"min":0.0,"max":4.6,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.49,"p10":0.0,"p90":1.0,"min":0.0,"max":8.0,"p_ueber5":0.02}},{"lead":9,"ziel":"2026-09-25","gfs":{"hl":0.0,"ens":0.57,"p10":0.0,"p90":1.5,"min":0.0,"max":6.1,"p_ueber5":0.065},"ecmwf":{"hl":0.0,"ens":0.64,"p10":0.0,"p90":0.6,"min":0.0,"max":12.4,"p_ueber5":0.039}},{"lead":10,"ziel":"2026-09-26","gfs":{"hl":0.0,"ens":null,"p10":null,"p90":null,"min":null,"max":null,"p_ueber5":null},"ecmwf":{"hl":0.0,"ens":0.48,"p10":0.0,"p90":1.0,"min":0.0,"max":8.0,"p_ueber5":0.059}}]},"2026-09-17":{"lauf":"2026-09-17","abgerufen":"2026-09-17T13:56+02:00","erfasste_modelle":["ecmwf","gfs"],"ensemble_n":{"gfs":31,"ecmwf":51},"modelllaeufe":{"gfs/hl":{"lauf":"2026-09-17T00:00Z","verfuegbar_seit":"2026-09-17T06:26Z"},"gfs/ens":{"lauf":"2026-09-17T00:00Z","verfuegbar_seit":"2026-09-17T05:41Z"},"ecmwf/hl":{"lauf":"2026-09-17T00:00Z","verfuegbar_seit":"2026-09-17T07:47Z"},"ecmwf/ens":{"lauf":"2026-09-17T00:00Z","verfuegbar_seit":"2026-09-17T11:53Z"}},"lauf_wie_erwartet":true,"laufhinweise":[],"leads":[{"lead":1,"ziel":"2026-09-18","gfs":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.1,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.1,"p_ueber5":0.0}},{"lead":2,"ziel":"2026-09-19","gfs":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.0,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.0,"p_ueber5":0.0}},{"lead":3,"ziel":"2026-09-20","gfs":{"hl":0.0,"ens":0.01,"p10":0.0,"p90":0.0,"min":0.0,"max":0.2,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.2,"p_ueber5":0.0}},{"lead":4,"ziel":"2026-09-21","gfs":{"hl":0.6,"ens":1.15,"p10":0.0,"p90":2.9,"min":0.0,"max":9.6,"p_ueber5":0.032},"ecmwf":{"hl":1.2,"ens":1.64,"p10":0.0,"p90":4.7,"min":0.0,"max":7.6,"p_ueber5":0.078}},{"lead":5,"ziel":"2026-09-22","gfs":{"hl":0.0,"ens":0.31,"p10":0.0,"p90":0.9,"min":0.0,"max":4.0,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.35,"p10":0.0,"p90":0.7,"min":0.0,"max":7.0,"p_ueber5":0.02}},{"lead":6,"ziel":"2026-09-23","gfs":{"hl":0.0,"ens":0.02,"p10":0.0,"p90":0.0,"min":0.0,"max":0.5,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.27,"p10":0.0,"p90":0.2,"min":0.0,"max":7.9,"p_ueber5":0.02}},{"lead":7,"ziel":"2026-09-24","gfs":{"hl":0.0,"ens":0.11,"p10":0.0,"p90":0.2,"min":0.0,"max":1.8,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.56,"p10":0.0,"p90":0.0,"min":0.0,"max":26.2,"p_ueber5":0.02}},{"lead":8,"ziel":"2026-09-25","gfs":{"hl":0.0,"ens":0.21,"p10":0.0,"p90":0.2,"min":0.0,"max":2.5,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":1.22,"p10":0.0,"p90":1.0,"min":0.0,"max":37.8,"p_ueber5":0.039}},{"lead":9,"ziel":"2026-09-26","gfs":{"hl":0.0,"ens":0.37,"p10":0.0,"p90":0.1,"min":0.0,"max":8.9,"p_ueber5":0.032},"ecmwf":{"hl":0.0,"ens":0.62,"p10":0.0,"p90":1.8,"min":0.0,"max":8.4,"p_ueber5":0.039}},{"lead":10,"ziel":"2026-09-27","gfs":{"hl":0.0,"ens":null,"p10":null,"p90":null,"min":null,"max":null,"p_ueber5":null},"ecmwf":{"hl":0.0,"ens":0.53,"p10":0.0,"p90":0.6,"min":0.0,"max":19.6,"p_ueber5":0.02}}]},"2026-09-18":{"lauf":"2026-09-18","abgerufen":"2026-09-18T06:19+02:00","erfasste_modelle":["ecmwf","gfs"],"ensemble_n":{"gfs":31,"ecmwf":51},"modelllaeufe":{"gfs/hl":{"lauf":"2026-09-17T18:00Z","verfuegbar_seit":"2026-09-18T00:54Z"},"gfs/ens":{"lauf":"2026-09-17T18:00Z","verfuegbar_seit":"2026-09-17T23:45Z"},"ecmwf/hl":{"lauf":"2026-09-17T18:00Z","verfuegbar_seit":"2026-09-18T01:10Z"},"ecmwf/ens":{"lauf":"2026-09-17T18:00Z","verfuegbar_seit":"2026-09-18T02:59Z"}},"lauf_wie_erwartet":false,"laufhinweise":["gfs hl: 17.09. 18Z statt 18.09. 00Z","gfs ens: 17.09. 18Z statt 18.09. 00Z","ecmwf hl: 17.09. 18Z statt 18.09. 00Z","ecmwf ens: 17.09. 18Z statt 18.09. 00Z"],"leads":[{"lead":1,"ziel":"2026-09-19","gfs":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.0,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.0,"p10":0.0,"p90":0.0,"min":0.0,"max":0.0,"p_ueber5":0.0}},{"lead":2,"ziel":"2026-09-20","gfs":{"hl":0.0,"ens":0.06,"p10":0.0,"p90":0.0,"min":0.0,"max":1.9,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.01,"p10":0.0,"p90":0.0,"min":0.0,"max":0.3,"p_ueber5":0.0}},{"lead":3,"ziel":"2026-09-21","gfs":{"hl":0.0,"ens":0.86,"p10":0.0,"p90":1.9,"min":0.0,"max":7.4,"p_ueber5":0.032},"ecmwf":{"hl":0.2,"ens":1.09,"p10":0.0,"p90":3.1,"min":0.0,"max":4.1,"p_ueber5":0.0}},{"lead":4,"ziel":"2026-09-22","gfs":{"hl":0.0,"ens":0.33,"p10":0.0,"p90":0.5,"min":0.0,"max":4.0,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.35,"p10":0.0,"p90":0.9,"min":0.0,"max":4.1,"p_ueber5":0.0}},{"lead":5,"ziel":"2026-09-23","gfs":{"hl":0.0,"ens":0.01,"p10":0.0,"p90":0.0,"min":0.0,"max":0.2,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.06,"p10":0.0,"p90":0.1,"min":0.0,"max":1.1,"p_ueber5":0.0}},{"lead":6,"ziel":"2026-09-24","gfs":{"hl":0.0,"ens":0.01,"p10":0.0,"p90":0.0,"min":0.0,"max":0.2,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.6,"p10":0.0,"p90":1.4,"min":0.0,"max":9.2,"p_ueber5":0.039}},{"lead":7,"ziel":"2026-09-25","gfs":{"hl":0.0,"ens":0.43,"p10":0.0,"p90":0.5,"min":0.0,"max":6.2,"p_ueber5":0.032},"ecmwf":{"hl":0.0,"ens":0.8,"p10":0.0,"p90":2.4,"min":0.0,"max":8.4,"p_ueber5":0.098}},{"lead":8,"ziel":"2026-09-26","gfs":{"hl":0.0,"ens":0.14,"p10":0.0,"p90":0.0,"min":0.0,"max":2.7,"p_ueber5":0.0},"ecmwf":{"hl":0.0,"ens":0.28,"p10":0.0,"p90":0.4,"min":0.0,"max":7.0,"p_ueber5":0.02}},{"lead":9,"ziel":"2026-09-27","gfs":{"hl":0.0,"ens":0.83,"p10":0.0,"p90":1.05,"min":0.0,"max":11.93,"p_ueber5":0.065},"ecmwf":{"hl":0.2,"ens":0.19,"p10":0.0,"p90":0.2,"min":0.0,"max":5.6,"p_ueber5":0.02}},{"lead":10,"ziel":"2026-09-28","gfs":{"hl":0.0,"ens":0.64,"p10":0.0,"p90":1.4,"min":0.0,"max":6.2,"p_ueber5":0.032},"ecmwf":{"hl":0.0,"ens":0.45,"p10":0.0,"p90":0.8,"min":0.0,"max":8.2,"p_ueber5":0.02}},{"lead":11,"ziel":"2026-09-29","gfs":{"hl":0.0,"ens":1.3,"p10":0.0,"p90":3.2,"min":0.0,"max":11.4,"p_ueber5":0.097},"ecmwf":{"hl":0.0,"ens":1.08,"p10":0.0,"p90":2.0,"min":0.0,"max":16.8,"p_ueber5":0.078}},{"lead":12,"ziel":"2026-09-30","gfs":{"hl":0.0,"ens":1.15,"p10":0.0,"p90":5.2,"min":0.0,"max":14.6,"p_ueber5":0.129},"ecmwf":{"hl":0.0,"ens":1.35,"p10":0.0,"p90":3.0,"min":0.0,"max":17.6,"p_ueber5":0.059}},{"lead":13,"ziel":"2026-10-01","gfs":{"hl":0.0,"ens":1.52,"p10":0.0,"p90":7.6,"min":0.0,"max":15.8,"p_ueber5":0.129},"ecmwf":{"hl":0.0,"ens":2.5,"p10":0.0,"p90":9.4,"min":0.0,"max":29.4,"p_ueber5":0.176}},{"lead":14,"ziel":"2026-10-02","gfs":{"hl":0.0,"ens":1.84,"p10":0.0,"p90":6.0,"min":0.0,"max":12.0,"p_ueber5":0.129},"ecmwf":{"hl":null,"ens":null,"p10":null,"p90":null,"min":null,"max":null,"p_ueber5":null}}]}},"vorhersage":{"gfs":[{"modell":"gfs","modellname":"GFS","ensemble_datensatz":"gfs_seamless","init":"2026-09-17T18:00Z","verfuegbar_seit":"2026-09-17T23:45Z","abgerufen":"2026-09-18T04:19Z","horizont_tage":16,"mitglieder_n":30,"leads":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],"ziele":["2026-09-18","2026-09-19","2026-09-20","2026-09-21","2026-09-22","2026-09-23","2026-09-24","2026-09-25","2026-09-26","2026-09-27","2026-09-28","2026-09-29","2026-09-30","2026-10-01","2026-10-02","2026-10-03"],"kontrolllauf_kumulativ":[0.0,0.0,0.0,3.0,3.0,3.0,3.0,3.0,3.0,3.0,3.0,3.8,3.8,3.8,15.8,22.2],"mitglieder_kumulativ":[[0.0,0.0,0.0,2.6,2.6,2.6,2.6,2.6,2.6,2.6,2.6,2.6,2.6,2.6,2.6,2.6],[0.0,0.0,0.0,1.2,1.2,1.2,1.2,1.2,1.2,1.2,1.4,1.4,1.4,1.4,1.4,2.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.5,0.5,0.5,6.7,7.3,7.3,8.1,8.5,8.5],[0.0,0.0,0.0,0.2,0.2,0.2,0.4,0.6,0.6,0.6,0.6,0.6,0.8,2.0,8.0,8.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,9.7,10.7,12.5,20.9,21.7,22.3,23.5],[0.0,0.0,0.0,0.0,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.4,0.4,0.4,1.2,1.2],[0.0,0.0,0.0,1.5,1.7,1.7,1.7,1.7,1.7,4.65,6.05,6.05,6.45,14.05,18.85,26.25],[0.0,0.0,0.0,0.0,0.5,0.5,0.5,0.5,0.8,1.85,1.85,1.85,1.85,1.85,1.85,2.45],[0.0,0.0,0.0,0.3,0.3,0.3,0.3,0.3,0.3,0.3,4.5,4.5,4.5,4.9,6.9,9.7],[0.0,0.0,0.0,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.3,0.9,16.7,16.9,17.1],[0.0,0.0,0.0,0.6,1.7,1.8,1.8,1.8,3.0,3.0,3.2,3.2,3.2,3.2,3.2,3.2],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.2,0.4,5.6,13.2,19.6,19.6],[0.0,0.0,0.0,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,1.3,2.1,3.9],[0.0,0.0,0.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.4],[0.0,0.0,0.0,1.9,1.9,1.9,1.9,1.9,1.9,1.9,2.7,14.1,14.1,15.1,15.7,23.7],[0.0,0.0,0.0,0.2,0.2,0.2,0.2,0.2,0.2,0.35,0.55,0.55,0.55,0.55,0.55,0.55],[0.0,0.0,1.9,9.3,13.3,13.4,13.4,13.5,16.2,28.13,29.13,29.13,29.13,29.13,40.93,41.93],[0.0,0.0,0.0,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,2.3,7.1,8.5],[0.0,0.0,0.0,0.8,0.8,0.8,0.8,0.8,0.8,0.8,1.6,4.0,4.0,4.0,4.0,14.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.6,2.2,2.2,2.2,2.2,2.2],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.4,0.6,0.6,1.0,1.2],[0.8,0.8,0.8,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,5.2,19.8,20.2,20.2,20.8],[0.0,0.0,0.0,0.6,0.6,0.6,0.6,0.6,0.6,0.6,1.2,11.2,11.4,11.4,11.8,11.8],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.4,0.7,0.9,0.9,0.9,0.9,0.9,1.7,1.7,1.7,1.7,1.7,33.7],[0.0,0.0,0.0,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.9,7.9,15.5,18.1,20.1],[0.0,0.0,0.0,0.0,4.0,4.0,4.0,5.9,5.9,5.9,6.5,6.5,6.5,6.5,6.7,6.7],[0.0,0.0,0.0,0.2,0.2,0.2,0.2,6.4,6.4,6.4,6.4,6.4,6.4,6.4,6.4,7.6],[0.0,0.0,0.0,0.6,0.6,0.6,0.6,5.0,5.0,5.0,5.0,5.0,5.0,6.6,8.8,8.8],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]],"hauptlauf_kumulativ":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,null],"mittel_kumulativ":[0.03,0.03,0.09,0.88,1.22,1.24,1.24,1.69,1.83,2.69,3.35,4.66,5.85,7.42,8.92,11.3],"p10_kumulativ":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.09,0.39,0.49,0.54,0.96,1.14],"p50_kumulativ":[0.0,0.0,0.0,0.35,0.55,0.55,0.55,0.7,0.8,0.9,1.6,2.4,3.6,4.45,6.8,8.5],"p90_kumulativ":[0.0,0.0,0.0,1.91,2.06,2.06,2.06,5.09,5.09,5.95,6.52,11.33,14.67,17.05,19.66,23.96],"min_kumulativ":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"max_kumulativ":[0.8,0.8,1.9,9.3,13.3,13.4,13.4,13.5,16.2,28.13,29.13,29.13,29.13,29.13,40.93,41.93],"n_kumulativ":[30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30],"vollstaendig":true,"hinweise":[]},{"modell":"gfs","modellname":"GFS","ensemble_datensatz":"gfs_seamless","init":"2026-09-17T06:00Z","verfuegbar_seit":"2026-09-17T11:44Z","abgerufen":"2026-09-17T15:20Z","horizont_tage":16,"mitglieder_n":30,"leads":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],"ziele":["2026-09-18","2026-09-19","2026-09-20","2026-09-21","2026-09-22","2026-09-23","2026-09-24","2026-09-25","2026-09-26","2026-09-27","2026-09-28","2026-09-29","2026-09-30","2026-10-01","2026-10-02","2026-10-03"],"kontrolllauf_kumulativ":[0.0,0.0,0.0,1.7,1.7,1.7,1.7,1.7,1.8,3.43,8.63,14.43,15.03,18.03,18.43,23.03],"mitglieder_kumulativ":[[0.0,0.0,0.0,5.5,7.9,11.9,12.9,16.6,17.3,18.3,22.9,23.1,23.5,43.3,43.3,43.3],[0.0,0.0,0.0,0.0,0.0,0.0,2.5,2.5,2.5,2.5,2.5,2.5,2.5,3.7,7.5,7.7],[0.0,0.0,0.0,2.9,3.1,3.2,3.2,4.2,5.6,5.6,5.8,5.8,5.8,5.8,5.8,5.8],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,7.4],[0.0,0.0,0.0,0.0,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1],[0.0,0.0,0.0,0.5,0.5,0.5,5.8,5.8,5.9,6.0,6.6,7.2,30.8,30.8,30.8,31.0],[0.0,0.0,0.0,0.0,0.0,0.1,0.1,0.1,0.1,0.1,0.1,2.7,17.1,17.1,17.1,17.1],[0.0,0.0,0.0,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,1.5],[0.0,0.0,0.0,5.5,5.8,5.8,5.8,5.8,5.8,5.8,5.8,5.8,5.8,5.8,5.8,6.0],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,3.6,13.0,17.0],[0.0,0.0,0.1,2.2,16.3,18.5,19.0,42.1,46.9,46.93,48.73,49.53,49.53,50.13,58.53,58.53],[0.0,0.0,0.0,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,3.0],[0.0,0.0,0.0,5.8,5.8,5.8,5.8,5.8,5.8,5.8,5.8,5.8,17.6,18.2,18.4,18.4],[0.0,0.0,0.0,6.2,6.2,6.2,6.2,6.2,6.2,6.2,6.2,6.2,6.2,6.2,6.2,6.4],[0.0,0.0,0.0,0.8,0.8,0.8,0.8,0.8,0.8,0.8,9.0,9.6,9.8,10.0,10.6,12.2],[0.0,0.0,0.0,1.5,4.5,5.3,5.3,5.6,6.3,6.6,8.6,17.4,18.0,18.0,21.6,21.6],[0.0,0.0,0.0,0.2,0.2,0.2,0.2,0.2,0.2,0.2,5.2,7.2,12.6,14.6,14.6,14.6],[0.0,0.0,0.0,1.6,1.6,1.6,1.6,1.7,1.7,1.7,2.1,2.1,2.1,2.1,2.1,2.7],[0.0,0.0,0.1,5.9,5.9,5.9,5.9,5.9,5.9,5.9,5.9,6.1,6.1,6.1,6.1,6.1],[0.0,0.0,0.0,0.1,0.1,0.1,0.1,0.2,0.4,0.4,0.4,0.4,0.4,0.4,4.6,23.4],[1.1,1.1,1.1,1.8,1.8,1.8,1.8,1.8,1.8,1.8,1.8,1.8,2.0,2.8,2.8,3.4],[0.0,0.0,0.0,2.2,2.2,2.2,2.2,2.2,2.2,2.2,2.2,2.2,3.0,3.8,3.8,3.8],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.3,0.3,0.78,2.78,9.58,9.58,9.58,10.58,31.58],[0.0,0.0,0.0,0.1,0.2,0.2,0.2,0.2,0.2,0.2,0.2,1.2,1.6,2.6,3.0,3.0],[0.0,0.0,0.0,0.1,0.1,0.1,0.1,0.1,0.1,8.7,21.9,23.3,23.9,23.9,23.9,24.7],[0.0,0.0,0.0,0.0,0.0,0.0,1.5,4.1,4.3,4.5,4.5,4.5,4.5,4.5,4.5,4.5],[0.0,0.0,0.0,1.0,7.0,7.8,7.8,7.8,8.7,11.15,11.35,11.35,11.35,11.35,11.35,29.75],[0.0,0.0,0.0,1.6,1.8,1.8,1.8,2.3,2.3,2.3,2.3,2.3,2.3,2.3,2.3,13.7],[0.0,0.0,0.0,0.7,0.7,0.7,6.5,6.6,7.0,7.4,7.8,7.8,7.8,7.8,7.8,7.8],[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,3.6,4.4,4.4,4.4,4.4]],"hauptlauf_kumulativ":[0.0,0.0,0.2,4.3,5.2,5.2,5.2,5.2,5.2,5.2,5.2,5.2,5.2,5.2,5.2,null],"mittel_kumulativ":[0.04,0.04,0.04,1.55,2.43,2.7,3.25,4.31,4.62,5.08,6.36,7.32,9.29,10.31,11.36,14.35],"p10_kumulativ":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.09,0.09,0.09,0.09,0.1,0.1,0.19,0.19,2.97],"p50_kumulativ":[0.0,0.0,0.0,0.6,0.6,0.6,1.7,2.0,2.0,2.25,3.64,5.15,5.8,5.8,6.15,7.75],"p90_kumulativ":[0.0,0.0,0.01,5.53,6.28,6.36,6.63,6.72,7.17,8.95,12.41,17.97,23.54,24.59,24.59,31.06],"min_kumulativ":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.1],"max_kumulativ":[1.1,1.1,1.1,6.2,16.3,18.5,19.0,42.1,46.9,46.93,48.73,49.53,49.53,50.13,58.53,58.53],"n_kumulativ":[30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30],"vollstaendig":true,"hinweise":[]}],"ecmwf":[]},"gebaut":"2026-09-18T04:20Z"};
 
 /* ============================ Werkzeug ============================ */
 const $ = s => document.querySelector(s);
@@ -287,7 +391,7 @@ const nf = (v, d = 1) => v == null || Number.isNaN(v) ? "–" : v.toFixed(d).rep
 const TAG_KURZ = ["So","Mo","Di","Mi","Do","Fr","Sa"];
 const datumKurz = iso => { const d = new Date(iso + "T12:00:00"); return TAG_KURZ[d.getDay()] + " " + d.getDate() + "." + (d.getMonth() + 1) + "."; };
 const datumLang = iso => { const d = new Date(iso + "T12:00:00"); return d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" }); };
-const MODELLE = [{ id: "ecmwf", name: "ECMWF", farbe: "var(--ecmwf)" }, { id: "gfs", name: "GFS", farbe: "var(--gfs)" }];
+const MODELLE = [{ id: "ecmwf", name: "ECMWF-IFS", farbe: "var(--ecmwf)" }, { id: "gfs", name: "GFS", farbe: "var(--gfs)" }];
 
 /* Tooltip */
 const tip = $("#tip");
@@ -310,21 +414,50 @@ function treffer(g, x, y, w, h, text) {
 function legende(ziel, eintraege) {
   $(ziel).innerHTML = eintraege.map(e => `<span class="leg">${e.mark}${e.text}</span>`).join("");
 }
-const markLinie = (farbe, gestrichelt) =>
-  `<svg width="22" height="10" aria-hidden="true"><line x1="1" y1="5" x2="21" y2="5" stroke="${farbe}" stroke-width="2.5" stroke-linecap="round"${gestrichelt ? ' stroke-dasharray="5 3.5"' : ''}/></svg>`;
+const markLinie = (farbe, gestrichelt, breit) =>
+  `<svg width="22" height="10" aria-hidden="true"><line x1="1" y1="5" x2="21" y2="5" stroke="${farbe}" stroke-width="${breit || 2.5}" stroke-linecap="round"${gestrichelt ? ' stroke-dasharray="5 3.5"' : ''}/></svg>`;
 const markFlaeche = (farbe, alpha) =>
   `<svg width="22" height="10" aria-hidden="true"><rect x="1" y="1" width="20" height="8" rx="1.5" fill="${farbe}" opacity="${alpha || 1}"/></svg>`;
-/* Nur Serien in die Legende nehmen, die auch gezeichnet werden. */
 const legendeAusSerien = serien => serien
   .filter(s => s.punkte.some(p => p.n > 0))
   .map(s => ({ mark: markLinie(s.modell.farbe, s.gestrichelt), text: s.modell.name + (s.gestrichelt ? " Ensemble-Mittel" : " Hauptlauf") }));
 const markPunkt = (farbe, offen) =>
   `<svg width="14" height="12" aria-hidden="true"><circle cx="7" cy="6" r="4.5" fill="${offen ? 'var(--panel)' : farbe}" stroke="${farbe}" stroke-width="2"/></svg>`;
 
-/* ============================ Datenzugriff ============================ */
+/* ============================ Navigation zwischen den Seiten ============================ */
+const SEITEN = ["vorhersage", "analyse"];
+function seiteAnzeigen() {
+  const hash = (location.hash || "#vorhersage").slice(1);
+  const seite = SEITEN.includes(hash) ? hash : "vorhersage";
+  SEITEN.forEach(s => {
+    $("#seite-" + s).hidden = s !== seite;
+  });
+  document.querySelectorAll("#hauptnav a").forEach(a => {
+    if (a.dataset.seite === seite) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  });
+  tipAus();
+}
+addEventListener("hashchange", seiteAnzeigen);
+
+/* ============================ Datenzugriff (Analyse-Datenbestand) ============================ */
 const mess = () => DATEN.messungen || {};
 const hist = m => (DATEN.history?.[m]?.tage) || {};
 const laeufe = () => DATEN.forecasts || {};
+
+/** Prueft fuer einen gespeicherten Kalendertag-Lauf, ob die Initialisierung
+ * fuer GENAU dieses Modell und GENAU diese Quelle (Hauptlauf/Ensemble) tat-
+ * saechlich der erwartete 00-UTC-Lauf DIESES Kalendertags war. Notwendig, weil
+ * in der Historie einzelne Modell/Quelle-Kombinationen eines Tages von einem
+ * abweichenden Lauf stammen koennen, waehrend der Rest desselben Tages korrekt
+ * ist (siehe modelllaeufe/laufhinweise) -- z.B. am 15.09.2026, wo GFS und der
+ * ECMWF-Hauptlauf korrekt vom 00Z-Lauf stammen, das ECMWF-Ensemble aber noch
+ * vom vorherigen 18Z-Lauf war. So ein Fall darf NUR fuer die betroffene
+ * Modell/Quelle-Kombination ausgeschlossen werden, nicht fuer den ganzen Tag. */
+function laufPasstFuer(lauf, modell, quelle) {
+  const info = lauf?.modelllaeufe?.[`${modell}/${quelle}`];
+  return !!(info && info.lauf && info.lauf.startsWith(lauf.lauf + "T00:00"));
+}
 
 /** Alle Paare (Vorhersage, Messung) für ein Modell, eine Vorlaufzeit und eine Quelle. */
 function paare(modell, lead, quelle) {
@@ -333,8 +466,10 @@ function paare(modell, lead, quelle) {
     const h = hist(modell);
     for (const tag in h) if (h[tag][lead] != null && m[tag] != null) out.push({ tag, vor: h[tag][lead], ist: m[tag] });
   }
-  for (const lauf in laeufe()) {
-    const eintrag = laeufe()[lauf].leads?.find(l => l.lead === lead);
+  for (const laufDatum in laeufe()) {
+    const laufObj = laeufe()[laufDatum];
+    if (!laufPasstFuer(laufObj, modell, quelle)) continue; // falsche/abweichende Initialisierung -- ausschliessen
+    const eintrag = laufObj.leads?.find(l => l.lead === lead);
     if (!eintrag) continue;
     const v = quelle === "hl" ? eintrag[modell]?.hl : eintrag[modell]?.ens;
     if (v == null || m[eintrag.ziel] == null) continue;
@@ -346,83 +481,199 @@ function paare(modell, lead, quelle) {
 const mae = p => p.length ? p.reduce((s, x) => s + Math.abs(x.vor - x.ist), 0) / p.length : null;
 const bias = p => p.length ? p.reduce((s, x) => s + (x.vor - x.ist), 0) / p.length : null;
 
-/* ============================ 1. Aktuelle Vorhersage ============================ */
-function zeichneAktuell() {
-  const alle = Object.keys(laeufe()).sort();
-  const lauf = laeufe()[alle[alle.length - 1]];
-  if (!lauf) return;
-  const leads = lauf.leads;
-  const W = 900, H = 300, L = 44, R = 16, O = 22, U = 46;
-  const iw = W - L - R, ih = H - O - U;
-  const maxWert = Math.max(4, ...leads.flatMap(d => [d.ecmwf?.hl, d.gfs?.hl, d.ecmwf?.p90, d.gfs?.p90].filter(v => v != null)));
-  const obergrenze = Math.ceil(maxWert / 5) * 5;
-  const y = v => O + ih - (v / obergrenze) * ih;
-  const bw = iw / leads.length;
+/* ======================================================================
+   SEITE „VORHERSAGE" — Ensemble-Meteogramm
+   ====================================================================== */
+const ZUSTAND = { modell: "ecmwf", laufIndex: 0, mitglieder: true };
 
-  const svg = $("#chart-aktuell");
+function laeufeFuer(modell) { return DATEN.vorhersage?.[modell] || []; }
+
+function modellMitVerfuegbaremLauf() {
+  // Bevorzugt ECMWF; wenn dafuer kein Lauf vorliegt, auf GFS ausweichen.
+  if (laeufeFuer("ecmwf").length) return "ecmwf";
+  if (laeufeFuer("gfs").length) return "gfs";
+  return "ecmwf";
+}
+
+function modellwahlZeichnen() {
+  const ziel = $("#modellwahl");
+  ziel.innerHTML = "";
+  MODELLE.forEach(m => {
+    const anzahl = laeufeFuer(m.id).length;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = m.name;
+    btn.setAttribute("aria-pressed", String(ZUSTAND.modell === m.id));
+    btn.disabled = anzahl === 0;
+    btn.title = anzahl ? `${anzahl} gespeicherte(r) Lauf/Läufe` : "keine Daten gespeichert";
+    btn.addEventListener("click", () => { ZUSTAND.modell = m.id; ZUSTAND.laufIndex = 0; meteogrammNeuZeichnen(); });
+    ziel.appendChild(btn);
+  });
+}
+
+function laufwahlZeichnen() {
+  const laeufe = laeufeFuer(ZUSTAND.modell);
+  const ziel = $("#laufwahl");
+  ziel.innerHTML = "";
+  const bezeichnung = ["aktuell", "vorheriger Lauf", "davorliegender Lauf"];
+  laeufe.slice(0, Math.max(3, Math.min(laeufe.length, 6))).forEach((lauf, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    const init = new Date(lauf.init.replace("Z", "").replace("T", "T") + ":00Z");
+    const stunde = lauf.init.slice(11, 13);
+    btn.textContent = (bezeichnung[i] || `Lauf −${i}`) + ` (${stunde} UTC)`;
+    btn.setAttribute("aria-pressed", String(ZUSTAND.laufIndex === i));
+    btn.addEventListener("click", () => { ZUSTAND.laufIndex = i; meteogrammNeuZeichnen(); });
+    ziel.appendChild(btn);
+  });
+}
+
+function aktuellerLauf() {
+  const laeufe = laeufeFuer(ZUSTAND.modell);
+  return laeufe[ZUSTAND.laufIndex] || laeufe[0] || null;
+}
+
+function meteogrammZeichnen() {
+  const modellInfo = MODELLE.find(m => m.id === ZUSTAND.modell);
+  const lauf = aktuellerLauf();
+  const svg = $("#chart-meteogramm");
+  const warnzeile = $("#laufwarnung");
+  warnzeile.innerHTML = "";
+
+  if (!lauf) {
+    svg.innerHTML = "";
+    $("#laufinfoZeile").textContent = "Für dieses Modell liegt noch kein gespeicherter Lauf vor.";
+    $("#leg-meteogramm").innerHTML = "";
+    $("#tab-meteogramm").innerHTML = "";
+    return;
+  }
+
+  const initDatum = lauf.init.slice(0, 10).split("-").reverse().join(".");
+  $("#laufinfoZeile").innerHTML =
+    `<b>${modellInfo.name}, Lauf vom ${initDatum}, ${lauf.init.slice(11, 13)} UTC</b> · `
+    + `${lauf.mitglieder_n} Ensemblemitglieder · Horizont ${lauf.horizont_tage} Tage · `
+    + `verfügbar seit ${lauf.verfuegbar_seit.slice(11, 16)} UTC · abgerufen ${lauf.abgerufen.slice(0, 16).replace("T", " ")} UTC`;
+  $("#standDatum").textContent = "Lauf vom " + initDatum.slice(0, 6) + initDatum.slice(6);
+
+  if (!lauf.vollstaendig || (lauf.hinweise && lauf.hinweise.length)) {
+    const teile = [];
+    if (!lauf.vollstaendig) teile.push("Daten werden noch vervollständigt — dieser Lauf ist noch nicht vollständig eingetroffen.");
+    (lauf.hinweise || []).forEach(h => teile.push(h));
+    warnzeile.innerHTML = `<div class="warnzeile">${teile.join(" · ")}</div>`;
+  }
+
+  const horizont = lauf.horizont_tage;
+  const W = 900, H = 340, L = 46, R = 18, O = 20, U = 40;
+  const iw = W - L - R, ih = H - O - U;
+
+  const alleWerte = [
+    ...lauf.mitglieder_kumulativ.flat(),
+    ...(lauf.hauptlauf_kumulativ || []),
+    ...lauf.p90_kumulativ,
+  ].filter(v => v != null);
+  const maxWert = Math.max(5, ...alleWerte);
+  const obergrenze = Math.ceil(maxWert / 5) * 5;
+  const x = lead => L + ((lead - 1) / Math.max(1, horizont - 1)) * iw;
+  const y = v => O + ih - (v / obergrenze) * ih;
+
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = "";
 
-  for (let t = 0; t <= obergrenze; t += obergrenze / 4) {
+  for (let t = 0; t <= obergrenze; t += obergrenze / 5) {
     svg.appendChild(el("line", { x1: L, y1: y(t), x2: W - R, y2: y(t), class: "gitter" }));
     svg.appendChild(el("text", { x: L - 8, y: y(t) + 3.5, "text-anchor": "end", class: "ax" }, nf(t, 0)));
   }
-  svg.appendChild(el("text", { x: L - 8, y: O - 8, "text-anchor": "end", class: "axl" }, "mm"));
+  svg.appendChild(el("text", { x: L - 8, y: O - 7, "text-anchor": "end", class: "axl" }, "mm"));
 
-  leads.forEach((d, i) => {
-    const x0 = L + i * bw;
-    const g = el("g");
-    // Ensemble-Band je Modell
-    MODELLE.forEach((m, mi) => {
-      const q = d[m.id]; if (!q || q.p90 == null) return;
-      const bx = x0 + bw * (mi === 0 ? 0.20 : 0.60), bwid = bw * 0.20;
-      const hoehe = Math.max(2, y(q.p10) - y(q.p90));
-      g.appendChild(el("rect", { x: bx, y: y(q.p90), width: bwid, height: hoehe, fill: m.farbe, opacity: .17, rx: 1.5 }));
-      if (q.ens != null) g.appendChild(el("line", { x1: bx, y1: y(q.ens), x2: bx + bwid, y2: y(q.ens), stroke: m.farbe, "stroke-width": 2, "stroke-dasharray": "4 2.5" }));
+  const pfad = werte => werte.map((v, i) => v == null ? null : (i ? "L" : "M") + x(i + 1) + " " + y(v))
+    .filter(Boolean).join(" ");
+
+  // Unsicherheitsband 10.-90. Perzentil
+  const oben = lauf.p90_kumulativ, unten = lauf.p10_kumulativ;
+  const bandPunkte = [];
+  oben.forEach((v, i) => { if (v != null) bandPunkte.push([x(i + 1), y(v)]); });
+  for (let i = unten.length - 1; i >= 0; i--) { if (unten[i] != null) bandPunkte.push([x(i + 1), y(unten[i])]); }
+  if (bandPunkte.length > 2) {
+    const d = bandPunkte.map((p, i) => (i ? "L" : "M") + p[0] + " " + p[1]).join(" ") + " Z";
+    svg.appendChild(el("path", { d, fill: modellInfo.farbe, opacity: .16, stroke: "none" }));
+  }
+
+  // Einzelne Ensemblemitglieder: duenne, transparente Linien
+  if (ZUSTAND.mitglieder) {
+    lauf.mitglieder_kumulativ.forEach(serie => {
+      const d = pfad(serie);
+      if (d) svg.appendChild(el("path", { d, fill: "none", stroke: modellInfo.farbe, "stroke-width": .8, opacity: .22, "stroke-linejoin": "round" }));
     });
-    // Hauptlauf-Balken
-    MODELLE.forEach((m, mi) => {
-      const q = d[m.id]; if (!q || q.hl == null) return;
-      const bx = x0 + bw * (mi === 0 ? 0.10 : 0.50), bwid = bw * 0.14;
-      const hoehe = Math.max(q.hl > 0 ? 2 : 0, y(0) - y(q.hl));
-      if (hoehe > 0) g.appendChild(el("rect", { x: bx, y: y(q.hl), width: bwid, height: hoehe, fill: m.farbe, rx: 2 }));
-    });
-    svg.appendChild(g);
-    svg.appendChild(el("text", { x: x0 + bw / 2, y: H - U + 16, "text-anchor": "middle", class: "ax" }, datumKurz(d.ziel)));
-    svg.appendChild(el("text", { x: x0 + bw / 2, y: H - U + 30, "text-anchor": "middle", class: "ax" }, "+" + d.lead));
-    const p5 = d.ecmwf?.p_ueber5, g5 = d.gfs?.p_ueber5;
-    treffer(svg, x0, O, bw, ih, `${datumLang(d.ziel)}  (+${d.lead} Tage)
-ECMWF  Hauptlauf ${nf(d.ecmwf?.hl)} mm · Ensemble ${nf(d.ecmwf?.ens)} mm
-       Band ${nf(d.ecmwf?.p10)}–${nf(d.ecmwf?.p90)} mm
-GFS    Hauptlauf ${nf(d.gfs?.hl)} mm · Ensemble ${nf(d.gfs?.ens)} mm
-       Band ${nf(d.gfs?.p10)}–${nf(d.gfs?.p90)} mm
-Über 5 mm: ECMWF ${p5 == null ? "–" : Math.round(p5 * 100) + " %"} · GFS ${g5 == null ? "–" : Math.round(g5 * 100) + " %"} der Läufe`);
-  });
+  }
+
+  // Ensemble-Mittel
+  const dMittel = pfad(lauf.mittel_kumulativ);
+  if (dMittel) svg.appendChild(el("path", { d: dMittel, fill: "none", stroke: modellInfo.farbe, "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+
+  // Kontrolllauf
+  const dKontrolle = pfad(lauf.kontrolllauf_kumulativ);
+  if (dKontrolle) svg.appendChild(el("path", { d: dKontrolle, fill: "none", stroke: "var(--mess)", "stroke-width": 2, "stroke-dasharray": "1 4", "stroke-linecap": "round" }));
+
+  // Deterministischer Hauptlauf
+  if (lauf.hauptlauf_kumulativ) {
+    const dHl = pfad(lauf.hauptlauf_kumulativ);
+    if (dHl) svg.appendChild(el("path", { d: dHl, fill: "none", stroke: modellInfo.farbe, "stroke-width": 2, "stroke-dasharray": "7 3.5", "stroke-linecap": "round" }));
+  }
+
   svg.appendChild(el("line", { x1: L, y1: y(0), x2: W - R, y2: y(0), class: "achse" }));
-  svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" }, "Vorlauf in Tagen"));
 
-  legende("#leg-aktuell", [
-    { mark: markFlaeche("var(--ecmwf)"), text: "ECMWF Hauptlauf" },
-    { mark: markFlaeche("var(--ecmwf)", .25), text: "ECMWF Ensemble-Band" },
-    { mark: markFlaeche("var(--gfs)"), text: "GFS Hauptlauf" },
-    { mark: markFlaeche("var(--gfs)", .25), text: "GFS Ensemble-Band" },
+  // x-Achse + Tooltip-Spalten
+  const bw = iw / horizont;
+  for (let lead = 1; lead <= horizont; lead++) {
+    const ziel = lauf.ziele[lead - 1];
+    if (lead % Math.ceil(horizont / 10) === 0 || lead === 1 || lead === horizont) {
+      svg.appendChild(el("text", { x: x(lead), y: H - U + 16, "text-anchor": "middle", class: "ax" }, datumKurz(ziel)));
+      svg.appendChild(el("text", { x: x(lead), y: H - U + 29, "text-anchor": "middle", class: "ax" }, "+" + lead));
+    }
+    const werte = [
+      `Ensemble-Mittel: ${nf(lauf.mittel_kumulativ[lead - 1])} mm`,
+      `Band 10–90 %: ${nf(lauf.p10_kumulativ[lead - 1])}–${nf(lauf.p90_kumulativ[lead - 1])} mm`,
+      `Kontrolllauf: ${nf(lauf.kontrolllauf_kumulativ[lead - 1])} mm`,
+      lauf.hauptlauf_kumulativ ? `Hauptlauf: ${nf(lauf.hauptlauf_kumulativ[lead - 1])} mm` : null,
+      `Mitglieder mit Daten: ${lauf.n_kumulativ[lead - 1]}/${lauf.mitglieder_n}`,
+    ].filter(Boolean);
+    treffer(svg, x(lead) - bw / 2, O, bw, ih, `${datumLang(ziel)} (+${lead} Tage, aufsummiert seit Laufbeginn)\n` + werte.join("\n"));
+  }
+  svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" }, "Vorhersagetag (aufsummiert seit Initialisierung)"));
+
+  legende("#leg-meteogramm", [
+    { mark: markLinie(modellInfo.farbe, false, 3), text: modellInfo.name + " Ensemble-Mittel" },
+    { mark: markFlaeche(modellInfo.farbe, .18), text: "10.–90. Perzentil" },
+    { mark: markLinie("var(--mess)", true), text: "Kontrolllauf" },
+    ...(lauf.hauptlauf_kumulativ ? [{ mark: markLinie(modellInfo.farbe, true), text: "Deterministischer Hauptlauf" }] : []),
+    ...(ZUSTAND.mitglieder ? [{ mark: markLinie(modellInfo.farbe, false, .8), text: "Einzelne Ensemblemitglieder" }] : []),
   ]);
 
-  $("#tab-aktuell").innerHTML =
-    `<thead><tr><th>Tag</th><th>Vorlauf</th><th>ECMWF HL</th><th>ECMWF Ens</th><th>ECMWF Band</th><th>GFS HL</th><th>GFS Ens</th><th>GFS Band</th><th>≥5 mm</th></tr></thead><tbody>` +
-    leads.map(d => `<tr><td>${datumKurz(d.ziel)}</td><td>+${d.lead}</td>
-      <td>${nf(d.ecmwf?.hl)}</td><td>${nf(d.ecmwf?.ens)}</td><td>${nf(d.ecmwf?.p10)}–${nf(d.ecmwf?.p90)}</td>
-      <td>${nf(d.gfs?.hl)}</td><td>${nf(d.gfs?.ens)}</td><td>${nf(d.gfs?.p10)}–${nf(d.gfs?.p90)}</td>
-      <td>${d.ecmwf?.p_ueber5 == null ? "–" : Math.round(d.ecmwf.p_ueber5 * 100) + " %"}</td></tr>`).join("") + `</tbody>`;
-
-  $("#standDatum").textContent = "Lauf vom " + datumKurz(lauf.lauf).slice(3) + new Date(lauf.lauf + "T12:00:00").getFullYear();
+  $("#tab-meteogramm").innerHTML =
+    `<thead><tr><th>Tag</th><th>Vorlauf</th><th>Mittel</th><th>Band 10–90</th><th>Kontrolllauf</th><th>Hauptlauf</th></tr></thead><tbody>` +
+    lauf.ziele.map((ziel, i) => `<tr><td>${datumKurz(ziel)}</td><td>+${i + 1}</td>
+      <td>${nf(lauf.mittel_kumulativ[i])}</td><td>${nf(lauf.p10_kumulativ[i])}–${nf(lauf.p90_kumulativ[i])}</td>
+      <td>${nf(lauf.kontrolllauf_kumulativ[i])}</td><td>${lauf.hauptlauf_kumulativ ? nf(lauf.hauptlauf_kumulativ[i]) : "–"}</td></tr>`).join("")
+    + `</tbody>`;
 }
 
-/* ============================ 2. Güte nach Vorlaufzeit ============================ */
-function serienNachLead(quelle) {
+function meteogrammNeuZeichnen() {
+  modellwahlZeichnen();
+  laufwahlZeichnen();
+  meteogrammZeichnen();
+}
+
+$("#mitgliederEin").addEventListener("change", e => { ZUSTAND.mitglieder = e.target.checked; meteogrammZeichnen(); });
+
+/* ======================================================================
+   SEITE „ANALYSE", TEIL A — Tagesgenaue Vorhersagegüte (Tag 1–5)
+   ====================================================================== */
+const GUETE_MAX_LEAD = 5;
+
+function serienNachLead(quelle, maxLead) {
   return MODELLE.map(m => ({
     modell: m,
-    punkte: Array.from({ length: 10 }, (_, i) => i + 1).map(lead => {
+    punkte: Array.from({ length: maxLead }, (_, i) => i + 1).map(lead => {
       const p = paare(m.id, lead, quelle);
       return { lead, mae: mae(p), bias: bias(p), n: p.length };
     }).filter(d => d.n > 0)
@@ -430,7 +681,7 @@ function serienNachLead(quelle) {
 }
 
 function linienChart(svgSel, serien, feld, { nulllinie = false, einheit = "mm" } = {}) {
-  const W = 900, H = 290, L = 46, R = 90, O = 20, U = 44;
+  const W = 900, H = 270, L = 46, R = 90, O = 20, U = 44;
   const iw = W - L - R, ih = H - O - U;
   const alleWerte = serien.flatMap(s => s.punkte.map(p => p[feld])).filter(v => v != null);
   if (!alleWerte.length) return false;
@@ -471,7 +722,7 @@ function linienChart(svgSel, serien, feld, { nulllinie = false, einheit = "mm" }
   for (let l = 1; l <= maxLead; l++) {
     const zeilen = serien.map(s => {
       const p = s.punkte.find(q => q.lead === l);
-      return p && p[feld] != null ? `${(s.modell.name + (s.gestrichelt ? " Ensemble" : " Hauptlauf")).padEnd(16)} ${nf(p[feld], 2)} ${einheit}  (n=${p.n})` : null;
+      return p && p[feld] != null ? `${(s.modell.name + (s.gestrichelt ? " Ensemble" : " Hauptlauf")).padEnd(18)} ${nf(p[feld], 2)} ${einheit}  (n=${p.n})` : null;
     }).filter(Boolean);
     if (zeilen.length) treffer(svg, x(l) - iw / (maxLead * 2), O, iw / maxLead, ih, `Vorlauf ${l} Tag${l > 1 ? "e" : ""}\n` + zeilen.join("\n"));
   }
@@ -479,46 +730,114 @@ function linienChart(svgSel, serien, feld, { nulllinie = false, einheit = "mm" }
 }
 
 function zeichneGuete() {
-  const hl = serienNachLead("hl");
-  const ens = serienNachLead("ens").map(s => ({ ...s, gestrichelt: true }));
+  const hl = serienNachLead("hl", GUETE_MAX_LEAD);
+  const ens = serienNachLead("ens", GUETE_MAX_LEAD).map(s => ({ ...s, gestrichelt: true }));
   linienChart("#chart-guete", [...hl, ...ens], "mae");
   legende("#leg-guete", legendeAusSerien([...hl, ...ens]));
 
-  const maxLead = Math.max(...hl.flatMap(s => s.punkte.map(p => p.lead)));
-  let kopf = `<thead><tr><th>Vorhersage</th>` + Array.from({ length: maxLead }, (_, i) => `<th>+${i + 1}</th>`).join("") + `<th>Tage</th></tr></thead>`;
+  let kopf = `<thead><tr><th>Vorhersage</th>` + Array.from({ length: GUETE_MAX_LEAD }, (_, i) => `<th>+${i + 1}</th>`).join("") + `<th>Tage</th></tr></thead>`;
   const zeile = (s, typ) => {
-    const n = Math.max(...s.punkte.map(p => p.n));
-    return `<tr><td>${s.modell.name} ${typ}</td>` + Array.from({ length: maxLead }, (_, i) => {
+    const n = Math.max(0, ...s.punkte.map(p => p.n));
+    return `<tr><td>${s.modell.name} ${typ}</td>` + Array.from({ length: GUETE_MAX_LEAD }, (_, i) => {
       const p = s.punkte.find(q => q.lead === i + 1);
       return `<td>${p ? nf(p.mae, 2) : "–"}</td>`;
     }).join("") + `<td>${n}</td></tr>`;
   };
   $("#tab-guete").innerHTML = kopf + `<tbody>` + hl.map(s => zeile(s, "Hauptlauf")).join("") + ens.map(s => zeile(s, "Ensemble")).join("") + `</tbody>`;
 
-  // Befund
   const e1 = hl.find(s => s.modell.id === "ecmwf")?.punkte.find(p => p.lead === 1);
   const g1 = hl.find(s => s.modell.id === "gfs")?.punkte.find(p => p.lead === 1);
-  const ensTage = ens.length ? Math.max(...ens.flatMap(s => s.punkte.map(p => p.n))) : 0;
+  const ensTage = ens.length ? Math.max(0, ...ens.flatMap(s => s.punkte.map(p => p.n))) : 0;
   let txt = "";
   if (e1 && g1) {
-    const besser = e1.mae < g1.mae ? "ECMWF" : "GFS";
+    const besser = e1.mae < g1.mae ? "ECMWF-IFS" : "GFS";
     const diff = Math.abs(e1.mae - g1.mae);
     txt += `<p>Bei einem Tag Vorlauf liegt <strong>${besser}</strong> vorn: ${nf(Math.min(e1.mae, g1.mae), 2)} gegen ${nf(Math.max(e1.mae, g1.mae), 2)} mm mittlerer Fehler — ein Unterschied von ${nf(diff, 2)} mm über ${e1.n} Tage.</p>`;
   }
-  txt += `<p>Die Hauptläufe haben eine Vorgeschichte von rund drei Monaten, weil sich vergangene Modellläufe nachträglich abrufen lassen. <strong>Für die Ensemble-Mittel gilt das nicht</strong> — für sie ${ensTage === 0 ? "liegt noch kein abgeschlossener Tag vor" : `sind es bisher ${ensTage} Tag${ensTage > 1 ? "e" : ""}`}. Ein Vergleich zwischen durchgezogenen und gestrichelten Linien ist deshalb vorerst nicht belastbar; die Spalte „Tage" nennt die jeweilige Fallzahl.</p>`;
+  txt += `<p>Die Hauptläufe haben eine Vorgeschichte von rund drei Monaten, weil sich vergangene Modellläufe nachträglich abrufen lassen. <strong>Für die Ensemble-Mittel gilt das nicht</strong> — für sie ${ensTage === 0 ? "liegt noch kein abgeschlossener Tag vor" : `sind es bisher ${ensTage} Tag${ensTage > 1 ? "e" : ""}`}. Die Spalte „Tage" nennt jeweils die Fallzahl, auf der ein Wert beruht.</p>`;
   $("#befund-guete").innerHTML = txt;
 }
 
-/* ============================ 3. Rückblick ============================ */
+function zeichneBias() {
+  const hl = serienNachLead("hl", GUETE_MAX_LEAD);
+  const ens = serienNachLead("ens", GUETE_MAX_LEAD).map(s => ({ ...s, gestrichelt: true }));
+  linienChart("#chart-bias", [...hl, ...ens], "bias", { nulllinie: true });
+  legende("#leg-bias", legendeAusSerien([...hl, ...ens]));
+
+  const werte = MODELLE.map(m => {
+    const kurz = hl.find(s => s.modell.id === m.id)?.punkte.find(p => p.lead === 1);
+    const lang = hl.find(s => s.modell.id === m.id)?.punkte.find(p => p.lead === GUETE_MAX_LEAD);
+    return { name: m.name, kurz: kurz?.bias, lang: lang?.bias };
+  }).filter(w => w.kurz != null);
+  if (werte.length) {
+    $("#befund-bias").innerHTML =
+      `<p>Bei einem Tag Vorlauf: ${werte.map(w => `${w.name} ${w.kurz >= 0 ? "+" : ""}${nf(w.kurz, 2)} mm`).join(", ")} mittlerer Fehler pro Tag.
+       Bei ${GUETE_MAX_LEAD} Tagen Vorlauf: ${werte.filter(w => w.lang != null).map(w => `${w.name} ${w.lang >= 0 ? "+" : ""}${nf(w.lang, 2)} mm`).join(", ") || "noch keine ausreichende Fallzahl"}.</p>
+       <p>Den Summenvergleich über längere Zeiträume — also ob eine ganze Witterungsphase zu nass oder zu trocken vorhergesagt wurde — zeigt der Abschnitt „Witterungs- und Summenvergleich" weiter unten.</p>`;
+  } else {
+    $("#befund-bias").innerHTML = `<p>Noch nicht genug abgeschlossene Tage für eine Aussage.</p>`;
+  }
+}
+
+const SCHWELLE_5MM = 5;
+function kontingenz(modell, quelle, leads) {
+  let tp = 0, fp = 0, fn = 0, tn = 0;
+  leads.forEach(lead => paare(modell, lead, quelle).forEach(p => {
+    const ist = p.ist >= SCHWELLE_5MM, vor = p.vor >= SCHWELLE_5MM;
+    if (vor && ist) tp++; else if (vor && !ist) fp++; else if (!vor && ist) fn++; else tn++;
+  }));
+  const ges = tp + fp + fn + tn;
+  return { tp, fp, fn, tn, ges, quote: ges ? (tp + tn) / ges : null, ts: (tp + fp + fn) ? tp / (tp + fp + fn) : null, trocken: ges ? (tn + fp) / ges : null };
+}
+function zeichneSchwelle() {
+  const leads = Array.from({ length: GUETE_MAX_LEAD }, (_, i) => i + 1);
+  const k = MODELLE.map(m => ({ m, k: kontingenz(m.id, "hl", leads) })).filter(x => x.k.ges);
+  if (!k.length) { $("#s-guete").querySelector("#kacheln-schwelle").innerHTML = "<p>Noch keine Daten.</p>"; return; }
+  const basis = k[0].k.trocken;
+
+  $("#kacheln-schwelle").innerHTML = k.map(x => `
+    <div class="kachel k-${x.m.id}">
+      <div class="k-label">${x.m.name} · Treffer bei Regen</div>
+      <div class="k-zahl">${Math.round(x.k.ts * 100)} %</div>
+      <div class="k-fuss">${x.k.tp} von ${x.k.tp + x.k.fp + x.k.fn} Tagen richtig, an denen Regen angesagt war oder fiel</div>
+    </div>`).join("") + `
+    <div class="kachel">
+      <div class="k-label">Vergleichsmarke</div>
+      <div class="k-zahl">${Math.round(basis * 100)} %</div>
+      <div class="k-fuss">Trefferquote, wenn man immer „trocken" sagt</div>
+    </div>`;
+
+  $("#tab-schwelle").innerHTML =
+    `<thead><tr><th>Modell</th><th>Regen getroffen</th><th>Fehlalarm</th><th>Regen verpasst</th><th>Trocken richtig</th><th>Trefferquote</th><th>Regen-Trefferrate</th></tr></thead><tbody>` +
+    k.map(x => {
+      const besser = x.k.quote > basis;
+      return `<tr><td>${x.m.name} Hauptlauf</td><td>${x.k.tp}</td><td>${x.k.fp}</td><td>${x.k.fn}</td><td>${x.k.tn}</td>
+        <td><span class="pill ${besser ? "pill-gut" : "pill-warn"}">${Math.round(x.k.quote * 100)} %</span></td>
+        <td class="besser">${Math.round(x.k.ts * 100)} %</td></tr>`;
+    }).join("") +
+    `<tr><td>Immer „trocken"</td><td>0</td><td>0</td><td>${k[0].k.tp + k[0].k.fn}</td><td>${k[0].k.tn + k[0].k.fp}</td>
+      <td><span class="pill pill-warn">${Math.round(basis * 100)} %</span></td><td>0 %</td></tr></tbody>`;
+
+  const besserAlsBasis = k.filter(x => x.k.quote > basis).map(x => x.m.name);
+  const beste = k.slice().sort((a, b) => b.k.ts - a.k.ts)[0];
+  $("#befund-schwelle").innerHTML =
+    `<p>Wer stur „trocken" sagt, liegt an <strong>${Math.round(basis * 100)} %</strong> der Tage richtig, weil so selten mehr als ${SCHWELLE_5MM} mm fallen.
+     ${besserAlsBasis.length === 0
+      ? "Beide Modelle liegen mit ihrer Trefferquote <strong>nicht über</strong> dieser Marke."
+      : `Darüber ${besserAlsBasis.length > 1 ? "kommen" : "kommt"} <strong>${besserAlsBasis.join(" und ")}</strong>.`}</p>
+     <p>Aussagekräftig ist die Regen-Trefferrate: von allen Tagen, an denen Regen angesagt war oder tatsächlich fiel,
+     wurden ${beste ? `bei <strong>${beste.m.name}</strong> ${Math.round(beste.k.ts * 100)} %` : "–"} korrekt getroffen.</p>`;
+}
+
 function zeichneRueckblick() {
   const m = mess();
   const tage = Object.keys(m).sort().slice(-10);
   if (!tage.length) return;
-  const W = 900, H = 290, L = 44, R = 16, O = 22, U = 42;
+  const W = 900, H = 270, L = 44, R = 16, O = 22, U = 42;
   const iw = W - L - R, ih = H - O - U;
   const reihen = [{ lead: 1, offen: false }, { lead: 5, offen: true }];
   const werte = tage.flatMap(t => [m[t], ...MODELLE.flatMap(mm => reihen.map(r => hist(mm.id)[t]?.[r.lead]))]).filter(v => v != null);
-  const obergrenze = Math.max(5, Math.ceil(Math.max(...werte) / 5) * 5);
+  const obergrenze = Math.max(5, Math.ceil(Math.max(...werte, 0) / 5) * 5);
   const y = v => O + ih - (v / obergrenze) * ih;
   const bw = iw / tage.length;
 
@@ -551,8 +870,8 @@ function zeichneRueckblick() {
 
   legende("#leg-rueck", [
     { mark: markFlaeche("var(--mess)", .42), text: "Gemessen (Station)" },
-    { mark: markPunkt("var(--ecmwf)"), text: "ECMWF, 1 Tag vorher" },
-    { mark: markPunkt("var(--ecmwf)", true), text: "ECMWF, 5 Tage vorher" },
+    { mark: markPunkt("var(--ecmwf)"), text: "ECMWF-IFS, 1 Tag vorher" },
+    { mark: markPunkt("var(--ecmwf)", true), text: "ECMWF-IFS, 5 Tage vorher" },
     { mark: markPunkt("var(--gfs)"), text: "GFS, 1 Tag vorher" },
     { mark: markPunkt("var(--gfs)", true), text: "GFS, 5 Tage vorher" },
   ]);
@@ -564,110 +883,19 @@ function zeichneRueckblick() {
       <td>${nf(hist("gfs")[t]?.["1"])}</td><td>${nf(hist("gfs")[t]?.["5"])}</td></tr>`).join("") + `</tbody>`;
 }
 
-/* ============================ 4. Schwelle 5 mm ============================ */
-const SCHWELLE = 5;
-function kontingenz(modell, quelle, leads) {
-  let tp = 0, fp = 0, fn = 0, tn = 0;
-  leads.forEach(lead => paare(modell, lead, quelle).forEach(p => {
-    const ist = p.ist >= SCHWELLE, vor = p.vor >= SCHWELLE;
-    if (vor && ist) tp++; else if (vor && !ist) fp++; else if (!vor && ist) fn++; else tn++;
-  }));
-  const ges = tp + fp + fn + tn;
-  return { tp, fp, fn, tn, ges, quote: ges ? (tp + tn) / ges : null, ts: (tp + fp + fn) ? tp / (tp + fp + fn) : null, trocken: ges ? (tn + fp) / ges : null };
-}
-function zeichneSchwelle() {
-  const leads = [1, 2, 3, 4, 5, 6, 7];
-  const k = MODELLE.map(m => ({ m, k: kontingenz(m.id, "hl", leads) })).filter(x => x.k.ges);
-  if (!k.length) { $("#s-schwelle").style.display = "none"; return; }
-  const basis = k[0].k.trocken;
-
-  $("#kacheln-schwelle").innerHTML = k.map(x => `
-    <div class="kachel k-${x.m.id}">
-      <div class="k-label">${x.m.name} · Treffer bei Regen</div>
-      <div class="k-zahl">${Math.round(x.k.ts * 100)} %</div>
-      <div class="k-fuss">${x.k.tp} von ${x.k.tp + x.k.fp + x.k.fn} Tagen richtig, an denen Regen angesagt war oder fiel</div>
-    </div>`).join("") + `
-    <div class="kachel">
-      <div class="k-label">Vergleichsmarke</div>
-      <div class="k-zahl">${Math.round(basis * 100)} %</div>
-      <div class="k-fuss">Trefferquote, wenn man immer „trocken" sagt</div>
-    </div>`;
-
-  $("#tab-schwelle").innerHTML =
-    `<thead><tr><th>Modell</th><th>Regen getroffen</th><th>Fehlalarm</th><th>Regen verpasst</th><th>Trocken richtig</th><th>Trefferquote</th><th>Regen-Trefferrate</th></tr></thead><tbody>` +
-    k.map(x => {
-      const besser = x.k.quote > basis;
-      return `<tr><td>${x.m.name} Hauptlauf</td><td>${x.k.tp}</td><td>${x.k.fp}</td><td>${x.k.fn}</td><td>${x.k.tn}</td>
-        <td><span class="pill ${besser ? "pill-gut" : "pill-warn"}">${Math.round(x.k.quote * 100)} %</span></td>
-        <td class="besser">${Math.round(x.k.ts * 100)} %</td></tr>`;
-    }).join("") +
-    `<tr><td>Immer „trocken"</td><td>0</td><td>0</td><td>${k[0].k.tp + k[0].k.fn}</td><td>${k[0].k.tn + k[0].k.fp}</td>
-      <td><span class="pill pill-warn">${Math.round(basis * 100)} %</span></td><td>0 %</td></tr></tbody>`;
-
-  const besserAlsBasis = k.filter(x => x.k.quote > basis).map(x => x.m.name);
-  const beste = k.slice().sort((a, b) => b.k.ts - a.k.ts)[0];
-  $("#befund-schwelle").innerHTML =
-    `<p>Genau hier zeigt sich, warum die nackte Trefferquote in die Irre führt: Wer stur „trocken" sagt, liegt
-     an <strong>${Math.round(basis * 100)} %</strong> der Tage richtig, weil so selten mehr als ${SCHWELLE} mm fallen.
-     ${besserAlsBasis.length === 0
-      ? "Beide Modelle liegen mit ihrer Trefferquote <strong>nicht über</strong> dieser Marke."
-      : `Darüber ${besserAlsBasis.length > 1 ? "kommen" : "kommt"} <strong>${besserAlsBasis.join(" und ")}</strong>.`}</p>
-     <p>Aussagekräftig ist die Regen-Trefferrate rechts: von allen Tagen, an denen Regen angesagt war oder tatsächlich fiel,
-     wurden ${beste ? `bei <strong>${beste.m.name}</strong> ${Math.round(beste.k.ts * 100)} %` : "–"} korrekt getroffen.
-     Ein Wert deutlich unter 50 % heißt im Alltag: auf die Ansage „es regnet stark" ist nur bedingt Verlass —
-     vorsichtiger wird, wer beide Modelle und das Ensemble-Band zusammen liest.</p>`;
-}
-
-/* ============================ 5. Bias und Summen ============================ */
-function zeichneBias() {
-  const hl = serienNachLead("hl");
-  const ens = serienNachLead("ens").map(s => ({ ...s, gestrichelt: true }));
-  linienChart("#chart-bias", [...hl, ...ens], "bias", { nulllinie: true });
-  legende("#leg-bias", legendeAusSerien([...hl, ...ens]));
-
-  const leads = [1, 3, 5, 7];
-  let kopf = `<thead><tr><th>Summe über den Vergleichszeitraum</th>` + leads.map(l => `<th>+${l} Tage</th>`).join("") + `<th>Gemessen</th></tr></thead>`;
-  const zeilen = MODELLE.map(m => {
-    const zellen = leads.map(l => {
-      const p = paare(m.id, l, "hl");
-      if (!p.length) return `<td>–</td>`;
-      const sv = p.reduce((s, x) => s + x.vor, 0), si = p.reduce((s, x) => s + x.ist, 0);
-      const abw = si ? (sv / si - 1) * 100 : 0;
-      return `<td>${nf(sv, 0)} mm<br><span class="pill ${Math.abs(abw) < 10 ? "pill-gut" : Math.abs(abw) < 25 ? "pill-warn" : "pill-schlecht"}">${abw >= 0 ? "+" : ""}${nf(abw, 0)} %</span></td>`;
-    }).join("");
-    const p1 = paare(m.id, 1, "hl");
-    return `<tr><td>${m.name} Hauptlauf</td>${zellen}<td>${nf(p1.reduce((s, x) => s + x.ist, 0), 0)} mm</td></tr>`;
-  }).join("");
-  $("#tab-summen").innerHTML = kopf + `<tbody>${zeilen}</tbody>`;
-
-  const werte = MODELLE.map(m => {
-    const kurz = paare(m.id, 1, "hl"), lang = paare(m.id, 7, "hl");
-    const rel = p => { const si = p.reduce((s, x) => s + x.ist, 0); return si ? (p.reduce((s, x) => s + x.vor, 0) / si - 1) * 100 : null; };
-    return { name: m.name, kurz: rel(kurz), lang: rel(lang) };
-  }).filter(w => w.kurz != null);
-  if (werte.length) {
-    $("#befund-bias").innerHTML =
-      `<p>Bei kurzem Vorlauf sagen beide Modelle <strong>mehr</strong> Regen an, als dann fällt
-       (${werte.map(w => `${w.name} ${w.kurz >= 0 ? "+" : ""}${nf(w.kurz, 0)} %`).join(", ")} über den Zeitraum).
-       Mit sieben Tagen Vorlauf kehrt sich das um: ${werte.map(w => `${w.name} ${w.lang >= 0 ? "+" : ""}${nf(w.lang, 0)} %`).join(", ")}.</p>
-       <p>Die verbreitete Erfahrung „die Vorhersage übertreibt den Regen" trifft also vor allem auf die
-       nächsten Tage zu. Für die Woche darauf gilt eher das Gegenteil — dort verschwindet Niederschlag
-       in der Mittelung über viele mögliche Wetterlagen.</p>`;
-  }
-}
-
-/* ============================ 6. Ensemble-Spannweite ============================ */
 function zeichneStreuung() {
-  let drin = 0, gesamt = 0, jeModell = {};
+  let gesamt = 0, jeModell = {};
   MODELLE.forEach(m => { jeModell[m.id] = { drin: 0, ges: 0 }; });
   const m = mess();
-  for (const lauf in laeufe()) {
-    (laeufe()[lauf].leads || []).forEach(e => {
+  for (const laufDatum in laeufe()) {
+    const laufObj = laeufe()[laufDatum];
+    (laufObj.leads || []).forEach(e => {
       const ist = m[e.ziel]; if (ist == null) return;
       MODELLE.forEach(mm => {
+        if (!laufPasstFuer(laufObj, mm.id, "ens")) return; // falsche/abweichende Initialisierung -- ausschliessen
         const q = e[mm.id]; if (!q || q.p10 == null || q.p90 == null) return;
         gesamt++; jeModell[mm.id].ges++;
-        if (ist >= q.p10 && ist <= q.p90) { drin++; jeModell[mm.id].drin++; }
+        if (ist >= q.p10 && ist <= q.p90) jeModell[mm.id].drin++;
       });
     });
   }
@@ -675,9 +903,7 @@ function zeichneStreuung() {
   if (!gesamt) {
     ziel.innerHTML = `<div class="befund"><p><strong>Noch keine Daten.</strong> Diese Auswertung braucht Tage, die
       erstens vorhergesagt und zweitens schon vergangen sind — und Ensemble-Bänder werden erst seit dem ersten
-      täglichen Lauf gespeichert. Der erste Wert erscheint hier morgen, belastbar wird die Zahl nach einigen Wochen.</p>
-      <p>Warum das zählt: Ein Band, in dem der gemessene Wert nur selten liegt, ist zu schmal — dann täuscht das
-      Ensemble Einigkeit vor, die es nicht gibt. Erwartet werden rund 80 %.</p></div>`;
+      täglichen Lauf gespeichert.</p></div>`;
     return;
   }
   ziel.innerHTML = `<div class="kacheln">` + MODELLE.map(mm => {
@@ -687,26 +913,209 @@ function zeichneStreuung() {
       <div class="k-zahl">${q} %</div><div class="k-fuss">${j.drin} von ${j.ges} Tagen · erwartet 80 %</div></div>`;
   }).join("") + `</div>
   <div class="befund"><p>${gesamt < 40
-      ? `Erst <strong>${gesamt} Vergleichswerte</strong> — das ist noch zu wenig für eine Aussage. Die Zahl wächst täglich.`
+      ? `Erst <strong>${gesamt} Vergleichswerte</strong> — das ist noch zu wenig für eine Aussage.`
       : `Liegt der Wert deutlich unter 80 %, ist das Band zu schmal: das Ensemble gibt sich sicherer, als es ist.`}</p></div>`;
 }
 
+/* ======================================================================
+   SEITE „ANALYSE", TEIL B — Witterungs- und Summenvergleich
+   ====================================================================== */
+// Fenstergrenzen sind hier bewusst als einfache Liste gekapselt: ein weiteres
+// Fenster (z.B. Tag 5-10) laesst sich durch einen zusaetzlichen Eintrag ergaenzen.
+const FENSTER = [
+  { id: "1-3", von: 1, bis: 3, label: "Tag 1–3" },
+  { id: "4-7", von: 4, bis: 7, label: "Tag 4–7" },
+  { id: "8-14", von: 8, bis: 14, label: "Tag 8–14" },
+];
+// Kategorie-Schwellen fuer die Fenstersumme: als Tagesrate (mm/Tag) definiert
+// und mit der jeweiligen Fensterlaenge multipliziert, damit Tag 1-3, Tag 4-7
+// und Tag 8-14 NICHT an denselben absoluten Millimeterwerten gemessen werden.
+// WICHTIG: Das ist eine PRAGMATISCHE, VORLAEUFIGE Klassifikation -- keine
+// meteorologisch normierte Einteilung (etwa nach DWD-Wetterlagenklassen),
+// sondern ein transparenter, hier zentral aenderbarer Ausgangspunkt.
+const KATEGORIE_TAGESRATE = { trocken: 1.5, maessig: 6.0 }; // mm pro Tag im Fenster
+function kategorieSchwellen(fenster) {
+  const tage = fenster.bis - fenster.von + 1;
+  return {
+    trocken: Math.round(KATEGORIE_TAGESRATE.trocken * tage * 10) / 10,
+    maessig: Math.round(KATEGORIE_TAGESRATE.maessig * tage * 10) / 10,
+  };
+}
+function kategorie(mm, fenster) {
+  if (mm == null) return null;
+  const s = kategorieSchwellen(fenster);
+  if (mm < s.trocken) return "trocken";
+  if (mm < s.maessig) return "mäßig nass";
+  return "sehr nass";
+}
+
+/** Fuer ein Fenster, Modell und Quelle (hl/ens) alle abgeschlossenen, vollstaendigen
+ * Fensterauswertungen ueber alle gespeicherten Kalendertag-Laeufe hinweg. */
+function fensterAuswertung(fenster, modell, quelle) {
+  const m = mess(), out = [];
+  for (const laufDatum in laeufe()) {
+    const laufObj = laeufe()[laufDatum];
+    if (!laufPasstFuer(laufObj, modell, quelle)) continue; // falsche/abweichende Initialisierung -- ausschliessen
+    const leads = laufObj.leads || [];
+    const teil = leads.filter(l => l.lead >= fenster.von && l.lead <= fenster.bis);
+    if (teil.length < (fenster.bis - fenster.von + 1)) continue; // Lauf deckt das Fenster nicht komplett ab (z.B. nur 10 Leads gespeichert)
+    const letztesZiel = teil[teil.length - 1].ziel;
+    if (new Date(letztesZiel) >= new Date()) continue; // Fenster noch nicht vollstaendig vergangen
+
+    let F = 0, O = 0, vollstaendig = true;
+    for (const e of teil) {
+      const v = quelle === "hl" ? e[modell]?.hl : e[modell]?.ens;
+      const ist = m[e.ziel];
+      if (v == null || ist == null) { vollstaendig = false; break; }
+      F += v; O += ist;
+    }
+    if (!vollstaendig) continue; // unvollstaendige Messreihe wird NICHT als 0 mm gewertet, sondern ausgeschlossen
+    out.push({ lauf: laufDatum, F: Math.round(F * 10) / 10, O: Math.round(O * 10) / 10, E: Math.round((F - O) * 10) / 10 });
+  }
+  return out;
+}
+
+function zeichneWitterung() {
+  const kombis = [];
+  MODELLE.forEach(m => FENSTER.forEach(f => {
+    ["ens", "hl"].forEach(quelle => {
+      const werte = fensterAuswertung(f, m.id, quelle);
+      if (werte.length) kombis.push({ modell: m, fenster: f, quelle, werte });
+    });
+  }));
+
+  if (!kombis.length) {
+    $("#kacheln-witterung").innerHTML = "";
+    $("#tab-witterung").innerHTML = "";
+    $("#tab-witterung-kategorien").innerHTML = "";
+    $("#befund-witterung").innerHTML = `<p><strong>Noch keine Daten.</strong> Ein Fenster geht erst ein, wenn es
+      vollständig vergangen ist und die Messreihe lückenlos vorliegt — bei „Tag 8–14" also frühestens zwei
+      Wochen nach dem jeweiligen Modelllauf.</p>`;
+    return;
+  }
+
+  // Kacheln: Ensemble-Mittel je Fenster, ueber beide Modelle gemittelt
+  $("#kacheln-witterung").innerHTML = FENSTER.map(f => {
+    const werte = kombis.filter(k => k.fenster.id === f.id && k.quelle === "ens").flatMap(k => k.werte);
+    if (!werte.length) return "";
+    const maeE = werte.reduce((s, w) => s + Math.abs(w.E), 0) / werte.length;
+    const biasE = werte.reduce((s, w) => s + w.E, 0) / werte.length;
+    return `<div class="kachel"><div class="k-label">${f.label} · Ensemble-Mittel</div>
+      <div class="k-zahl">${nf(maeE, 1)} mm</div>
+      <div class="k-fuss">mittlerer Fehlerbetrag · Bias ${biasE >= 0 ? "+" : ""}${nf(biasE, 1)} mm · n=${werte.length}</div></div>`;
+  }).join("");
+
+  // Tabelle: F, O, E je Fenster/Modell/Quelle
+  $("#tab-witterung").innerHTML =
+    `<thead><tr><th>Fenster</th><th>Modell</th><th>Quelle</th><th>⌀ F (mm)</th><th>⌀ O (mm)</th><th>⌀ E (mm)</th><th>⌀ |E| (mm)</th><th>n</th></tr></thead><tbody>` +
+    kombis.map(k => {
+      const F = k.werte.reduce((s, w) => s + w.F, 0) / k.werte.length;
+      const O = k.werte.reduce((s, w) => s + w.O, 0) / k.werte.length;
+      const E = k.werte.reduce((s, w) => s + w.E, 0) / k.werte.length;
+      const absE = k.werte.reduce((s, w) => s + Math.abs(w.E), 0) / k.werte.length;
+      return `<tr><td>${k.fenster.label}</td><td>${k.modell.name}</td><td>${k.quelle === "ens" ? "Ensemble" : "Hauptlauf"}</td>
+        <td>${nf(F)}</td><td>${nf(O)}</td>
+        <td class="${E >= 0 ? "" : ""}">${E >= 0 ? "+" : ""}${nf(E)}</td><td>${nf(absE)}</td><td>${k.werte.length}</td></tr>`;
+    }).join("") + `</tbody>`;
+
+  // Kategorie-Trefferquote
+  $("#schwellen-text").innerHTML =
+    `<strong>Pragmatische, vorläufige Klassifikation</strong> — keine meteorologisch normierte Einteilung,
+     sondern Schwellen, die mit der Fensterlänge mitwachsen (${KATEGORIE_TAGESRATE.trocken} bzw.
+     ${KATEGORIE_TAGESRATE.maessig} mm pro Tag im Fenster), damit ein 7-Tage-Fenster nicht an denselben
+     absoluten Millimeterwerten gemessen wird wie ein 3-Tage-Fenster. Zentral änderbar in
+     <code>KATEGORIE_TAGESRATE</code> in der Vorlage:`
+    + `<table style="margin-top:8px"><thead><tr><th>Fenster</th><th>trocken unter</th><th>mäßig nass</th><th>sehr nass ab</th></tr></thead><tbody>`
+    + FENSTER.map(f => { const s = kategorieSchwellen(f);
+        return `<tr><td>${f.label}</td><td>${nf(s.trocken)} mm</td><td>${nf(s.trocken)}–${nf(s.maessig)} mm</td><td>${nf(s.maessig)} mm</td></tr>`; }).join("")
+    + `</tbody></table>`;
+  $("#tab-witterung-kategorien").innerHTML =
+    `<thead><tr><th>Fenster</th><th>Modell</th><th>Quelle</th><th>Kategorie getroffen</th><th>n</th></tr></thead><tbody>` +
+    kombis.map(k => {
+      const treffer = k.werte.filter(w => kategorie(w.F, k.fenster) === kategorie(w.O, k.fenster)).length;
+      const quote = Math.round(treffer / k.werte.length * 100);
+      return `<tr><td>${k.fenster.label}</td><td>${k.modell.name}</td><td>${k.quelle === "ens" ? "Ensemble" : "Hauptlauf"}</td>
+        <td><span class="pill ${quote >= 70 ? "pill-gut" : quote >= 45 ? "pill-warn" : "pill-schlecht"}">${quote} %</span></td>
+        <td>${k.werte.length}</td></tr>`;
+    }).join("") + `</tbody>`;
+
+  // Streudiagramm F gegen O, je Fenster eine Farbe (nur Ensemble-Mittel, ueber beide Modelle)
+  zeichneStreuungWitterung(kombis.filter(k => k.quelle === "ens"));
+
+  const f1 = kombis.find(k => k.fenster.id === "1-3" && k.quelle === "ens");
+  const f3 = kombis.find(k => k.fenster.id === "8-14" && k.quelle === "ens");
+  let txt = "<p>Diese Auswertung prüft nicht den einzelnen Tag, sondern ob ein Modell die Witterung eines "
+    + "ganzen Zeitraums im Groben richtig eingeschätzt hat — auch wenn einzelne Tage daneben lagen.</p>";
+  if (f1 && f3) {
+    const b1 = f1.werte.reduce((s, w) => s + w.E, 0) / f1.werte.length;
+    const b3 = f3.werte.reduce((s, w) => s + w.E, 0) / f3.werte.length;
+    txt += `<p>Im Fenster Tag 1–3 liegt der mittlere Fehler bei ${b1 >= 0 ? "+" : ""}${nf(b1)} mm (${f1.werte.length} Läufe),
+      im Fenster Tag 8–14 bei ${b3 >= 0 ? "+" : ""}${nf(b3)} mm (${f3.werte.length} Läufe). Ein positiver Wert bedeutet,
+      das Modell war im Schnitt zu nass, ein negativer zu trocken.</p>`;
+  }
+  $("#befund-witterung").innerHTML = txt;
+}
+
+function zeichneStreuungWitterung(kombis) {
+  const svg = $("#chart-streu-witterung");
+  const alle = kombis.flatMap(k => k.werte);
+  if (!alle.length) { svg.innerHTML = ""; return; }
+  const W = 620, H = 460, L = 50, R = 20, O = 16, U = 44;
+  const iw = W - L - R, ih = H - O - U;
+  const maxWert = Math.max(5, ...alle.flatMap(w => [w.F, w.O]));
+  const x = v => L + (v / maxWert) * iw;
+  const y = v => O + ih - (v / maxWert) * ih;
+
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = "";
+  for (let i = 0; i <= 5; i++) {
+    const v = maxWert * i / 5;
+    svg.appendChild(el("line", { x1: L, y1: y(v), x2: W - R, y2: y(v), class: "gitter" }));
+    svg.appendChild(el("line", { x1: x(v), y1: O, x2: x(v), y2: O + ih, class: "gitter" }));
+    svg.appendChild(el("text", { x: L - 8, y: y(v) + 3.5, "text-anchor": "end", class: "ax" }, nf(v, 0)));
+    svg.appendChild(el("text", { x: x(v), y: H - U + 16, "text-anchor": "middle", class: "ax" }, nf(v, 0)));
+  }
+  // 1:1-Linie (perfekte Vorhersage)
+  svg.appendChild(el("line", { x1: x(0), y1: y(0), x2: x(maxWert), y2: y(maxWert), stroke: "var(--ink-3)", "stroke-width": 1.3, "stroke-dasharray": "4 3" }));
+  svg.appendChild(el("text", { x: L, y: H - 6, class: "ax" }, "Beobachtet O (mm) → · ↑ Vorhergesagt F (mm)"));
+
+  const FARBEN = { "1-3": "var(--gut)", "4-7": "var(--warn)", "8-14": "var(--schlecht)" };
+  kombis.forEach(k => {
+    k.werte.forEach(w => {
+      const c = el("circle", { cx: x(w.O), cy: y(w.F), r: 4.2, fill: FARBEN[k.fenster.id] || k.modell.farbe, opacity: .75 });
+      svg.appendChild(c);
+      treffer(svg, x(w.O) - 5, y(w.F) - 5, 10, 10, `${k.fenster.label} · ${k.modell.name} · Lauf ${w.lauf}\nVorhergesagt ${nf(w.F)} mm · Beobachtet ${nf(w.O)} mm`);
+    });
+  });
+
+  legende("#leg-streu-witterung", FENSTER.map(f => ({ mark: markPunkt(FARBEN[f.id]), text: f.label })));
+}
+
 /* ============================ Start ============================ */
-function allesZeichnen() {
-  try { zeichneAktuell(); } catch (e) { console.error("aktuell", e); }
+function analyseZeichnen() {
   try { zeichneGuete(); } catch (e) { console.error("guete", e); }
-  try { zeichneRueckblick(); } catch (e) { console.error("rueckblick", e); }
-  try { zeichneSchwelle(); } catch (e) { console.error("schwelle", e); }
   try { zeichneBias(); } catch (e) { console.error("bias", e); }
+  try { zeichneSchwelle(); } catch (e) { console.error("schwelle", e); }
+  try { zeichneRueckblick(); } catch (e) { console.error("rueckblick", e); }
   try { zeichneStreuung(); } catch (e) { console.error("streuung", e); }
+  try { zeichneWitterung(); } catch (e) { console.error("witterung", e); }
   const tage = Object.keys(mess()).sort();
   $("#statuszeile").textContent =
-    `Messreihe ${tage.length ? tage[0] + " bis " + tage[tage.length - 1] : "–"} · ${tage.length} Tage · `
-    + `Vorhersageläufe: ${Object.keys(laeufe()).length} vollständig, Hauptlauf-Historie ${Object.keys(hist("ecmwf")).length} Tage`;
+    `Gebaut ${DATEN.gebaut || "–"} · Messreihe ${tage.length ? tage[0] + " bis " + tage[tage.length - 1] : "–"} · ${tage.length} Tage · `
+    + `Vorhersageläufe: ${Object.keys(laeufe()).length} Tage erfasst, Hauptlauf-Historie ECMWF ${Object.keys(hist("ecmwf")).length} / GFS ${Object.keys(hist("gfs")).length} Tage`;
 }
-allesZeichnen();
+
+ZUSTAND.modell = modellMitVerfuegbaremLauf();
+seiteAnzeigen();
+meteogrammNeuZeichnen();
+analyseZeichnen();
 addEventListener("resize", () => { tipAus(); });
 /* Reine statische Seite: alle Daten sind oben eingebettet, kein Nachladen nötig. */
+
+/* Test-Hook: reine Berechnungsfunktionen fuer automatisierte Tests freigeben.
+   Aendert kein Verhalten der Seite selbst, wird von keiner UI-Funktion gelesen. */
+window.__TEST__ = { paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer };
+
 
 </script>
 
