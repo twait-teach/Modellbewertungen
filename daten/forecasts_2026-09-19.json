@@ -1,6 +1,6 @@
 {
  "lauf": "2026-09-19",
- "abgerufen": "2026-09-19T09:24+02:00",
+ "abgerufen": "2026-09-19T10:26+02:00",
  "erfasste_modelle": [
   "ecmwf",
   "gfs"
@@ -11,26 +11,24 @@
  },
  "modelllaeufe": {
   "gfs/hl": {
-   "lauf": "2026-09-18T18:00Z",
-   "verfuegbar_seit": "2026-09-19T07:07Z"
+   "lauf": "2026-09-19T00:00Z",
+   "verfuegbar_seit": "2026-09-19T05:48Z"
   },
   "gfs/ens": {
    "lauf": "2026-09-19T00:00Z",
-   "verfuegbar_seit": "2026-09-19T05:46Z"
+   "verfuegbar_seit": "2026-09-19T06:03Z"
   },
   "ecmwf/hl": {
-   "lauf": "2026-09-18T18:00Z",
-   "verfuegbar_seit": "2026-09-19T06:16Z"
+   "lauf": "2026-09-19T00:00Z",
+   "verfuegbar_seit": "2026-09-19T07:46Z"
   },
   "ecmwf/ens": {
    "lauf": "2026-09-18T18:00Z",
-   "verfuegbar_seit": "2026-09-19T02:38Z"
+   "verfuegbar_seit": "2026-09-19T02:39Z"
   }
  },
  "lauf_wie_erwartet": false,
  "laufhinweise": [
-  "gfs hl: 18.09. 18Z statt 19.09. 00Z",
-  "ecmwf hl: 18.09. 18Z statt 19.09. 00Z",
   "ecmwf ens: 18.09. 18Z statt 19.09. 00Z"
  ],
  "leads": [
@@ -60,7 +58,7 @@
    "lead": 2,
    "ziel": "2026-09-21",
    "gfs": {
-    "hl": 0.5,
+    "hl": 1.9,
     "ens": 1.99,
     "p10": 0.2,
     "p90": 3.1,
@@ -69,7 +67,7 @@
     "p_ueber5": 0.065
    },
    "ecmwf": {
-    "hl": 0.8,
+    "hl": 2.5,
     "ens": 1.29,
     "p10": 0.0,
     "p90": 3.6,
@@ -126,7 +124,7 @@
    "lead": 5,
    "ziel": "2026-09-24",
    "gfs": {
-    "hl": 2.4,
+    "hl": 0.6,
     "ens": 1.62,
     "p10": 0.0,
     "p90": 6.2,
@@ -135,7 +133,7 @@
     "p_ueber5": 0.129
    },
    "ecmwf": {
-    "hl": 0.1,
+    "hl": 5.0,
     "ens": 1.28,
     "p10": 0.0,
     "p90": 4.8,
@@ -157,7 +155,7 @@
     "p_ueber5": 0.0
    },
    "ecmwf": {
-    "hl": 0.0,
+    "hl": 1.6,
     "ens": 0.64,
     "p10": 0.0,
     "p90": 2.2,
@@ -170,7 +168,7 @@
    "lead": 7,
    "ziel": "2026-09-26",
    "gfs": {
-    "hl": 0.0,
+    "hl": 2.4,
     "ens": 0.31,
     "p10": 0.0,
     "p90": 0.4,
@@ -289,7 +287,7 @@
     "p_ueber5": 0.065
    },
    "ecmwf": {
-    "hl": 0.0,
+    "hl": 2.4,
     "ens": 0.71,
     "p10": 0.0,
     "p90": 1.4,
@@ -311,7 +309,7 @@
     "p_ueber5": 0.065
    },
    "ecmwf": {
-    "hl": 0.0,
+    "hl": 4.0,
     "ens": 0.28,
     "p10": 0.0,
     "p90": 0.2,
@@ -333,7 +331,7 @@
     "p_ueber5": 0.194
    },
    "ecmwf": {
-    "hl": null,
+    "hl": 0.0,
     "ens": null,
     "p10": null,
     "p90": null,
