@@ -41,12 +41,12 @@ So entsteht ein echtes Ensemble-Meteogramm mit Tagesgang bei 2 m und zeitlich
 hoch aufgeloesten Luftmassenwechseln bei 850 hPa.
 
 Pro erkanntem Lauf wird eine Datei daten/vorhersage/<modell>_<initISO>.json
-angelegt -- aber ERST, wenn Laufweite und Mitgliederzahl vollstaendig
-vorliegen (siehe VOLLSTAENDIGKEITSPRUEFUNG in verarbeite_modell()); ein noch
-unvollstaendiger Lauf wird nicht gespeichert, sondern beim naechsten stuend-
-lichen Durchlauf erneut versucht. Aeltere Laeufe werden nach dem Schreiben
-ueber AUFBEWAHREN hinaus geloescht (vollstaendige Mitgliederdaten muessen laut
-Aufgabenstellung nicht unbegrenzt archiviert werden).
+als fester Slot angelegt, sobald Laufweite und Mitgliederzahl des Ensembles
+vollstaendig vorliegen. Der deterministische Hauptlauf wird ueber seine exakte
+Initialisierungszeit aus der Single-Runs-Schnittstelle nachgetragen, sobald er
+verfuegbar ist. So wird das Ensemble ohne Wartezeit gezeigt, ohne spaeter einen
+unpassenden neueren Hauptlauf einzubetten. Aeltere Laeufe werden nach dem
+Schreiben ueber AUFBEWAHREN hinaus geloescht.
 """
 
 import argparse
@@ -285,8 +285,8 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
     # dann je Mitglied akkumulieren, erst danach Ensemble-Kennzahlen bilden. ---
     serien_regen = stundenwerte_je_serie(ens, "precipitation")
     if "precipitation" not in serien_regen:
-        return None, [f"{kurz}: Kontrolllauf-Spalte (Niederschlag) fehlt in der Antwort"]
-    kontrolle_regen = niederschlag_kumulieren(
+        return None, [f"{kurz}: Ensemble-Basisserie (Niederschlag) fehlt in der Antwort"]
+    basis_regen = niederschlag_kumulieren(
         serien_regen["precipitation"], hourly_zeiten, zeiten, init)
     mitglieder_keys = sorted(k for k in serien_regen if k != "precipitation")
     mitglieder_regen = [
@@ -298,7 +298,11 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
         "zeiten": zeiten,
         "zeitpunkte_unix": zeitpunkte_unix,
         "zeitzone": TZ_NAME,
-        "kontrolllauf": kontrolle_regen,
+        # GFS veroeffentlicht neben dem deterministischen Hauptlauf einen
+        # eigenen Kontrolllauf. Beim ECMWF wird nur der operationelle Lauf
+        # gezeigt; die unsuffigierte Ensemble-Basisserie wird dort bewusst
+        # nicht als zweiter, vermeintlicher Kontrolllauf ausgegeben.
+        "kontrolllauf": basis_regen if kurz == "gfs" else None,
         "mitglieder": mitglieder_regen,
         "hauptlauf": None,
         **kennzahlen_regen,
@@ -313,14 +317,14 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
             hinweise.append(f"{feld}: Spalte fehlt in der Antwort -- fuer diesen Lauf nicht gespeichert")
             continue
         temp_keys = sorted(k for k in serien_temp if k != praefix)
-        kontrolle_t = stundenreihe(serien_temp[praefix], zeiten)
+        basis_t = stundenreihe(serien_temp[praefix], zeiten)
         mitglieder_t = [stundenreihe(serien_temp[k], zeiten) for k in temp_keys]
         kennzahlen_t = aggregiere_alle_leads(mitglieder_t, len(zeiten))
         temperaturen[feld] = {
             "zeiten": zeiten,
             "zeitpunkte_unix": zeitpunkte_unix,
             "zeitzone": TZ_NAME,
-            "kontrolllauf": kontrolle_t,
+            "kontrolllauf": basis_t if kurz == "gfs" else None,
             "mitglieder": mitglieder_t,
             "hauptlauf": None,  # wird unten befuellt, falls Hauptlauf passt
             **kennzahlen_t,
@@ -359,38 +363,6 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
             hinweise.append(f"{feld}: zum letzten Zeitpunkt liegen keine Mitgliedswerte vor")
             vollstaendig = False
 
-    # --- Deterministischer Hauptlauf, nur wenn seine Initialisierung nachweislich passt ---
-    hl_info = laufinfo(cfg["meta_hauptlauf"], fehler)
-    hauptlauf_regen = None
-    if hl_info and hl_info["lauf"] == init:
-        # Die normale /v1/forecast-Schnittstelle (anders als die Ensemble-API)
-        # erlaubt hoechstens forecast_days=16 (heute + 15 Tage). Reicht der
-        # Ensemble-Horizont weiter (GFS: 16 Tage), bleiben die letzten Leads
-        # beim Hauptlauf schlicht leer.
-        hl = hole("https://api.open-meteo.com/v1/forecast",
-                  {"latitude": LAT, "longitude": LON,
-                   "hourly": "temperature_2m,temperature_850hPa,precipitation",
-                   "past_days": 1, "forecast_days": min(horizont + 1, 16), "timezone": TZ_NAME,
-                   "models": cfg["hauptlauf_datensatz"]},
-                  fehlerliste=fehler)
-        if hl:
-            hl_zeiten = (hl.get("hourly") or {}).get("time", [])
-            hl_regen = stundenwerte_je_serie(hl, "precipitation")
-            if "precipitation" in hl_regen:
-                hauptlauf_regen = niederschlag_kumulieren(
-                    hl_regen["precipitation"], hl_zeiten, zeiten, init)
-                niederschlag["hauptlauf"] = hauptlauf_regen
-            hl_hourly = (stundenwerte_je_serie(hl, "temperature_2m")
-                         | stundenwerte_je_serie(hl, "temperature_850hPa"))
-            for feld, praefix in (("temperatur_2m", "temperature_2m"), ("temperatur_850hpa", "temperature_850hPa")):
-                if temperaturen.get(feld) and praefix in hl_hourly:
-                    # exakt dieselben Zeitstempel wie die Ensemblereihe, damit
-                    # Hauptlauf und Ensemble Punkt fuer Punkt vergleichbar sind
-                    temperaturen[feld]["hauptlauf"] = stundenreihe(hl_hourly[praefix], temperaturen[feld]["zeiten"])
-    elif hl_info:
-        hinweise.append(f"deterministischer Lauf ist {hl_info['lauf']:%d.%m. %HZ}, "
-                         f"passt nicht zum Ensemble-Lauf {init:%d.%m. %HZ} -- nicht eingebettet")
-
     lauf = {
         "modell": kurz,
         "modellname": cfg["name"],
@@ -406,7 +378,11 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
         "niederschlag": niederschlag,
         "temperatur_2m": temperaturen.get("temperatur_2m"),
         "temperatur_850hpa": temperaturen.get("temperatur_850hpa"),
-        "vollstaendig": vollstaendig,
+        # Zwei getrennte Zustaende: Das Ensemble wird sofort als eigener Slot
+        # gespeichert. Der exakt gleiche Hauptlauf wird spaeter ergaenzt.
+        "ensemble_vollstaendig": vollstaendig,
+        "hauptlauf_vollstaendig": False,
+        "vollstaendig": False,
         "hinweise": hinweise,
     }
     return lauf, hinweise
@@ -417,12 +393,11 @@ def dateiname(kurz, init: dt.datetime) -> str:
 
 
 def hat_modellnative_meteogrammdaten(lauf):
-    """True nur fuer das modellnahe Zeitraster aller drei Diagramme.
+    """True, wenn der Ensembleteil aller drei Diagramme darstellbar ist.
 
     Aeltere Dateien koennen bereits ``vollstaendig: true`` tragen und sogar
     stuendliche Temperaturen enthalten. Ohne Formatmarker koennten darin aber
-    noch die kuenstlichen Interpolationszacken stecken. Solche Dateien muessen
-    beim Metadaten-Kurzschluss erneut abgerufen werden.
+    noch die kuenstlichen Interpolationszacken stecken.
     """
     if lauf.get("zeitauflosung") != "modellnativ-v1":
         return False
@@ -435,7 +410,122 @@ def hat_modellnative_meteogrammdaten(lauf):
         if (not isinstance(zeiten, list) or not zeiten
                 or not isinstance(unix, list) or len(unix) != len(zeiten)):
             return False
+        mitglieder = reihe.get("mitglieder")
+        if not isinstance(mitglieder, list) or not mitglieder:
+            return False
+        if lauf.get("modell") == "gfs" and (
+                not isinstance(reihe.get("kontrolllauf"), list) or not reihe["kontrolllauf"]):
+            return False
     return True
+
+
+def hat_hauptlaufdaten(lauf):
+    """True, wenn alle drei Hauptlaufreihen bereits im Slot liegen."""
+    return all(
+        isinstance((lauf.get(feld) or {}).get("hauptlauf"), list)
+        and any(v is not None for v in lauf[feld]["hauptlauf"])
+        for feld in ("temperatur_2m", "temperatur_850hpa", "niederschlag")
+    )
+
+
+def normalisiere_slot(lauf):
+    """Alte Laufdateien auf den zweistufigen Slotstatus heben.
+
+    Fruehere Hinweise auf abweichende *aktuelle* Hauptlaeufe sind bei der
+    gezielten Single-Run-Nachlieferung nicht mehr relevant und wuerden nur das
+    Layout verschieben.
+    """
+    vorher = json.dumps(lauf, sort_keys=True)
+    alte_hinweise = lauf.get("hinweise") or []
+    hatte_falschen_hauptlauf = any(
+        "passt nicht zum Ensemble-Lauf" in h or "deterministischer Lauf ist" in h
+        for h in alte_hinweise
+    )
+    # Ein Alt-Slot mit explizitem Abweichungshinweis darf nie versehentlich
+    # als vollstaendig gelten. Sein Hauptlauf wird verworfen und anschliessend
+    # ueber ``run=<Slot-Initialisierung>`` korrekt neu befuellt.
+    if hatte_falschen_hauptlauf:
+        for feld in ("temperatur_2m", "temperatur_850hpa", "niederschlag"):
+            if isinstance(lauf.get(feld), dict):
+                lauf[feld]["hauptlauf"] = None
+    lauf["ensemble_vollstaendig"] = hat_modellnative_meteogrammdaten(lauf)
+    lauf["hauptlauf_vollstaendig"] = hat_hauptlaufdaten(lauf)
+    lauf["vollstaendig"] = lauf["ensemble_vollstaendig"] and lauf["hauptlauf_vollstaendig"]
+    lauf["hinweise"] = [
+        h for h in alte_hinweise
+        if "passt nicht zum Ensemble-Lauf" not in h and "deterministischer Lauf ist" not in h
+    ]
+    # ECMWF besitzt in unserer Darstellung keinen eigenen Kontrolllauf.
+    if lauf.get("modell") == "ecmwf":
+        for feld in ("temperatur_2m", "temperatur_850hpa", "niederschlag"):
+            if isinstance(lauf.get(feld), dict):
+                lauf[feld]["kontrolllauf"] = None
+    return vorher != json.dumps(lauf, sort_keys=True)
+
+
+def ergaenze_hauptlauf(lauf, cfg, fehler):
+    """Ergaenzt EINEN bestehenden Ensemble-Slot um seinen exakten Hauptlauf.
+
+    Eine winzige Single-Runs-Abfrage prueft zuerst die Verfuegbarkeit. Erst
+    danach wird der volle Lauf geladen. ``run`` fixiert die Initialisierung;
+    ein inzwischen neuerer Echtzeitlauf kann den offenen Slot nicht mehr
+    verdraengen.
+    """
+    if hat_hauptlaufdaten(lauf):
+        normalisiere_slot(lauf)
+        return False, "Hauptlauf bereits vorhanden"
+
+    init = dt.datetime.strptime(lauf["init"], "%Y-%m-%dT%H:%MZ").replace(tzinfo=dt.timezone.utc)
+    run = init.strftime("%Y-%m-%dT%H:%M")
+    basis = {
+        "latitude": LAT, "longitude": LON,
+        "models": cfg["hauptlauf_datensatz"], "run": run,
+    }
+
+    probe_fehler = []
+    probe = hole(
+        "https://single-runs-api.open-meteo.com/v1/forecast",
+        {**basis, "hourly": "temperature_2m", "forecast_hours": 1, "timezone": "UTC"},
+        versuche=1, timeout=30, fehlerliste=probe_fehler,
+    )
+    if not probe or not (probe.get("hourly") or {}).get("temperature_2m"):
+        return False, f"Hauptlauf {init:%d.%m. %HZ} noch nicht in Single Runs verfuegbar"
+
+    horizont = lauf["horizont_tage"]
+    hl = hole(
+        "https://single-runs-api.open-meteo.com/v1/forecast",
+        {**basis,
+         "hourly": "temperature_2m,temperature_850hPa,precipitation",
+         # Einschliesslich Initialisierungszeit und Endpunkt bei +Horizont.
+         "forecast_hours": horizont * 24 + 1, "timezone": TZ_NAME},
+        fehlerliste=fehler,
+    )
+    if not hl:
+        return False, f"Hauptlauf {init:%d.%m. %HZ} noch nicht vollstaendig abrufbar"
+
+    hl_zeiten = (hl.get("hourly") or {}).get("time", [])
+    hl_regen = stundenwerte_je_serie(hl, "precipitation")
+    hl_t2 = stundenwerte_je_serie(hl, "temperature_2m")
+    hl_t850 = stundenwerte_je_serie(hl, "temperature_850hPa")
+    if not all(("precipitation" in hl_regen, "temperature_2m" in hl_t2, "temperature_850hPa" in hl_t850)):
+        return False, f"Hauptlauf {init:%d.%m. %HZ} enthaelt noch nicht alle drei Variablen"
+
+    regen = niederschlag_kumulieren(
+        hl_regen["precipitation"], hl_zeiten, lauf["niederschlag"]["zeiten"], init)
+    t2 = stundenreihe(hl_t2["temperature_2m"], lauf["temperatur_2m"]["zeiten"])
+    t850 = stundenreihe(hl_t850["temperature_850hPa"], lauf["temperatur_850hpa"]["zeiten"])
+    # Einzelne Langfrist-Endpunkte duerfen fehlen; eine fast leere oder am
+    # Anfang fehlende Reihe gilt dagegen noch nicht als eingetroffen.
+    reihen = (regen, t2, t850)
+    if any(not r or r[0] is None or sum(v is not None for v in r) < len(r) * 0.9 for r in reihen):
+        return False, f"Hauptlauf {init:%d.%m. %HZ} ist noch nicht ausreichend vollstaendig"
+
+    lauf["niederschlag"]["hauptlauf"] = regen
+    lauf["temperatur_2m"]["hauptlauf"] = t2
+    lauf["temperatur_850hpa"]["hauptlauf"] = t850
+    lauf["hauptlauf_abgerufen"] = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
+    normalisiere_slot(lauf)
+    return True, f"Hauptlauf {init:%d.%m. %HZ} ergaenzt"
 
 
 def aufraeumen(kurz):
@@ -463,54 +553,59 @@ def main():
     fehler = []
     for kurz in modelle:
         cfg = MODELLE[kurz]
-
-        # --- Erst nur die Metadaten pruefen (billig): ist ueberhaupt ein neuer
-        # Lauf da, den wir noch nicht gespeichert haben? Nur dann folgt der
-        # teure Abruf aller Ensemblemitglieder. So kann dieses Skript stuend-
-        # lich laufen, ohne bei jedem Durchlauf alles neu herunterzuladen.
         vorab_info = laufinfo(cfg["meta_ensemble"], [])
-        if vorab_info and vorab_info["lauf"].hour in cfg["erlaubte_stunden"]:
+        if not vorab_info or vorab_info["lauf"].hour not in cfg["erlaubte_stunden"]:
+            print(f"{kurz}: kein erlaubter Ensemble-Lauf in den Metadaten")
+        else:
             erwarteter_pfad = OUT / dateiname(kurz, vorab_info["lauf"])
+            bereits = {}
             if erwarteter_pfad.exists():
                 try:
                     bereits = json.loads(erwarteter_pfad.read_text(encoding="utf-8"))
                 except Exception:
                     bereits = {}
-                if bereits.get("vollstaendig") and hat_modellnative_meteogrammdaten(bereits):
-                    print(f"{kurz}: Lauf {vorab_info['lauf']:%Y-%m-%dT%H:%MZ} bereits vollstaendig gespeichert -- nichts zu tun")
-                    continue
-                print(f"{kurz}: Lauf {vorab_info['lauf']:%Y-%m-%dT%H:%MZ} ist unvollstaendig oder noch im alten "
-                      "Meteogrammformat gespeichert -- erneuter Versuch")
 
-        lauf, hinweise = verarbeite_modell(kurz, cfg, fehler, heute)
-        if not lauf:
-            print(f"{kurz}: kein neuer Lauf gespeichert. " + "; ".join(hinweise))
-            continue
+            if not hat_modellnative_meteogrammdaten(bereits):
+                lauf, hinweise = verarbeite_modell(kurz, cfg, fehler, heute)
+                if not lauf:
+                    print(f"{kurz}: Ensemble-Slot noch nicht abrufbar. " + "; ".join(hinweise))
+                elif not lauf["ensemble_vollstaendig"]:
+                    print(f"{kurz}: Ensemble {lauf['init']} noch nicht vollstaendig -- noch nicht gespeichert. "
+                          + ("Hinweise: " + "; ".join(hinweise) if hinweise else ""))
+                else:
+                    atomar_schreiben_json(erwarteter_pfad, lauf, separators=(",", ":"))
+                    print(f"{kurz}: Ensemble-Slot {lauf['init']} sofort gespeichert -- "
+                          f"{lauf['mitglieder_n']} Mitglieder; Hauptlauf wird nachgereicht")
+            else:
+                geaendert = normalisiere_slot(bereits)
+                if geaendert:
+                    atomar_schreiben_json(erwarteter_pfad, bereits, separators=(",", ":"))
+                print(f"{kurz}: Ensemble-Slot {vorab_info['lauf']:%Y-%m-%dT%H:%MZ} bereits vorhanden")
 
-        # Ein Lauf wird ERST gespeichert, wenn er vollstaendig ist (erwartete
-        # Laufweite UND Mitgliederzahl). Ein noch unvollstaendiger Lauf wird
-        # NICHT geschrieben -- weder neu noch ueberschreibend -- sondern beim
-        # naechsten stuendlichen Durchlauf erneut versucht (siehe Vorab-Pruefung
-        # oben, die dann wieder "unvollstaendig" vorfindet und es erneut versucht).
-        if not lauf["vollstaendig"]:
-            print(f"{kurz}: Lauf {lauf['init']} noch nicht vollstaendig -- wird noch NICHT gespeichert. "
-                  + ("Hinweise: " + "; ".join(hinweise) if hinweise else ""))
-            continue
+        # Danach mehrere offene Slots pruefen. Der Hauptlauf wird ueber die
+        # Initialisierungszeit fest angefordert; deshalb darf inzwischen schon
+        # ein neueres Ensemble erschienen sein.
+        offene_dateien = sorted(OUT.glob(f"{kurz}_*.json"), key=lambda p: p.name, reverse=True)[:8]
+        for pfad in offene_dateien:
+            try:
+                slot = json.loads(pfad.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            geaendert = normalisiere_slot(slot)
+            if not slot["ensemble_vollstaendig"]:
+                if geaendert:
+                    atomar_schreiben_json(pfad, slot, separators=(",", ":"))
+                continue
+            if not slot["hauptlauf_vollstaendig"]:
+                ergaenzt, meldung = ergaenze_hauptlauf(slot, cfg, fehler)
+                geaendert = geaendert or ergaenzt
+                print(f"{kurz}: {meldung}")
+            if geaendert:
+                atomar_schreiben_json(pfad, slot, separators=(",", ":"))
 
-        init = dt.datetime.strptime(lauf["init"], "%Y-%m-%dT%H:%MZ").replace(tzinfo=dt.timezone.utc)
-        ziel = OUT / dateiname(kurz, init)
-        neu = not ziel.exists()
-        atomar_schreiben_json(ziel, lauf, separators=(",", ":"))
         entfernt = aufraeumen(kurz)
-        status = "neu gespeichert" if neu else "aktualisiert (nochmal abgerufen)"
-        print(f"{kurz}: Lauf {lauf['init']} {status} -- {lauf['mitglieder_n']} Mitglieder, "
-              f"Horizont {lauf['horizont_tage']} Tage, "
-              f"hauptlauf={'ja' if lauf['niederschlag']['hauptlauf'] else 'nein'}, "
-              f"temp2m={'ja' if lauf['temperatur_2m'] else 'nein'}, temp850={'ja' if lauf['temperatur_850hpa'] else 'nein'}")
-        if hinweise:
-            print("  Hinweise:", *hinweise, sep="\n    ")
         if entfernt:
-            print(f"  aufgeraeumt: {len(entfernt)} aeltere Laufdatei(en) entfernt")
+            print(f"{kurz}: {len(entfernt)} aeltere Laufdatei(en) aufgeraeumt")
     if fehler:
         print("FEHLER:", *fehler, sep="\n  ")
 

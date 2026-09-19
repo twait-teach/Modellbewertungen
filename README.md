@@ -3,8 +3,8 @@
 Ensemble-Meteogramm und Modellvergleich für die DWD-Station Mühldorf am Inn. Die Seite hat zwei
 Bereiche:
 
-- **Vorhersage** — drei Ensemble-Meteogramme untereinander: **2-m-Temperatur**, **aufsummierter
-  Niederschlag** und **850-hPa-Temperatur**, jeweils für **GFS** und **ECMWF-IFS** (das klassische
+- **Vorhersage** — drei Ensemble-Meteogramme untereinander: **2-m-Temperatur**,
+  **850-hPa-Temperatur** und **aufsummierter Niederschlag**, jeweils für **GFS** und **ECMWF-IFS** (das klassische
   physikalische Modell, nicht die KI-Variante AIFS). Jeder Bereich hat eine eigene, voneinander
   unabhängige Bedienleiste: Modellumschaltung, Auswahl eines gespeicherten Laufs (mit echtem Datum
   und Uhrzeit, z. B. „aktuell · 18.09., 12 UTC"), eigener Schalter für die Einzelmitglieder, eigene
@@ -51,11 +51,13 @@ Das prüft in einem Zug, ob Berechtigungen und Zeitplan stimmen.
 
 ## Wie es läuft
 
-Der Workflow läuft **stündlich** (Minute 17), statt zu wenigen festen Uhrzeiten zu raten, wann ein
-Modelllauf fertig ist. Jeder Durchlauf prüft zuerst nur die Metadaten von open-meteo (billig — ein
-kleiner JSON-Abruf) und lädt die vollen Ensembledaten nur, wenn tatsächlich ein neuer oder noch
-unvollständiger Lauf vorliegt. Ist der aktuell erwartete Lauf schon vollständig gespeichert,
-überspringt das Skript den teuren Teil und es passiert nichts weiter in diesem Durchlauf.
+Der Workflow läuft **halbstündlich** (Minute 17 und 47, UTC). Jeder Durchlauf prüft zuerst nur
+kleine Metadaten- bzw. Verfügbarkeitsantworten. Sobald ein Ensemble vollständig vorliegt, wird
+sein Lauf-Slot gespeichert und die Seite sofort damit gebaut. Der exakt passende Hauptlauf wird
+später über seine feste Initialisierungszeit aus der Open-Meteo-Single-Runs-Schnittstelle in
+denselben Slot nachgetragen. Ein inzwischen neuerer Hauptlauf kann dadurch nicht versehentlich
+mit einem älteren Ensemble vermischt werden. Haben sich keine Daten geändert, entstehen weder
+ein neuer Seitenbau noch ein unnötiger Commit.
 
 Erfasst werden:
 
@@ -179,6 +181,15 @@ liefert Mitgliederdaten nur bis Tag 10). Open-Meteo interpoliert Ensemblewerte a
 Stundenraster. Für die Meteogramme werden daraus wieder modellnahe Zeitpunkte gewählt: GFS
 3-stündlich bis +240 Stunden und danach 6-stündlich, ECMWF durchgehend 3-stündlich. Die
 Diagrammachse verwendet echte Zeitstempel und bleibt maßstabstreu.
+Beim **GFS** erscheinen der deterministische Hauptlauf als schwarze durchgezogene Linie und der
+Kontrolllauf schwarz gestrichelt. Beim **ECMWF** wird nur der operationelle Hauptlauf schwarz
+durchgezogen gezeigt; eine zweite Kontrolllinie wird bewusst nicht dargestellt. Die
+Ensemblekurven sind bei den Temperaturen rötlich (GFS) bzw. gelblich (ECMWF), beim Niederschlag
+dunkelblau (GFS) bzw. hellblau (ECMWF).
+Die Statuszeile reserviert immer dieselbe Höhe, damit die Diagramme beim Umschalten nicht nach
+oben oder unten springen. Temperaturachsen tragen nur ganzzahlige Werte. Zur Orientierung wird
+bei 2 m die 10-°C-Linie und bei 850 hPa die 0-°C-Linie kräftiger eingezeichnet; diese Referenz ist
+bei GFS und ECMWF jeweils identisch.
 Eine fertige Ensemble-Mittelwert-Reihe liefert die
 Schnittstelle nicht; Mittel, Perzentile und der Anteil der Läufe über 5 mm werden aus den
 Einzelläufen selbst gebildet — für das Meteogramm ausdrücklich **aus den bereits je Mitglied
@@ -192,8 +203,9 @@ zunächst zu jedem 3-/6-Stunden-Modellintervall addiert und dann je Ensemblemitg
 aufsummiert; erst danach entstehen Mittel und Perzentile. Es werden weder Tagesmittel noch
 Tagessummen als Kurvenstützstellen verwendet. Der Abruf schließt den Vortag ein, damit bei einem erst
 nach Mitternacht vollständig verfügbaren 18-UTC-Lauf auch dessen erste Stunden erhalten bleiben.
-Niederschlag und beide Temperaturreihen kommen aus
-**einem** Abruf je Lauf, damit die Zahl der API-Aufrufe unverändert niedrig bleibt.
+Niederschlag und beide Temperaturreihen kommen je Quelle gebündelt aus **einem** Abruf: einmal
+für das Ensemble und einmal für den passenden Hauptlauf. Beide Teile dürfen zeitversetzt
+eintreffen und werden über die Initialisierungszeit sicher demselben Lauf-Slot zugeordnet.
 
 **Was der Vergleich nicht kann:** Die Station liegt rund 4 km vom Modellgitterpunkt entfernt. Bei
 Schauern und Gewittern können allein daraus mehrere Millimeter Unterschied entstehen — ein Teil des

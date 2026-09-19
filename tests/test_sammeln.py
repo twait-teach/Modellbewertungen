@@ -200,3 +200,22 @@ def test_ecmwf_lauffolge_nur_00_und_12():
     sortiert = [d["init"] for d in sorted(laeufe, key=lambda d: d["init"], reverse=True)]
     assert sortiert == ["2026-09-18T12:00Z", "2026-09-18T00:00Z", "2026-09-17T12:00Z"]
     assert all(s[11:13] in ("00", "12") for s in sortiert)
+
+
+def test_bauen_zeigt_ensemble_slot_auch_ohne_hauptlauf():
+    from bauen import meteogrammlauf_anzeigbar
+
+    def lauf(modell, hauptlauf, kontrolllauf):
+        reihe = {"zeiten": ["2026-09-17T02:00"], "zeitpunkte_unix": [1],
+                 "mitglieder": [[1.0]], "hauptlauf": hauptlauf, "kontrolllauf": kontrolllauf}
+        return {
+            "modell": modell, "vollstaendig": True,
+            "temperatur_2m": dict(reihe),
+            "temperatur_850hpa": dict(reihe),
+            "niederschlag": dict(reihe),
+        }
+
+    assert meteogrammlauf_anzeigbar(lauf("gfs", None, [1.0])) is True
+    assert meteogrammlauf_anzeigbar(lauf("gfs", [1.0], [0.8])) is True
+    # ECMWF benoetigt keinen separaten Kontrolllauf.
+    assert meteogrammlauf_anzeigbar(lauf("ecmwf", [1.0], None)) is True

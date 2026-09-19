@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 import sys
 from pathlib import Path
 
@@ -239,27 +240,32 @@ def test_verarbeite_modell_akzeptiert_gueltigen_lauf_und_akkumuliert_korrekt(mon
         if "ensemble-api" in url:
             return ens_antwort
         if "api.open-meteo.com/v1/forecast" in url:
-            return _ensemble_antwort(ziele, [], [0.4, 0.4, 0.4, 0.4])
+            return _ensemble_antwort(
+                ziele, [], [0.4, 0.4, 0.4, 0.4],
+                temp2m_stunden={t: [v[0]] for t, v in temp_stunden.items()},
+                temp850_stunden={t: [v[0]] for t, v in temp_stunden.items()},
+            )
         return None
 
     monkeypatch.setattr(sv, "hole", hole)
     fehler = []
     lauf, hinweise = sv.verarbeite_modell("gfs", cfg, fehler, heute)
     assert lauf is not None
-    assert lauf["vollstaendig"] is True
+    assert lauf["ensemble_vollstaendig"] is True
+    assert lauf["hauptlauf_vollstaendig"] is False
+    assert lauf["vollstaendig"] is False
     assert lauf["mitglieder_n"] == 30
     # korrekt akkumuliert: 1 mm/Tag -> [1,2,3]
     assert lauf["niederschlag"]["mitglieder"][0] == [0.0, 1.0, 2.0, 3.0]
     assert lauf["niederschlag"]["mittel"] == [0.0, 1.0, 2.0, 3.0]
     assert lauf["niederschlag"]["kontrolllauf"] == [0.0, 0.5, 1.0, 1.5]
-    # deterministischer Hauptlauf mit exakt passender Initialisierung wurde uebernommen
-    assert lauf["niederschlag"]["hauptlauf"] == [0.0, 0.4, 0.8, 1.2]
+    # Der Ensemble-Slot wird sofort veroeffentlicht; der Hauptlauf kommt separat.
+    assert lauf["niederschlag"]["hauptlauf"] is None
 
 
-def test_verarbeite_modell_verwirft_hauptlauf_bei_nicht_passender_initialisierung(monkeypatch):
+def test_verarbeite_modell_wartet_nicht_auf_aktuelle_hauptlauf_metadaten(monkeypatch):
     heute = dt.date(2026, 9, 17)
     init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
-    hl_init_anders = dt.datetime(2026, 9, 17, 6, tzinfo=dt.timezone.utc)  # neuerer Hauptlauf als das Ensemble
     cfg = dict(sv.MODELLE["gfs"])
     cfg["horizont"] = 2
     ziele = ["2026-09-17", "2026-09-18", "2026-09-19"]
@@ -270,17 +276,91 @@ def test_verarbeite_modell_verwirft_hauptlauf_bei_nicht_passender_initialisierun
         if cfg["meta_ensemble"] in url:
             return _meta(init, init + dt.timedelta(hours=6))
         if cfg["meta_hauptlauf"] in url:
-            return _meta(hl_init_anders, hl_init_anders + dt.timedelta(hours=1))
+            raise AssertionError("Die aktuellen Hauptlauf-Metadaten duerfen den Ensemble-Slot nicht blockieren")
         if "ensemble-api" in url:
             return ens_antwort
-        return None  # /v1/forecast darf hier gar nicht erst aufgerufen werden muessen
+        return None
 
     monkeypatch.setattr(sv, "hole", hole)
     fehler = []
     lauf, hinweise = sv.verarbeite_modell("gfs", cfg, fehler, heute)
     assert lauf is not None
-    assert lauf["niederschlag"]["hauptlauf"] is None
-    assert any("passt nicht zum Ensemble-Lauf" in h for h in hinweise)
+    assert lauf["init"] == "2026-09-17T00:00Z"
+    assert lauf["hauptlauf_vollstaendig"] is False
+
+
+def test_ecmwf_speichert_nur_operationellen_hauptlauf_ohne_kontrolllauf(monkeypatch):
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    cfg = dict(sv.MODELLE["ecmwf"])
+    cfg["horizont"] = 1
+    ziele = ["2026-09-17", "2026-09-18"]
+    temperatur = {
+        "2026-09-17T02:00": [10.0] + [10.0] * 50,
+        "2026-09-18T02:00": [11.0] + [11.0] * 50,
+    }
+    ensemble = _ensemble_antwort(
+        ziele, [[1.0, 1.0] for _ in range(50)], [0.5, 0.5],
+        temp2m_stunden=temperatur, temp850_stunden=temperatur,
+    )
+    hauptlauf = _ensemble_antwort(
+        ziele, [], [0.4, 0.4],
+        temp2m_stunden={t: [v[0] + 2] for t, v in temperatur.items()},
+        temp850_stunden={t: [v[0] - 2] for t, v in temperatur.items()},
+    )
+
+    def hole(url, params=None, roh=False, versuche=4, fehlerliste=None, timeout=90):
+        if cfg["meta_ensemble"] in url:
+            return _meta(init, init + dt.timedelta(hours=10))
+        if cfg["meta_hauptlauf"] in url:
+            return _meta(init, init + dt.timedelta(hours=11))
+        if "ensemble-api" in url:
+            return ensemble
+        if "api.open-meteo.com/v1/forecast" in url:
+            return hauptlauf
+        return None
+
+    monkeypatch.setattr(sv, "hole", hole)
+    lauf, hinweise = sv.verarbeite_modell("ecmwf", cfg, [], init.date())
+    assert lauf["ensemble_vollstaendig"] is True, hinweise
+    for feld in ("niederschlag", "temperatur_2m", "temperatur_850hpa"):
+        assert lauf[feld]["kontrolllauf"] is None
+        assert lauf[feld]["hauptlauf"] is None
+
+    # Der spaetere Abruf ist auf GENAU diesen Slot fixiert, nicht auf den
+    # inzwischen neuesten Echtzeitlauf.
+    angefragte_runs = []
+    def single_runs(url, params=None, roh=False, versuche=4, fehlerliste=None, timeout=90):
+        assert "single-runs-api" in url
+        angefragte_runs.append(params["run"])
+        if params["forecast_hours"] == 1:
+            return {"hourly": {"temperature_2m": [12.0]}}
+        return hauptlauf
+
+    monkeypatch.setattr(sv, "hole", single_runs)
+    ensemble_vorher = json.loads(json.dumps(lauf["temperatur_2m"]["mitglieder"]))
+    geaendert, meldung = sv.ergaenze_hauptlauf(lauf, cfg, [])
+    assert geaendert is True, meldung
+    assert angefragte_runs == ["2026-09-17T00:00", "2026-09-17T00:00"]
+    assert lauf["vollstaendig"] is True
+    assert lauf["temperatur_2m"]["mitglieder"] == ensemble_vorher
+    for feld in ("niederschlag", "temperatur_2m", "temperatur_850hpa"):
+        assert lauf[feld]["kontrolllauf"] is None
+        assert lauf[feld]["hauptlauf"]
+
+
+def test_normalisiere_slot_verwirft_falsch_zugeordneten_alt_hauptlauf():
+    reihe = {"zeiten": ["2026-09-17T02:00"], "zeitpunkte_unix": [1],
+             "mitglieder": [[1.0]], "kontrolllauf": [0.8], "hauptlauf": [9.9]}
+    lauf = {"modell": "gfs", "zeitauflosung": "modellnativ-v1",
+            "temperatur_2m": dict(reihe), "temperatur_850hpa": dict(reihe),
+            "niederschlag": dict(reihe),
+            "hinweise": ["deterministischer Lauf ist 19.09.00Z, passt nicht zum Ensemble-Lauf"]}
+    assert sv.normalisiere_slot(lauf) is True
+    assert lauf["ensemble_vollstaendig"] is True
+    assert lauf["hauptlauf_vollstaendig"] is False
+    assert lauf["vollstaendig"] is False
+    assert lauf["hinweise"] == []
+    assert all(lauf[f]["hauptlauf"] is None for f in ("temperatur_2m", "temperatur_850hpa", "niederschlag"))
 
 
 def test_verarbeite_modell_meldet_zu_wenig_mitglieder(monkeypatch):
@@ -296,8 +376,10 @@ def test_verarbeite_modell_meldet_zu_wenig_mitglieder(monkeypatch):
         if cfg["meta_ensemble"] in url:
             return _meta(init, init + dt.timedelta(hours=6))
         if cfg["meta_hauptlauf"] in url:
-            return None
+            return _meta(init, init + dt.timedelta(hours=7))
         if "ensemble-api" in url:
+            return ens_antwort
+        if "api.open-meteo.com/v1/forecast" in url:
             return ens_antwort
         return None
 
@@ -429,9 +511,11 @@ def test_verarbeite_modell_liefert_volle_stundenreihe(monkeypatch):
         if cfg["meta_ensemble"] in url:
             return _meta(init, init + dt.timedelta(hours=6))
         if cfg["meta_hauptlauf"] in url:
-            return None
+            return _meta(init, init + dt.timedelta(hours=7))
         if "ensemble-api" in url:
             gesehene_parameter.append(params)
+            return ens_antwort
+        if "api.open-meteo.com/v1/forecast" in url:
             return ens_antwort
         return None
 
@@ -492,36 +576,43 @@ def test_alte_vollstaendige_laufdatei_ohne_modellformat_wird_nicht_uebersprungen
         "temperatur_850hpa": {"zeiten": ["2026-09-17T12:00"], "mittel": [5.0]},
     }
     neu = {
+        "modell": "gfs",
         "vollstaendig": True,
         "zeitauflosung": "modellnativ-v1",
-        "temperatur_2m": {"zeiten": ["2026-09-17T02:00"], "zeitpunkte_unix": [1789603200]},
-        "temperatur_850hpa": {"zeiten": ["2026-09-17T02:00"], "zeitpunkte_unix": [1789603200]},
-        "niederschlag": {"zeiten": ["2026-09-17T02:00"], "zeitpunkte_unix": [1789603200]},
+        "temperatur_2m": {"zeiten": ["2026-09-17T02:00"], "zeitpunkte_unix": [1789603200], "mitglieder": [[15.0]], "hauptlauf": None, "kontrolllauf": [14.0]},
+        "temperatur_850hpa": {"zeiten": ["2026-09-17T02:00"], "zeitpunkte_unix": [1789603200], "mitglieder": [[5.0]], "hauptlauf": None, "kontrolllauf": [4.0]},
+        "niederschlag": {"zeiten": ["2026-09-17T02:00"], "zeitpunkte_unix": [1789603200], "mitglieder": [[1.0]], "hauptlauf": None, "kontrolllauf": [0.8]},
     }
     assert sv.hat_modellnative_meteogrammdaten(alt) is False
     assert sv.hat_modellnative_meteogrammdaten(neu) is True
 
 
-def test_main_speichert_vollstaendigen_lauf(monkeypatch, tmp_path):
+def test_main_speichert_vollstaendigen_ensemble_slot_ohne_hauptlauf(monkeypatch, tmp_path):
     heute = dt.date(2026, 9, 17)
     init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
     monkeypatch.setattr(sv, "OUT", tmp_path)
 
+    reihe = {"zeiten": ["2026-09-17T02:00"], "zeitpunkte_unix": [1789603200],
+             "mitglieder": [[1.0]], "kontrolllauf": [0.8], "hauptlauf": None}
     vollstaendiger_lauf = {
         "modell": "gfs", "modellname": "GFS", "init": init.strftime("%Y-%m-%dT%H:%MZ"),
-        "mitglieder_n": 30, "vollstaendig": True, "hinweise": [],
-        "niederschlag": {"hauptlauf": None}, "temperatur_2m": None, "temperatur_850hpa": None,
-        "horizont_tage": 16,
+        "mitglieder_n": 30, "ensemble_vollstaendig": True,
+        "hauptlauf_vollstaendig": False, "vollstaendig": False, "hinweise": [],
+        "zeitauflosung": "modellnativ-v1", "niederschlag": dict(reihe),
+        "temperatur_2m": dict(reihe), "temperatur_850hpa": dict(reihe), "horizont_tage": 16,
     }
     monkeypatch.setattr(sv, "verarbeite_modell", lambda kurz, cfg, fehler, heute: (vollstaendiger_lauf, []))
-    monkeypatch.setattr(sv, "laufinfo", lambda datensatz, fehler: None)
+    monkeypatch.setattr(sv, "laufinfo", lambda datensatz, fehler: {"lauf": init, "verfuegbar": init})
+    monkeypatch.setattr(sv, "ergaenze_hauptlauf", lambda lauf, cfg, fehler: (False, "noch nicht da"))
 
     import sys as _sys
     monkeypatch.setattr(_sys, "argv", ["sammeln_vorhersage.py", "--modell", "gfs"])
     sv.main()
 
     erwartete_datei = tmp_path / sv.dateiname("gfs", init)
-    assert erwartete_datei.exists(), "vollstaendiger Lauf wurde nicht gespeichert"
+    assert erwartete_datei.exists(), "vollstaendiger Ensemble-Slot wurde nicht sofort gespeichert"
+    gespeichert = __import__("json").loads(erwartete_datei.read_text(encoding="utf-8"))
+    assert gespeichert["hauptlauf_vollstaendig"] is False
 
 
 # ---------------------------------------------------------------- Sortierung ueber Tagesgrenzen

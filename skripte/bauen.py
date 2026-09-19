@@ -26,6 +26,23 @@ ZIEL = WURZEL / "docs" / "index.html"
 MONATE_RUECKWAERTS = 8
 
 
+def meteogrammlauf_anzeigbar(lauf):
+    """Jeden vollstaendigen Ensemble-Slot sofort in die Seite einbetten.
+
+    Der Hauptlauf darf noch fehlen und wird spaeter in denselben Slot
+    nachgetragen. Unbrauchbare Altformate bleiben draussen, sobald wenigstens
+    ein Slot im modellnahen Raster vorhanden ist.
+    """
+    for feld in ("temperatur_2m", "temperatur_850hpa", "niederschlag"):
+        reihe = lauf.get(feld)
+        if (not isinstance(reihe, dict) or not reihe.get("zeiten")
+                or not reihe.get("zeitpunkte_unix") or not reihe.get("mitglieder")):
+            return False
+        if lauf.get("modell") == "gfs" and not reihe.get("kontrolllauf"):
+            return False
+    return True
+
+
 def monatsschluessel(versatz):
     heute = dt.date.today().replace(day=1)
     for _ in range(versatz):
@@ -65,12 +82,21 @@ def main():
     # des Sammlers nie gespeichert wurden) bleiben einfach Luecken; es wird
     # nichts erfunden oder aufgefuellt.
     vorhersage = {"gfs": [], "ecmwf": []}
+    vorhersage_altbestand = {"gfs": [], "ecmwf": []}
     for pfad in sorted((DATEN / "vorhersage").glob("*.json")) if (DATEN / "vorhersage").exists() else []:
         d = json.loads(pfad.read_text(encoding="utf-8"))
         modell = d.get("modell")
         if modell in vorhersage:
-            vorhersage[modell].append(d)
+            vorhersage_altbestand[modell].append(d)
+            if meteogrammlauf_anzeigbar(d):
+                vorhersage[modell].append(d)
     for modell in vorhersage:
+        # Kein leerer Bildschirm waehrend der Umstellung: Solange noch gar
+        # kein Paket nach der strengeren Regel vorliegt, bleibt der bisherige
+        # Bestand sichtbar. Sobald der erste korrekte Lauf gespeichert wurde,
+        # werden die alten Teilpakete nicht mehr eingebettet.
+        if not vorhersage[modell]:
+            vorhersage[modell] = vorhersage_altbestand[modell]
         vorhersage[modell].sort(key=lambda d: d["init"], reverse=True)
 
     paket = {
