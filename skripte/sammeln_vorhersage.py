@@ -52,6 +52,7 @@ import argparse
 import datetime as dt
 import json
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from gemeinsam import atomar_schreiben_json, hole, mittel, perzentil
 
@@ -143,6 +144,30 @@ def stundenreihe(stundenserie, zeiten):
     return [stundenserie.get(t) for t in zeiten]
 
 
+def temperatur_zeitfenster(verfuegbare_zeiten, init, horizont):
+    """Temperatur-Zeitpunkte vom Modellstart bis zum exakten Horizont.
+
+    Open-Meteo liefert bei ``timezone=Europe/Berlin`` lokale ISO-Zeiten ohne
+    Offset. Fuer Anzeige und Tabellen bleiben diese lesbaren Werte erhalten;
+    zusaetzlich speichern wir Unix-Zeitpunkte. Nur mit diesen kann das
+    Diagramm spaeter stuendliche und groebere Modellschritte zeitlich korrekt
+    auseinanderziehen (und bleibt auch beim Wechsel der Modellaufloesung
+    hinter Tag 10 massstabstreu).
+    """
+    zone = ZoneInfo(TZ_NAME)
+    start = init.astimezone(zone)
+    ende = (init + dt.timedelta(days=horizont)).astimezone(zone)
+    auswahl = []
+    for text in sorted(verfuegbare_zeiten):
+        try:
+            lokal = dt.datetime.fromisoformat(text).replace(tzinfo=zone)
+        except (TypeError, ValueError):
+            continue
+        if start <= lokal <= ende:
+            auswahl.append((text, int(lokal.timestamp())))
+    return [x[0] for x in auswahl], [x[1] for x in auswahl]
+
+
 def aggregiere_lead(mitglieder_werte, lead_index, runden=2):
     """Mittel/Perzentile/Spannweite fuer EINEN Lead-Index aus den Werten aller
     Mitglieder an dieser Stelle -- fehlende Werte (None) werden ausgeschlossen,
@@ -194,7 +219,10 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
                {"latitude": LAT, "longitude": LON,
                 "daily": "precipitation_sum",
                 "hourly": "temperature_2m,temperature_850hPa",
-                "forecast_days": horizont + 1, "timezone": TZ_NAME, "models": cfg["ensemble_datensatz"]},
+                # Ein 18Z-Lauf wird oft erst nach Mitternacht vollstaendig.
+                # Ohne den Vortag fehlen dann seine ersten Modellstunden.
+                "past_days": 1, "forecast_days": horizont + 1,
+                "timezone": TZ_NAME, "models": cfg["ensemble_datensatz"]},
                fehlerliste=fehler)
     if not ens:
         return None, [f"{kurz}: Ensemble-Daten nicht abrufbar"]
@@ -209,26 +237,28 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
 
     # --- Temperatur: 2 m und 850 hPa, NICHT akkumuliert, VOLLE stuendliche Reihe ---
     temperaturen = {}
-    zieltage = set(ziele)
     for feld, praefix in (("temperatur_2m", "temperature_2m"), ("temperatur_850hpa", "temperature_850hPa")):
         serien_temp = stundenwerte_je_serie(ens, praefix)
         if praefix not in serien_temp:
             temperaturen[feld] = None
             hinweise.append(f"{feld}: Spalte fehlt in der Antwort -- fuer diesen Lauf nicht gespeichert")
             continue
-        # Alle Zeitschritte innerhalb des Vorhersagefensters, chronologisch.
+        # Alle Zeitschritte vom tatsaechlichen Modellstart bis zum exakten
+        # Vorhersagehorizont, chronologisch. Anders als der taegliche
+        # Niederschlag beginnt das Meteogramm also nicht erst am Folgetag.
         # Die Zeitstempel sind bereits Ortszeit Europe/Berlin, weil die API mit
         # timezone=Europe/Berlin abgefragt wird (TZ_NAME) -- open-meteo liefert
         # die hourly-"time"-Werte dann als lokale Zeit ohne Zonensuffix.
         # Die API liefert je nach Modell/Reichweite stuendlich oder (in der
         # Langfrist) groeber -- es wird genommen, was da ist, ohne zu verdichten.
-        zeiten = [t for t in sorted(serien_temp[praefix]) if t[:10] in zieltage]
+        zeiten, zeitpunkte_unix = temperatur_zeitfenster(serien_temp[praefix], init, horizont)
         temp_keys = sorted(k for k in serien_temp if k != praefix)
         kontrolle_t = stundenreihe(serien_temp[praefix], zeiten)
         mitglieder_t = [stundenreihe(serien_temp[k], zeiten) for k in temp_keys]
         kennzahlen_t = aggregiere_alle_leads(mitglieder_t, len(zeiten))
         temperaturen[feld] = {
             "zeiten": zeiten,
+            "zeitpunkte_unix": zeitpunkte_unix,
             "zeitzone": TZ_NAME,
             "kontrolllauf": kontrolle_t,
             "mitglieder": mitglieder_t,
@@ -247,19 +277,23 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
                          f"Mitgliedern bricht die Niederschlagsreihe vor Tag {horizont} ab")
     vollstaendig = letzter_lead_leer == 0 and len(mitglieder_keys) >= erwartete_mitglieder - 2
 
-    # Auch die stuendlichen Temperaturreihen muessen den vorgesehenen Horizont
+    # Auch die Temperaturreihen muessen den vorgesehenen Horizont
     # abdecken, sonst gilt der Lauf als noch nicht vollstaendig (und wird von
     # main() noch nicht gespeichert, sondern beim naechsten Durchlauf erneut
     # versucht). Geprueft wird: die Reihe existiert, sie reicht bis zum letzten
-    # Vorhersagetag, und zum letzten Zeitpunkt liegen ueberhaupt Mitgliedswerte vor.
-    letzter_tag = ziele[-1]
+    # Vorhersagezeitpunkt (mit hoechstens sechs Stunden Toleranz wegen der
+    # groberen Originalaufloesung in der GFS-Langfrist), und am letzten
+    # Zeitpunkt liegen ueberhaupt Mitgliedswerte vor.
+    erwartetes_ende = int((init + dt.timedelta(days=horizont)).timestamp())
+    toleranz_sekunden = 6 * 3600
     for feld in ("temperatur_2m", "temperatur_850hpa"):
         t = temperaturen.get(feld)
         if not t:
             vollstaendig = False
             continue
-        if not t["zeiten"] or t["zeiten"][-1][:10] != letzter_tag:
-            hinweise.append(f"{feld}: stuendliche Reihe reicht nicht bis {letzter_tag}")
+        if (not t["zeiten"] or not t["zeitpunkte_unix"]
+                or t["zeitpunkte_unix"][-1] < erwartetes_ende - toleranz_sekunden):
+            hinweise.append(f"{feld}: Temperaturreihe reicht nicht bis zum vorgesehenen Horizont")
             vollstaendig = False
         elif not t["n"] or t["n"][-1] == 0:
             hinweise.append(f"{feld}: zum letzten Zeitpunkt liegen keine Mitgliedswerte vor")
@@ -280,7 +314,7 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
                   {"latitude": LAT, "longitude": LON,
                    "daily": "precipitation_sum",
                    "hourly": "temperature_2m,temperature_850hPa",
-                   "forecast_days": min(horizont + 1, 16), "timezone": TZ_NAME,
+                   "past_days": 1, "forecast_days": min(horizont + 1, 16), "timezone": TZ_NAME,
                    "models": cfg["hauptlauf_datensatz"]},
                   fehlerliste=fehler)
         if hl:
@@ -329,6 +363,25 @@ def dateiname(kurz, init: dt.datetime) -> str:
     return f"{kurz}_{init.strftime('%Y-%m-%dT%H')}.json"
 
 
+def hat_stuendliche_temperaturen(lauf):
+    """True nur fuer das neue Meteogrammformat beider Temperaturfelder.
+
+    Aeltere Dateien koennen bereits ``vollstaendig: true`` tragen, obwohl sie
+    gar keine Temperatur oder nur einen 12-Uhr-Wert je Tag enthalten. Solche
+    Dateien muessen beim Metadaten-Kurzschluss erneut abgerufen werden.
+    """
+    for feld in ("temperatur_2m", "temperatur_850hpa"):
+        temperatur = lauf.get(feld)
+        if not isinstance(temperatur, dict):
+            return False
+        zeiten = temperatur.get("zeiten")
+        unix = temperatur.get("zeitpunkte_unix")
+        if (not isinstance(zeiten, list) or not zeiten
+                or not isinstance(unix, list) or len(unix) != len(zeiten)):
+            return False
+    return True
+
+
 def aufraeumen(kurz):
     """Nur die AUFBEWAHREN juengsten Laeufe je Modell behalten. Sortiert wird
     nicht nach Dateiname/Stunde, sondern nach der tatsaechlichen, im
@@ -367,10 +420,11 @@ def main():
                     bereits = json.loads(erwarteter_pfad.read_text(encoding="utf-8"))
                 except Exception:
                     bereits = {}
-                if bereits.get("vollstaendig"):
+                if bereits.get("vollstaendig") and hat_stuendliche_temperaturen(bereits):
                     print(f"{kurz}: Lauf {vorab_info['lauf']:%Y-%m-%dT%H:%MZ} bereits vollstaendig gespeichert -- nichts zu tun")
                     continue
-                print(f"{kurz}: Lauf {vorab_info['lauf']:%Y-%m-%dT%H:%MZ} war beim letzten Mal noch unvollstaendig -- erneuter Versuch")
+                print(f"{kurz}: Lauf {vorab_info['lauf']:%Y-%m-%dT%H:%MZ} ist unvollstaendig oder noch im alten "
+                      "Temperaturformat gespeichert -- erneuter Versuch")
 
         lauf, hinweise = verarbeite_modell(kurz, cfg, fehler, heute)
         if not lauf:

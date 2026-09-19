@@ -11,9 +11,10 @@ Bereiche:
   Legende, eigenes Diagramm und eigene Zahlentabelle.
   Wichtig zur Methodik: Der **Niederschlag** wird zuerst je Mitglied über die Zeit aufsummiert, erst
   danach werden Mittel und Perzentile aus den akkumulierten Kurven gebildet. **Temperaturen werden
-  nicht akkumuliert** — dort werden Mittel und Perzentile für jeden Vorhersagetag direkt aus den an
-  diesem Tag vorhandenen Mitgliedswerten berechnet (Wert um 12 Uhr Ortszeit); fehlende Mitgliedswerte
-  werden ausgeschlossen, nie als 0 °C gewertet.
+  nicht akkumuliert** — dort werden die von der API gelieferten Zeitschritte vom tatsächlichen
+  Modellstart bis zum Vorhersagehorizont als durchgehendes Meteogramm gezeigt. Mittel und Perzentile
+  werden für jeden einzelnen Zeitpunkt direkt aus den vorhandenen Mitgliedswerten berechnet;
+  fehlende Mitgliedswerte werden ausgeschlossen, nie als 0 °C gewertet.
 - **Analyse** — wie genau frühere Vorhersagen waren: tagesgenaue Güte (Tag 1–5), Bias, 5-mm-Schwelle,
   Rückblick, Ensemble-Spannweite, und ein Witterungs-/Summenvergleich über die Zeitfenster Tag 1–3,
   4–7 und 8–14 gegen die tatsächlich gemessenen Tagessummen der DWD-Station.
@@ -174,7 +175,9 @@ werden aktualisiert (etwa bei nachträglichen DWD-Korrekturen).
 
 **Vorhersagen:** [open-meteo.com](https://open-meteo.com) — Hauptläufe `ecmwf_ifs025` und
 `gfs_seamless`, Ensembles `ecmwf_ifs025` (51 Läufe) und `gfs_seamless` (31 Läufe — `gfs025` allein
-liefert Mitgliederdaten nur bis Tag 10). Eine fertige Ensemble-Mittelwert-Reihe liefert die
+liefert Mitgliederdaten nur bis Tag 10). Bei GFS kann die zeitliche Auflösung in der Langfrist
+gröber werden; die Diagrammachse verwendet deshalb echte Zeitstempel und bleibt maßstabstreu.
+Eine fertige Ensemble-Mittelwert-Reihe liefert die
 Schnittstelle nicht; Mittel, Perzentile und der Anteil der Läufe über 5 mm werden aus den
 Einzelläufen selbst gebildet — für das Meteogramm ausdrücklich **aus den bereits je Mitglied
 akkumulierten Kurven**, nicht aus aufsummierten Tageswert-Perzentilen (die beiden Wege liefern bei
@@ -182,10 +185,12 @@ Perzentilen unterschiedliche, und nur der erste methodisch korrekte, Ergebnisse)
 
 **Abgerufene Variablen:** `precipitation_sum` (täglich, für den Niederschlag) sowie `temperature_2m`
 und `temperature_850hPa` (stündlich, in °C, für die beiden Temperaturbereiche). Beide Temperatur-
-variablen gibt es bei open-meteo nur stündlich; daraus wird je Vorhersagetag der Wert um 12 Uhr
-Ortszeit als Tageswert genommen (einheitlich für 2 m und 850 hPa, da für 850 hPa keine fertige
-Tagesaggregation existiert). Niederschlag und beide Temperaturreihen kommen aus **einem** Abruf je
-Lauf, damit die Zahl der API-Aufrufe unverändert niedrig bleibt.
+variablen werden ohne Tagesaggregation als zeitlich aufgelöstes Meteogramm vom Modellstart bis zum
+Horizont gespeichert und dargestellt. Wo das Modell in der Langfrist gröbere Originalschritte
+liefert, bleiben diese als solche erhalten. Der Abruf schließt den Vortag ein, damit bei einem erst
+nach Mitternacht vollständig verfügbaren 18-UTC-Lauf auch dessen erste Stunden erhalten bleiben.
+Niederschlag und beide Temperaturreihen kommen aus
+**einem** Abruf je Lauf, damit die Zahl der API-Aufrufe unverändert niedrig bleibt.
 
 **Was der Vergleich nicht kann:** Die Station liegt rund 4 km vom Modellgitterpunkt entfernt. Bei
 Schauern und Gewittern können allein daraus mehrere Millimeter Unterschied entstehen — ein Teil des

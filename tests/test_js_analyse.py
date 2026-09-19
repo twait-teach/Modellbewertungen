@@ -323,8 +323,11 @@ def _lauf(init, *, mit_temperatur=True, horizont=3, mitglieder_n=3, temp_offset=
     if mit_temperatur:
         # bewusst NEGATIVE Werte, um die Achsenskalierung zu pruefen
         werte = [-5.0 + temp_offset, 0.0 + temp_offset, 4.0 + temp_offset][:horizont]
+        zeiten = [f"2026-02-02T{stunde:02d}:00" for stunde in range(horizont)]
+        zeitpunkte_unix = [1769990400 + stunde * 3600 for stunde in range(horizont)]
         for feld in ("temperatur_2m", "temperatur_850hpa"):
             d[feld] = {
+                "zeiten": zeiten, "zeitpunkte_unix": zeitpunkte_unix, "zeitzone": "Europe/Berlin",
                 "kontrolllauf": werte,
                 "mitglieder": [[w + i * 0.5 for w in werte] for i in range(mitglieder_n)],
                 "hauptlauf": None,
@@ -443,7 +446,7 @@ def test_alter_lauf_ohne_temperaturdaten_zeigt_meldung_statt_fehler():
         browser.close()
         assert not fehler, f"JS-Laufzeitfehler bei altem Lauf ohne Temperatur: {fehler}"
     testdatei.unlink()
-    assert "keine Temperaturdaten" in text
+    assert "keine stündlichen Temperaturdaten" in text
     assert regen_hat_pfade is True, "Niederschlag muss auch bei altem Lauf weiterhin gezeichnet werden"
 
 
@@ -525,9 +528,12 @@ def test_temperatur_wird_nicht_akkumuliert_dargestellt():
             const lauf = {
                 kontrolllauf_kumulativ: [1, 3, 6], mitglieder_kumulativ: [[1, 3, 6]], hauptlauf_kumulativ: null,
                 mittel_kumulativ: [1, 3, 6], p10_kumulativ: [1, 3, 6], p90_kumulativ: [1, 3, 6], n_kumulativ: [1, 1, 1],
-                temperatur_2m: { kontrolllauf: [-5, 0, 4], mitglieder: [[-5, 0, 4]], hauptlauf: null,
+                temperatur_2m: { zeiten: ['2026-02-02T01:00', '2026-02-02T02:00', '2026-02-02T08:00'],
+                                 zeitpunkte_unix: [0, 3600, 25200],
+                                 kontrolllauf: [-5, 0, 4], mitglieder: [[-5, 0, 4]], hauptlauf: null,
                                  mittel: [-5, 0, 4], p10: [-6, -1, 3], p90: [-4, 1, 5], n: [1, 1, 1] },
-                temperatur_850hpa: null,
+                temperatur_850hpa: { kontrolllauf: [-5, 0, 4], mitglieder: [[-5, 0, 4]], hauptlauf: null,
+                                     mittel: [-5, 0, 4], p10: [-6, -1, 3], p90: [-4, 1, 5], n: [1, 1, 1] },
             };
             const bTemp = t.BEREICHE.find(b => b.id === 'temp2m');
             const bRegen = t.BEREICHE.find(b => b.id === 'niederschlag');
@@ -536,6 +542,7 @@ def test_temperatur_wird_nicht_akkumuliert_dargestellt():
                 temp: t.datenAusLauf(bTemp, lauf),
                 regen: t.datenAusLauf(bRegen, lauf),
                 fehlend: t.datenAusLauf(b850, lauf),
+                zeitachse: t.zeitachsenWerte(t.datenAusLauf(bTemp, lauf), 3),
                 temp_akkumuliert_flag: bTemp.akkumuliert,
                 regen_akkumuliert_flag: bRegen.akkumuliert,
             };
@@ -544,6 +551,7 @@ def test_temperatur_wird_nicht_akkumuliert_dargestellt():
     testdatei.unlink()
     assert ergebnis["temp"]["mittel"] == [-5, 0, 4]        # roh, nicht aufsummiert
     assert ergebnis["regen"]["mittel"] == [1, 3, 6]        # kumulierte Felder
+    assert ergebnis["zeitachse"] == [0, 3600, 25200]        # 1h, danach 6h: nicht indexbasiert gestaucht
     assert ergebnis["temp_akkumuliert_flag"] is False
     assert ergebnis["regen_akkumuliert_flag"] is True
-    assert ergebnis["fehlend"]["verfuegbar"] is False      # fehlendes Feld -> sauber als nicht verfuegbar
+    assert ergebnis["fehlend"]["verfuegbar"] is False      # altes Tagesformat ohne Zeitachse -> nicht verfuegbar

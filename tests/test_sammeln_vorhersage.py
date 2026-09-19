@@ -205,7 +205,17 @@ def test_verarbeite_modell_akzeptiert_gueltigen_lauf_und_akkumuliert_korrekt(mon
     # 30 Mitglieder mit 1 mm/Tag, damit Erwartungspruefung (>= 28 Mitglieder) erfuellt ist
     member_werte = [[1.0, 1.0, 1.0, 1.0] for _ in range(30)]
     kontrolle = [0.5, 0.5, 0.5, 0.5]
-    ens_antwort = _ensemble_antwort(ziele, member_werte, kontrolle)
+    # Beide Temperaturfelder reichen vom Modellstart (02 Uhr Ortszeit) bis
+    # exakt zum dreitaegigen Horizont; sonst ist der Gesamtlauf absichtlich
+    # noch nicht speicherfertig.
+    temp_stunden = {}
+    for i, zeit in enumerate(("2026-09-17T02:00", "2026-09-18T02:00",
+                              "2026-09-19T02:00", "2026-09-20T02:00")):
+        temp_stunden[zeit] = [10.0 + i] + [10.0 + i] * 30
+    ens_antwort = _ensemble_antwort(
+        ziele, member_werte, kontrolle,
+        temp2m_stunden=temp_stunden, temp850_stunden=temp_stunden,
+    )
 
     antworten = {
         "meta.json": None,  # wird unten gezielt ueberschrieben
@@ -301,6 +311,33 @@ def test_stundenreihe_keine_kette():
     assert out == [5.0, None, 7.0, None]  # 02:00 ist trotz Luecke bei 01:00 intakt
 
 
+def test_temperatur_zeitfenster_beginnt_am_modellstart_und_endet_am_horizont():
+    """Auch bei lokaler Zeitdarstellung muss das Meteogramm am echten
+    UTC-Modellstart beginnen und exakt am Horizont enden."""
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)  # 02:00 MESZ
+    verfuegbar = [
+        "2026-09-17T01:00",  # vor Initialisierung -> raus
+        "2026-09-17T02:00",  # Initialisierung -> rein
+        "2026-09-17T03:00",
+        "2026-09-19T02:00",  # exakt +48h -> rein
+        "2026-09-19T03:00",  # nach Horizont -> raus
+    ]
+    zeiten, unix = sv.temperatur_zeitfenster(verfuegbar, init, 2)
+    assert zeiten == ["2026-09-17T02:00", "2026-09-17T03:00", "2026-09-19T02:00"]
+    assert unix[0] == int(init.timestamp())
+    assert unix[-1] == int((init + dt.timedelta(days=2)).timestamp())
+
+
+def test_temperatur_zeitfenster_bewahrt_groebere_zeitschritte_massstabstreu():
+    """Die gespeicherten Unix-Zeitpunkte muessen einen spaeteren Wechsel von
+    Stunden- auf Sechsstundenschritte unverfaelscht abbilden."""
+    init = dt.datetime(2026, 1, 5, 0, tzinfo=dt.timezone.utc)  # 01:00 MEZ
+    zeiten = ["2026-01-05T01:00", "2026-01-05T02:00", "2026-01-05T08:00"]
+    ausgewaehlt, unix = sv.temperatur_zeitfenster(zeiten, init, 1)
+    assert ausgewaehlt == zeiten
+    assert [unix[i + 1] - unix[i] for i in range(2)] == [3600, 6 * 3600]
+
+
 def test_aggregiere_lead_mittel_und_perzentile():
     # 3 Mitglieder an einem Lead: -2.0, 3.0, 5.0
     mitglieder = [[-2.0, 1.0], [3.0, 1.0], [5.0, 1.0]]
@@ -346,14 +383,22 @@ def test_verarbeite_modell_liefert_volle_stundenreihe(monkeypatch):
     ziele = ["2026-09-17", "2026-09-18", "2026-09-19"]
 
     member_werte_regen = [[1.0, 1.0, 1.0] for _ in range(30)]
-    # Temperatur: mehrere Stunden PRO TAG, mit Tagesgang und negativen Werten
+    # Temperatur: mehrere Stunden PRO TAG, mit Tagesgang und negativen Werten.
+    # Der Modellstart 00Z entspricht im September 02:00 Uhr Ortszeit.
     temp2m_stunden = {}
     for tag, basis in (("2026-09-18", -3.0), ("2026-09-19", 8.0)):
         for stunde, delta in ((0, 0.0), (6, 1.5), (12, 5.0), (18, 2.0)):
             temp2m_stunden[f"{tag}T{stunde:02d}:00"] = [basis + delta] + [basis + delta + i * 0.1 for i in range(30)]
-    # ein Tag ausserhalb des Vorhersagefensters -- darf NICHT mitgenommen werden
-    temp2m_stunden["2026-09-17T12:00"] = [99.0] + [99.0] * 30
+    # Initialisierungstag: ein Wert davor, zwei Werte ab dem echten Modellstart.
+    temp2m_stunden["2026-09-17T01:00"] = [99.0] + [99.0] * 30
+    temp2m_stunden["2026-09-17T02:00"] = [4.0] + [4.0] * 30
+    temp2m_stunden["2026-09-17T12:00"] = [9.0] + [9.0] * 30
+    # Genaues Ende (+48 h) und ein Wert danach.
+    temp2m_stunden["2026-09-19T02:00"] = [8.5] + [8.5] * 30
+    temp2m_stunden["2026-09-19T06:00"] = [88.0] + [88.0] * 30
     ens_antwort = _ensemble_antwort(ziele, member_werte_regen, [0.5, 0.5, 0.5], temp2m_stunden=temp2m_stunden)
+
+    gesehene_parameter = []
 
     def hole(url, params=None, roh=False, versuche=4, fehlerliste=None, timeout=90):
         if cfg["meta_ensemble"] in url:
@@ -361,6 +406,7 @@ def test_verarbeite_modell_liefert_volle_stundenreihe(monkeypatch):
         if cfg["meta_hauptlauf"] in url:
             return None
         if "ensemble-api" in url:
+            gesehene_parameter.append(params)
             return ens_antwort
         return None
 
@@ -370,18 +416,23 @@ def test_verarbeite_modell_liefert_volle_stundenreihe(monkeypatch):
     assert lauf is not None
     t2 = lauf["temperatur_2m"]
     assert t2 is not None
-    # 2 Vorhersagetage x 4 Zeitschritte = 8 Punkte; der Tag ausserhalb des
-    # Fensters (09-17) ist NICHT dabei
+    # Ab echtem Modellstart bis exakt +48 Stunden. Der Wert vor dem Start und
+    # der Wert nach dem Horizont duerfen nicht enthalten sein.
     assert t2["zeiten"] == [
+        "2026-09-17T02:00", "2026-09-17T12:00",
         "2026-09-18T00:00", "2026-09-18T06:00", "2026-09-18T12:00", "2026-09-18T18:00",
-        "2026-09-19T00:00", "2026-09-19T06:00", "2026-09-19T12:00", "2026-09-19T18:00",
+        "2026-09-19T00:00", "2026-09-19T02:00",
     ]
     assert len(t2["kontrolllauf"]) == 8
     assert len(t2["mittel"]) == 8
+    assert len(t2["zeitpunkte_unix"]) == 8
+    assert t2["zeitpunkte_unix"][0] == int(init.timestamp())
+    assert t2["zeitpunkte_unix"][-1] == int((init + dt.timedelta(days=2)).timestamp())
+    assert gesehene_parameter[0]["past_days"] == 1
     # Tagesgang innerhalb eines Tages sichtbar (12 Uhr waermer als 0 Uhr)
-    assert t2["kontrolllauf"][2] > t2["kontrolllauf"][0]
+    assert t2["kontrolllauf"][4] > t2["kontrolllauf"][2]
     # negative Werte korrekt uebernommen, nicht akkumuliert
-    assert t2["kontrolllauf"][0] == -3.0
+    assert t2["kontrolllauf"][2] == -3.0
     assert t2["n"] == [30] * 8
     # 850 hPa wurde in dieser Antwort nicht mitgeschickt -> muss None sein, kein Crash
     assert lauf["temperatur_850hpa"] is None
@@ -409,6 +460,23 @@ def test_main_speichert_unvollstaendigen_lauf_nicht(monkeypatch, tmp_path):
 
     erwartete_datei = tmp_path / sv.dateiname("gfs", init)
     assert not erwartete_datei.exists(), "unvollstaendiger Lauf wurde faelschlich gespeichert"
+
+
+def test_alte_vollstaendige_laufdatei_ohne_stundenformat_wird_nicht_uebersprungen():
+    """Regression: ``vollstaendig`` allein darf den erneuten Abruf nicht
+    verhindern, wenn die Datei noch aus der Tageswert-Phase stammt."""
+    alt = {
+        "vollstaendig": True,
+        "temperatur_2m": {"zeiten": ["2026-09-17T12:00"], "mittel": [15.0]},
+        "temperatur_850hpa": {"zeiten": ["2026-09-17T12:00"], "mittel": [5.0]},
+    }
+    neu = {
+        "vollstaendig": True,
+        "temperatur_2m": {"zeiten": ["2026-09-17T02:00"], "zeitpunkte_unix": [1789603200]},
+        "temperatur_850hpa": {"zeiten": ["2026-09-17T02:00"], "zeitpunkte_unix": [1789603200]},
+    }
+    assert sv.hat_stuendliche_temperaturen(alt) is False
+    assert sv.hat_stuendliche_temperaturen(neu) is True
 
 
 def test_main_speichert_vollstaendigen_lauf(monkeypatch, tmp_path):

@@ -570,9 +570,24 @@ function datenAusLauf(bereich, lauf) {
     };
   }
   const t = lauf[bereich.feld];
-  if (!t) return { verfuegbar: false };
-  return { verfuegbar: true, zeiten: t.zeiten || null, kontrolllauf: t.kontrolllauf, mitglieder: t.mitglieder, hauptlauf: t.hauptlauf,
+  // Nur das neue stündliche Format ist als Meteogramm verwendbar. Die erste
+  // Temperatur-Version speicherte lediglich einen 12-Uhr-Wert je Tag. Diese
+  // Altwerte duerfen nicht stillschweigend als hochaufgeloeste Kurve erscheinen.
+  if (!t || !Array.isArray(t.zeiten) || !t.zeiten.length
+      || !Array.isArray(t.zeitpunkte_unix) || t.zeitpunkte_unix.length !== t.zeiten.length) {
+    return { verfuegbar: false };
+  }
+  return { verfuegbar: true, zeiten: t.zeiten, zeitpunkte_unix: t.zeitpunkte_unix,
+           kontrolllauf: t.kontrolllauf, mitglieder: t.mitglieder, hauptlauf: t.hauptlauf,
            mittel: t.mittel, p10: t.p10, p90: t.p90, n: t.n };
+}
+
+/** Reale Zeitwerte fuer die x-Achse. Temperaturdaten verwenden Unix-Zeit,
+ * Niederschlag weiterhin gleichmaessige Tagesindizes. */
+function zeitachsenWerte(daten, punkte) {
+  if (Array.isArray(daten.zeitpunkte_unix) && daten.zeitpunkte_unix.length === punkte
+      && daten.zeitpunkte_unix.every(Number.isFinite)) return daten.zeitpunkte_unix;
+  return Array.from({ length: punkte }, (_, i) => i);
 }
 
 /** Beschriftung eines Laufwahl-Buttons: immer das tatsaechliche Datum und die
@@ -653,7 +668,7 @@ function zeichneBereich(bereich) {
     svg.innerHTML = "";
     $(`#leg-${bereich.id}`).innerHTML = "";
     $(`#tab-${bereich.id}`).innerHTML = "";
-    warnzeile.innerHTML = `<div class="warnzeile">Für diesen älteren Lauf sind noch keine Temperaturdaten gespeichert.</div>`;
+    warnzeile.innerHTML = `<div class="warnzeile">Für diesen älteren Lauf sind noch keine stündlichen Temperaturdaten gespeichert.</div>`;
     return;
   }
 
@@ -684,9 +699,12 @@ function zeichneBereich(bereich) {
     oben0 = Math.ceil((maxWert + puffer) / 2) * 2;
     if (oben0 === unten0) oben0 += 2;
   }
-  // x ist jetzt INDEX-basiert (0 .. punkte-1), damit dieselbe Funktion fuer
-  // die stuendliche Temperaturreihe und die taegliche Niederschlagsreihe passt.
-  const x = i => L + (i / Math.max(1, punkte - 1)) * iw;
+  // Temperatur wird nach echter Zeit positioniert. Das ist entscheidend,
+  // weil GFS in der Langfrist von stuendlichen auf groebere Schritte wechselt.
+  // Eine indexbasierte Achse wuerde die letzten Tage sonst zusammenstauchen.
+  const xWerte = zeitachsenWerte(daten, punkte);
+  const xMin = xWerte[0] ?? 0, xMax = xWerte[punkte - 1] ?? xMin;
+  const x = i => L + ((xWerte[i] - xMin) / Math.max(1, xMax - xMin)) * iw;
   const y = v => O + ih - ((v - unten0) / (oben0 - unten0)) * ih;
 
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
@@ -715,12 +733,20 @@ function zeichneBereich(bereich) {
 
   // Unsicherheitsband 10.-90. Perzentil
   const oben = daten.p90, unten = daten.p10;
-  const bandPunkte = [];
-  oben.forEach((v, i) => { if (v != null) bandPunkte.push([x(i), y(v)]); });
-  for (let i = unten.length - 1; i >= 0; i--) { if (unten[i] != null) bandPunkte.push([x(i), y(unten[i])]); }
-  if (bandPunkte.length > 2) {
+  let bandStart = null;
+  const bandZeichnen = ende => {
+    if (bandStart == null || ende - bandStart < 1) { bandStart = null; return; }
+    const bandPunkte = [];
+    for (let i = bandStart; i <= ende; i++) bandPunkte.push([x(i), y(oben[i])]);
+    for (let i = ende; i >= bandStart; i--) bandPunkte.push([x(i), y(unten[i])]);
     const d = bandPunkte.map((p, i) => (i ? "L" : "M") + p[0] + " " + p[1]).join(" ") + " Z";
     svg.appendChild(el("path", { d, fill: modellInfo.farbe, opacity: .16, stroke: "none" }));
+    bandStart = null;
+  };
+  for (let i = 0; i <= punkte; i++) {
+    if (i < punkte && oben[i] != null && unten[i] != null) {
+      if (bandStart == null) bandStart = i;
+    } else if (bandStart != null) bandZeichnen(i - 1);
   }
 
   // Einzelne Ensemblemitglieder: duenne, transparente Linien
@@ -754,7 +780,14 @@ function zeichneBereich(bereich) {
   }
 
   // x-Achse + Tooltip-Spalten
-  const bw = iw / punkte;
+  // Grenzen der unsichtbaren Tooltip-Flaechen liegen jeweils in der Mitte
+  // zwischen zwei realen Zeitpunkten; so bleiben sie auch bei 3-/6-Stunden-
+  // Schritten lueckenlos und zeitlich korrekt.
+  const trefferGrenzen = i => {
+    const links = i === 0 ? L : (x(i - 1) + x(i)) / 2;
+    const rechts = i === punkte - 1 ? W - R : (x(i) + x(i + 1)) / 2;
+    return [links, Math.max(1, rechts - links)];
+  };
   // Zeilen fuer den Tooltip an Stuetzstelle i -- fuer beide Bereichsarten gleich
   const werteZeilen = i => [
     `Ensemble-Mittel: ${nf(daten.mittel[i])} ${bereich.einheit}`,
@@ -783,7 +816,8 @@ function zeichneBereich(bereich) {
     daten.zeiten.forEach((t, i) => {
       // genauer oertlicher Zeitpunkt, z.B. "19.09., 20:00 Uhr"
       const zeitpunkt = `${t.slice(8, 10)}.${t.slice(5, 7)}., ${t.slice(11, 16)} Uhr`;
-      treffer(svg, x(i) - bw / 2, O, bw, ih, `${zeitpunkt} (Ortszeit)\n` + werteZeilen(i).join("\n"));
+      const [tx, tw] = trefferGrenzen(i);
+      treffer(svg, tx, O, tw, ih, `${zeitpunkt} (Ortszeit)\n` + werteZeilen(i).join("\n"));
     });
     svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" }, "Zeitpunkt (Ortszeit, stündliche Werte)"));
   } else {
@@ -795,7 +829,8 @@ function zeichneBereich(bereich) {
         svg.appendChild(el("text", { x: x(i), y: H - U + 16, "text-anchor": "middle", class: "ax" }, datumKurz(ziel)));
         svg.appendChild(el("text", { x: x(i), y: H - U + 29, "text-anchor": "middle", class: "ax" }, "+" + lead));
       }
-      treffer(svg, x(i) - bw / 2, O, bw, ih,
+      const [tx, tw] = trefferGrenzen(i);
+      treffer(svg, tx, O, tw, ih,
         `${datumLang(ziel)} (+${lead} Tage, aufsummiert seit Laufbeginn)\n` + werteZeilen(i).join("\n"));
     }
     svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" }, "Vorhersagetag (aufsummiert seit Initialisierung)"));
@@ -1282,7 +1317,7 @@ addEventListener("resize", () => { tipAus(); });
 
 /* Test-Hook: reine Berechnungsfunktionen fuer automatisierte Tests freigeben.
    Aendert kein Verhalten der Seite selbst, wird von keiner UI-Funktion gelesen. */
-window.__TEST__ = { paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, laufLabel };
+window.__TEST__ = { paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, laufLabel, zeitachsenWerte };
 
 
 </script>
