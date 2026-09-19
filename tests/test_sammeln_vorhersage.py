@@ -291,13 +291,14 @@ def test_verarbeite_modell_meldet_zu_wenig_mitglieder(monkeypatch):
 
 
 # ---------------------------------------------------------------- Temperatur: nicht akkumuliert
-def test_tageswert_ohne_akkumulation_keine_kette():
-    """Anders als beim Niederschlag darf eine fehlende Temperatur an einem Tag
-    NICHT die folgenden Tage mit-beeinflussen -- jeder Tag ist unabhaengig."""
-    stundenreihe = {"2026-01-01T12:00": 5.0, "2026-01-03T12:00": 7.0}  # Tag 2 fehlt
-    ziele = ["2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04"]
-    out = sv.tageswert_ohne_akkumulation(stundenreihe, ziele)
-    assert out == [5.0, None, 7.0, None]  # Tag 3 ist trotz Luecke an Tag 2 intakt
+def test_stundenreihe_keine_kette():
+    """Anders als beim Niederschlag darf eine fehlende Temperatur zu einem
+    Zeitpunkt NICHT die folgenden Zeitpunkte mit-beeinflussen -- jeder
+    Zeitschritt ist unabhaengig."""
+    serie = {"2026-01-01T00:00": 5.0, "2026-01-01T02:00": 7.0}  # 01:00 fehlt
+    zeiten = ["2026-01-01T00:00", "2026-01-01T01:00", "2026-01-01T02:00", "2026-01-01T03:00"]
+    out = sv.stundenreihe(serie, zeiten)
+    assert out == [5.0, None, 7.0, None]  # 02:00 ist trotz Luecke bei 01:00 intakt
 
 
 def test_aggregiere_lead_mittel_und_perzentile():
@@ -334,10 +335,10 @@ def test_aggregiere_lead_negative_temperaturen_korrekt_sortiert():
     assert k["mittel"] == pytest.approx(-17.0 / 3, abs=0.01)
 
 
-def test_verarbeite_modell_liefert_temperatur_direkt_pro_tag(monkeypatch):
-    """End-to-End (mit gefakter API-Antwort): Temperatur wird NICHT akkumuliert
-    -- ein hoher Wert an Tag 1 darf sich nicht in Tag 2 fortsetzen (anders als
-    beim Niederschlag)."""
+def test_verarbeite_modell_liefert_volle_stundenreihe(monkeypatch):
+    """End-to-End (mit gefakter API-Antwort): die Temperatur wird als volle
+    stuendliche Reihe uebernommen -- nicht auf einen Wert pro Tag verdichtet
+    und nicht akkumuliert."""
     heute = dt.date(2026, 9, 17)
     init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
     cfg = dict(sv.MODELLE["gfs"])
@@ -345,12 +346,13 @@ def test_verarbeite_modell_liefert_temperatur_direkt_pro_tag(monkeypatch):
     ziele = ["2026-09-17", "2026-09-18", "2026-09-19"]
 
     member_werte_regen = [[1.0, 1.0, 1.0] for _ in range(30)]
-    # Temperatur: Kontrolle + 30 Mitglieder, je 3 Zeitschritte (00-09-17..19, jeweils T12:00)
-    temp2m_stunden = {
-        "2026-09-17T12:00": [10.0] + [10.0 + i * 0.1 for i in range(30)],
-        "2026-09-18T12:00": [-3.0] + [-3.0 + i * 0.1 for i in range(30)],  # negativ + unabhaengig von Tag 1
-        "2026-09-19T12:00": [8.0] + [8.0 + i * 0.1 for i in range(30)],
-    }
+    # Temperatur: mehrere Stunden PRO TAG, mit Tagesgang und negativen Werten
+    temp2m_stunden = {}
+    for tag, basis in (("2026-09-18", -3.0), ("2026-09-19", 8.0)):
+        for stunde, delta in ((0, 0.0), (6, 1.5), (12, 5.0), (18, 2.0)):
+            temp2m_stunden[f"{tag}T{stunde:02d}:00"] = [basis + delta] + [basis + delta + i * 0.1 for i in range(30)]
+    # ein Tag ausserhalb des Vorhersagefensters -- darf NICHT mitgenommen werden
+    temp2m_stunden["2026-09-17T12:00"] = [99.0] + [99.0] * 30
     ens_antwort = _ensemble_antwort(ziele, member_werte_regen, [0.5, 0.5, 0.5], temp2m_stunden=temp2m_stunden)
 
     def hole(url, params=None, roh=False, versuche=4, fehlerliste=None, timeout=90):
@@ -368,9 +370,19 @@ def test_verarbeite_modell_liefert_temperatur_direkt_pro_tag(monkeypatch):
     assert lauf is not None
     t2 = lauf["temperatur_2m"]
     assert t2 is not None
-    assert t2["kontrolllauf"] == [-3.0, 8.0]  # nicht akkumuliert: Lead 1 (09-18, negativ) unabhaengig von Lead 2 (09-19, positiv)
-    assert t2["mittel"][0] < 0  # Lead 1 (negativ) korrekt uebernommen, keine Verunreinigung durch einen "Tag 0"
-    assert t2["n"] == [30, 30]
+    # 2 Vorhersagetage x 4 Zeitschritte = 8 Punkte; der Tag ausserhalb des
+    # Fensters (09-17) ist NICHT dabei
+    assert t2["zeiten"] == [
+        "2026-09-18T00:00", "2026-09-18T06:00", "2026-09-18T12:00", "2026-09-18T18:00",
+        "2026-09-19T00:00", "2026-09-19T06:00", "2026-09-19T12:00", "2026-09-19T18:00",
+    ]
+    assert len(t2["kontrolllauf"]) == 8
+    assert len(t2["mittel"]) == 8
+    # Tagesgang innerhalb eines Tages sichtbar (12 Uhr waermer als 0 Uhr)
+    assert t2["kontrolllauf"][2] > t2["kontrolllauf"][0]
+    # negative Werte korrekt uebernommen, nicht akkumuliert
+    assert t2["kontrolllauf"][0] == -3.0
+    assert t2["n"] == [30] * 8
     # 850 hPa wurde in dieser Antwort nicht mitgeschickt -> muss None sein, kein Crash
     assert lauf["temperatur_850hpa"] is None
     assert any("temperatur_850hpa" in h for h in hinweise)

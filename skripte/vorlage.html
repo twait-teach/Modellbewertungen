@@ -223,10 +223,11 @@ footer a{color:var(--ink-2)}
       <h2>2-m-Temperatur über den Vorhersagezeitraum</h2>
       <p class="hinweis">
         Die bodennahe Lufttemperatur in rund zwei Metern Höhe — die im Alltag gemeinte „Temperatur draußen".
-        Jede dünne Linie ist ein einzelnes Ensemblemitglied zu diesem Zeitpunkt (12 Uhr Ortszeit je Vorhersagetag).
+        Jede dünne Linie ist ein einzelnes Ensemblemitglied, dargestellt als durchgehende stündliche
+        Kurve — der Tagesgang ist dadurch direkt ablesbar.
         Das dunkle Band zeigt das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel. Kontrolllauf und
         deterministischer Hauptlauf sind gesondert hervorgehoben. Anders als beim Niederschlag wird hier
-        <strong>nicht</strong> aufsummiert — jeder Tag steht für sich.
+        <strong>nicht</strong> aufsummiert — jeder Zeitpunkt steht für sich.
       </p>
 
       <div class="bedienleiste">
@@ -283,8 +284,8 @@ footer a{color:var(--ink-2)}
       <p class="hinweis">
         Die Temperatur der freien Atmosphäre in rund 1.500 Metern Höhe — gut geeignet, um die
         großräumige Luftmasse einzuschätzen (mild/warm oder kalt), aber <strong>nicht identisch</strong>
-        mit der Temperatur am Boden. Darstellung wie bei der 2-m-Temperatur: Wert um 12 Uhr Ortszeit je
-        Vorhersagetag, nicht aufsummiert.
+        mit der Temperatur am Boden. Darstellung wie bei der 2-m-Temperatur: durchgehende stündliche
+        Kurven, dadurch sind auch kurzfristige Luftmassenwechsel zeitlich genau erkennbar; nicht aufsummiert.
       </p>
 
       <div class="bedienleiste">
@@ -563,14 +564,14 @@ function modellMitVerfuegbaremLauf() {
 function datenAusLauf(bereich, lauf) {
   if (!bereich.feld) {
     return {
-      verfuegbar: true,
+      verfuegbar: true, zeiten: null,
       kontrolllauf: lauf.kontrolllauf_kumulativ, mitglieder: lauf.mitglieder_kumulativ, hauptlauf: lauf.hauptlauf_kumulativ,
       mittel: lauf.mittel_kumulativ, p10: lauf.p10_kumulativ, p90: lauf.p90_kumulativ, n: lauf.n_kumulativ,
     };
   }
   const t = lauf[bereich.feld];
   if (!t) return { verfuegbar: false };
-  return { verfuegbar: true, kontrolllauf: t.kontrolllauf, mitglieder: t.mitglieder, hauptlauf: t.hauptlauf,
+  return { verfuegbar: true, zeiten: t.zeiten || null, kontrolllauf: t.kontrolllauf, mitglieder: t.mitglieder, hauptlauf: t.hauptlauf,
            mittel: t.mittel, p10: t.p10, p90: t.p90, n: t.n };
 }
 
@@ -662,6 +663,9 @@ function zeichneBereich(bereich) {
   if (meldungen.length) warnzeile.innerHTML = `<div class="warnzeile">${meldungen.join(" · ")}</div>`;
 
   const horizont = lauf.horizont_tage;
+  // Zahl der Stuetzstellen: bei Temperatur ein Punkt je Zeitstempel der
+  // stuendlichen Reihe, bei Niederschlag ein Punkt je Vorhersagetag (Lead).
+  const punkte = daten.zeiten ? daten.zeiten.length : horizont;
   const W = 900, H = 340, L = 46, R = 18, O = 20, U = 40;
   const iw = W - L - R, ih = H - O - U;
 
@@ -680,7 +684,9 @@ function zeichneBereich(bereich) {
     oben0 = Math.ceil((maxWert + puffer) / 2) * 2;
     if (oben0 === unten0) oben0 += 2;
   }
-  const x = lead => L + ((lead - 1) / Math.max(1, horizont - 1)) * iw;
+  // x ist jetzt INDEX-basiert (0 .. punkte-1), damit dieselbe Funktion fuer
+  // die stuendliche Temperaturreihe und die taegliche Niederschlagsreihe passt.
+  const x = i => L + (i / Math.max(1, punkte - 1)) * iw;
   const y = v => O + ih - ((v - unten0) / (oben0 - unten0)) * ih;
 
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
@@ -694,14 +700,24 @@ function zeichneBereich(bereich) {
   }
   svg.appendChild(el("text", { x: L - 8, y: O - 7, "text-anchor": "end", class: "axl" }, bereich.einheit));
 
-  const pfad = werte => werte.map((v, i) => v == null ? null : (i ? "L" : "M") + x(i + 1) + " " + y(v))
-    .filter(Boolean).join(" ");
+  // Pfad ueber die Stuetzstellen. Luecken (null) unterbrechen die Linie sauber,
+  // statt sie quer durch das Diagramm zu ziehen: nach einer Luecke beginnt ein
+  // neues Teilstueck mit "M".
+  const pfad = werte => {
+    let d = "", offen = false;
+    werte.forEach((v, i) => {
+      if (v == null) { offen = false; return; }
+      d += (offen ? "L" : "M") + x(i) + " " + y(v) + " ";
+      offen = true;
+    });
+    return d.trim();
+  };
 
   // Unsicherheitsband 10.-90. Perzentil
   const oben = daten.p90, unten = daten.p10;
   const bandPunkte = [];
-  oben.forEach((v, i) => { if (v != null) bandPunkte.push([x(i + 1), y(v)]); });
-  for (let i = unten.length - 1; i >= 0; i--) { if (unten[i] != null) bandPunkte.push([x(i + 1), y(unten[i])]); }
+  oben.forEach((v, i) => { if (v != null) bandPunkte.push([x(i), y(v)]); });
+  for (let i = unten.length - 1; i >= 0; i--) { if (unten[i] != null) bandPunkte.push([x(i), y(unten[i])]); }
   if (bandPunkte.length > 2) {
     const d = bandPunkte.map((p, i) => (i ? "L" : "M") + p[0] + " " + p[1]).join(" ") + " Z";
     svg.appendChild(el("path", { d, fill: modellInfo.farbe, opacity: .16, stroke: "none" }));
@@ -738,24 +754,52 @@ function zeichneBereich(bereich) {
   }
 
   // x-Achse + Tooltip-Spalten
-  const bw = iw / horizont;
-  const zeiteinheit = bereich.akkumuliert ? "aufsummiert seit Laufbeginn" : "12 Uhr Ortszeit, nicht aufsummiert";
-  for (let lead = 1; lead <= horizont; lead++) {
-    const ziel = lauf.ziele[lead - 1];
-    if (lead % Math.ceil(horizont / 10) === 0 || lead === 1 || lead === horizont) {
-      svg.appendChild(el("text", { x: x(lead), y: H - U + 16, "text-anchor": "middle", class: "ax" }, datumKurz(ziel)));
-      svg.appendChild(el("text", { x: x(lead), y: H - U + 29, "text-anchor": "middle", class: "ax" }, "+" + lead));
+  const bw = iw / punkte;
+  // Zeilen fuer den Tooltip an Stuetzstelle i -- fuer beide Bereichsarten gleich
+  const werteZeilen = i => [
+    `Ensemble-Mittel: ${nf(daten.mittel[i])} ${bereich.einheit}`,
+    `Band 10–90 %: ${nf(daten.p10[i])}–${nf(daten.p90[i])} ${bereich.einheit}`,
+    `Kontrolllauf: ${nf(daten.kontrolllauf[i])} ${bereich.einheit}`,
+    daten.hauptlauf ? `Hauptlauf: ${nf(daten.hauptlauf[i])} ${bereich.einheit}` : null,
+    `Mitglieder mit Daten: ${daten.n[i]}/${lauf.mitglieder_n}`,
+  ].filter(Boolean);
+
+  if (daten.zeiten) {
+    // --- Stuendliche Temperaturreihe ---
+    // Datumsbeschriftung ungefaehr einmal pro Tag: am ersten Zeitpunkt jedes
+    // neuen Kalendertags (und, falls zu viele Tage, nur jeden n-ten davon).
+    const tagesIndizes = [];
+    let letzterTag = null;
+    daten.zeiten.forEach((t, i) => {
+      const tag = t.slice(0, 10);
+      if (tag !== letzterTag) { tagesIndizes.push({ i, tag }); letzterTag = tag; }
+    });
+    const jederNte = Math.ceil(tagesIndizes.length / 10);
+    tagesIndizes.forEach((eintrag, k) => {
+      if (k % jederNte !== 0 && k !== tagesIndizes.length - 1) return;
+      svg.appendChild(el("line", { x1: x(eintrag.i), y1: O, x2: x(eintrag.i), y2: O + ih, class: "gitter" }));
+      svg.appendChild(el("text", { x: x(eintrag.i), y: H - U + 16, "text-anchor": "middle", class: "ax" }, datumKurz(eintrag.tag)));
+    });
+    daten.zeiten.forEach((t, i) => {
+      // genauer oertlicher Zeitpunkt, z.B. "19.09., 20:00 Uhr"
+      const zeitpunkt = `${t.slice(8, 10)}.${t.slice(5, 7)}., ${t.slice(11, 16)} Uhr`;
+      treffer(svg, x(i) - bw / 2, O, bw, ih, `${zeitpunkt} (Ortszeit)\n` + werteZeilen(i).join("\n"));
+    });
+    svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" }, "Zeitpunkt (Ortszeit, stündliche Werte)"));
+  } else {
+    // --- Taegliche Niederschlagsreihe (unveraendert) ---
+    for (let lead = 1; lead <= horizont; lead++) {
+      const i = lead - 1;
+      const ziel = lauf.ziele[i];
+      if (lead % Math.ceil(horizont / 10) === 0 || lead === 1 || lead === horizont) {
+        svg.appendChild(el("text", { x: x(i), y: H - U + 16, "text-anchor": "middle", class: "ax" }, datumKurz(ziel)));
+        svg.appendChild(el("text", { x: x(i), y: H - U + 29, "text-anchor": "middle", class: "ax" }, "+" + lead));
+      }
+      treffer(svg, x(i) - bw / 2, O, bw, ih,
+        `${datumLang(ziel)} (+${lead} Tage, aufsummiert seit Laufbeginn)\n` + werteZeilen(i).join("\n"));
     }
-    const werte = [
-      `Ensemble-Mittel: ${nf(daten.mittel[lead - 1], bereich.nullbasiert ? 1 : 1)} ${bereich.einheit}`,
-      `Band 10–90 %: ${nf(daten.p10[lead - 1])}–${nf(daten.p90[lead - 1])} ${bereich.einheit}`,
-      `Kontrolllauf: ${nf(daten.kontrolllauf[lead - 1])} ${bereich.einheit}`,
-      daten.hauptlauf ? `Hauptlauf: ${nf(daten.hauptlauf[lead - 1])} ${bereich.einheit}` : null,
-      `Mitglieder mit Daten: ${daten.n[lead - 1]}/${lauf.mitglieder_n}`,
-    ].filter(Boolean);
-    treffer(svg, x(lead) - bw / 2, O, bw, ih, `${datumLang(ziel)} (+${lead} Tage, ${zeiteinheit})\n` + werte.join("\n"));
+    svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" }, "Vorhersagetag (aufsummiert seit Initialisierung)"));
   }
-  svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" }, bereich.akkumuliert ? "Vorhersagetag (aufsummiert seit Initialisierung)" : "Vorhersagetag (Wert um 12 Uhr Ortszeit)"));
 
   legende(`#leg-${bereich.id}`, [
     { mark: markLinie(modellInfo.farbe, false, 3), text: modellInfo.name + " Ensemble-Mittel" },
@@ -765,12 +809,18 @@ function zeichneBereich(bereich) {
     ...(z.mitglieder ? [{ mark: markLinie(modellInfo.farbe, false, .8), text: "Einzelne Ensemblemitglieder" }] : []),
   ]);
 
-  $(`#tab-${bereich.id}`).innerHTML =
-    `<thead><tr><th>Tag</th><th>Vorlauf</th><th>Mittel</th><th>Band 10–90</th><th>Kontrolllauf</th><th>Hauptlauf</th></tr></thead><tbody>` +
-    lauf.ziele.map((ziel, i) => `<tr><td>${datumKurz(ziel)}</td><td>+${i + 1}</td>
+  const tabellenZeile = (beschriftung, zweite, i) =>
+    `<tr><td>${beschriftung}</td><td>${zweite}</td>
       <td>${nf(daten.mittel[i])}</td><td>${nf(daten.p10[i])}–${nf(daten.p90[i])}</td>
-      <td>${nf(daten.kontrolllauf[i])}</td><td>${daten.hauptlauf ? nf(daten.hauptlauf[i]) : "–"}</td></tr>`).join("")
-    + `</tbody>`;
+      <td>${nf(daten.kontrolllauf[i])}</td><td>${daten.hauptlauf ? nf(daten.hauptlauf[i]) : "–"}</td></tr>`;
+
+  $(`#tab-${bereich.id}`).innerHTML = daten.zeiten
+    ? `<thead><tr><th>Tag</th><th>Uhrzeit</th><th>Mittel</th><th>Band 10–90</th><th>Kontrolllauf</th><th>Hauptlauf</th></tr></thead><tbody>`
+      + daten.zeiten.map((t, i) => tabellenZeile(datumKurz(t.slice(0, 10)), t.slice(11, 16), i)).join("")
+      + `</tbody>`
+    : `<thead><tr><th>Tag</th><th>Vorlauf</th><th>Mittel</th><th>Band 10–90</th><th>Kontrolllauf</th><th>Hauptlauf</th></tr></thead><tbody>`
+      + lauf.ziele.map((ziel, i) => tabellenZeile(datumKurz(ziel), "+" + (i + 1), i)).join("")
+      + `</tbody>`;
 }
 
 function bereichNeuZeichnen(bereich) {

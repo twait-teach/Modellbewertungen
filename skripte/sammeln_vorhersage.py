@@ -28,14 +28,16 @@ Modelle:
 
 Niederschlag wird weiterhin ZUERST JE MITGLIED AKKUMULIERT und erst danach
 werden Mittel/Perzentile aus den akkumulierten Kurven gebildet (kumulieren()).
-Temperatur (2 m und 850 hPa) wird NICHT akkumuliert -- open-meteo liefert dafuer
-Stundenwerte (hourly), aus denen hier je Vorhersagetag der Wert um 12:00 Ortszeit
-als Tageswert entnommen wird (fuer 2-m- UND 850-hPa-Temperatur einheitlich, da
-850 hPa keine fertige Tagesaggregation kennt -- separat getestet). Mittel und
-Perzentile werden pro Lead direkt aus den an diesem Tag vorhandenen Mitglieds-
-werten gebildet; fehlt ein Mitgliedswert an einem Tag, wird NUR dieser Tag fuer
+Temperatur (2 m und 850 hPa) wird NICHT akkumuliert und NICHT auf einen Wert
+pro Tag verdichtet: gespeichert wird die vollstaendige stuendliche Reihe, wie
+open-meteo sie liefert (in der Langfrist je nach Modell auch groeber --
+es wird genommen, was da ist). Mittel und Perzentile werden je Zeitschritt
+direkt aus den zu diesem Zeitpunkt vorhandenen Mitgliedswerten gebildet;
+fehlt ein Mitgliedswert zu einem Zeitpunkt, wird NUR dieser Zeitpunkt fuer
 dieses Mitglied ausgeschlossen (anders als beim Niederschlag bricht das nicht
-die Kette fuer die folgenden Tage, da Temperatur nicht kumuliert wird).
+die Kette fuer die folgenden Zeitpunkte, da Temperatur nicht kumuliert wird).
+So entsteht ein echtes Ensemble-Meteogramm mit Tagesgang bei 2 m und zeitlich
+hoch aufgeloesten Luftmassenwechseln bei 850 hPa.
 
 Pro erkanntem Lauf wird eine Datei daten/vorhersage/<modell>_<initISO>.json
 angelegt -- aber ERST, wenn Laufweite und Mitgliederzahl vollstaendig
@@ -57,12 +59,6 @@ LAT, LON = 48.2456, 12.5228
 TZ_NAME = "Europe/Berlin"
 OUT = Path(__file__).resolve().parent.parent / "daten" / "vorhersage"
 AUFBEWAHREN = 12  # so viele Laeufe je Modell werden mit vollen Mitgliederdaten behalten
-
-# Tageswert fuer die (nicht akkumulierten) Temperaturreihen: der Stundenwert
-# um diese Ortszeit. Fuer 2-m- UND 850-hPa-Temperatur einheitlich verwendet,
-# damit beide Diagramme methodisch vergleichbar bleiben (850 hPa hat bei
-# open-meteo keine eigene Tagesaggregation, siehe Moduldoku oben).
-TAGESSTUNDE = "12:00"
 
 MODELLE = {
     "gfs": {
@@ -140,12 +136,11 @@ def kumulieren(tagesreihe, ziele):
     return out
 
 
-def tageswert_ohne_akkumulation(stundenreihe, ziele, tagesstunde=TAGESSTUNDE):
-    """Fuer Temperatur: je Zieldatum einfach der Stundenwert zur festen
-    Tagesstunde -- KEINE Akkumulation. Fehlt der Wert an einem Tag, ist NUR
-    dieser eine Tag None; anders als bei kumulieren() wirkt sich das nicht auf
-    andere Tage aus, weil hier nichts fortgeschrieben wird."""
-    return [stundenreihe.get(f"{tag}T{tagesstunde}") for tag in ziele]
+def stundenreihe(stundenserie, zeiten):
+    """Fuer Temperatur: die vollstaendige stuendliche Reihe in der Reihenfolge
+    der uebergebenen Zeitstempel -- KEINE Akkumulation und KEINE Verdichtung
+    auf einen Tageswert. Fehlt ein Zeitschritt, ist NUR dieser None."""
+    return [stundenserie.get(t) for t in zeiten]
 
 
 def aggregiere_lead(mitglieder_werte, lead_index, runden=2):
@@ -212,19 +207,29 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
     mitglieder_keys = sorted(k for k in serien_regen if k != "precipitation_sum")
     mitglieder_regen = [kumulieren(serien_regen[k], ziele) for k in mitglieder_keys]
 
-    # --- Temperatur: 2 m und 850 hPa, NICHT akkumuliert ---
+    # --- Temperatur: 2 m und 850 hPa, NICHT akkumuliert, VOLLE stuendliche Reihe ---
     temperaturen = {}
+    zieltage = set(ziele)
     for feld, praefix in (("temperatur_2m", "temperature_2m"), ("temperatur_850hpa", "temperature_850hPa")):
         serien_temp = stundenwerte_je_serie(ens, praefix)
         if praefix not in serien_temp:
             temperaturen[feld] = None
             hinweise.append(f"{feld}: Spalte fehlt in der Antwort -- fuer diesen Lauf nicht gespeichert")
             continue
+        # Alle Zeitschritte innerhalb des Vorhersagefensters, chronologisch.
+        # Die Zeitstempel sind bereits Ortszeit Europe/Berlin, weil die API mit
+        # timezone=Europe/Berlin abgefragt wird (TZ_NAME) -- open-meteo liefert
+        # die hourly-"time"-Werte dann als lokale Zeit ohne Zonensuffix.
+        # Die API liefert je nach Modell/Reichweite stuendlich oder (in der
+        # Langfrist) groeber -- es wird genommen, was da ist, ohne zu verdichten.
+        zeiten = [t for t in sorted(serien_temp[praefix]) if t[:10] in zieltage]
         temp_keys = sorted(k for k in serien_temp if k != praefix)
-        kontrolle_t = tageswert_ohne_akkumulation(serien_temp[praefix], ziele)
-        mitglieder_t = [tageswert_ohne_akkumulation(serien_temp[k], ziele) for k in temp_keys]
-        kennzahlen_t = aggregiere_alle_leads(mitglieder_t, horizont)
+        kontrolle_t = stundenreihe(serien_temp[praefix], zeiten)
+        mitglieder_t = [stundenreihe(serien_temp[k], zeiten) for k in temp_keys]
+        kennzahlen_t = aggregiere_alle_leads(mitglieder_t, len(zeiten))
         temperaturen[feld] = {
+            "zeiten": zeiten,
+            "zeitzone": TZ_NAME,
             "kontrolllauf": kontrolle_t,
             "mitglieder": mitglieder_t,
             "hauptlauf": None,  # wird unten befuellt, falls Hauptlauf passt
@@ -241,6 +246,24 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
         hinweise.append(f"Horizont unvollstaendig: bei {letzter_lead_leer}/{len(mitglieder_regen)} "
                          f"Mitgliedern bricht die Niederschlagsreihe vor Tag {horizont} ab")
     vollstaendig = letzter_lead_leer == 0 and len(mitglieder_keys) >= erwartete_mitglieder - 2
+
+    # Auch die stuendlichen Temperaturreihen muessen den vorgesehenen Horizont
+    # abdecken, sonst gilt der Lauf als noch nicht vollstaendig (und wird von
+    # main() noch nicht gespeichert, sondern beim naechsten Durchlauf erneut
+    # versucht). Geprueft wird: die Reihe existiert, sie reicht bis zum letzten
+    # Vorhersagetag, und zum letzten Zeitpunkt liegen ueberhaupt Mitgliedswerte vor.
+    letzter_tag = ziele[-1]
+    for feld in ("temperatur_2m", "temperatur_850hpa"):
+        t = temperaturen.get(feld)
+        if not t:
+            vollstaendig = False
+            continue
+        if not t["zeiten"] or t["zeiten"][-1][:10] != letzter_tag:
+            hinweise.append(f"{feld}: stuendliche Reihe reicht nicht bis {letzter_tag}")
+            vollstaendig = False
+        elif not t["n"] or t["n"][-1] == 0:
+            hinweise.append(f"{feld}: zum letzten Zeitpunkt liegen keine Mitgliedswerte vor")
+            vollstaendig = False
 
     # --- Kennzahlen Niederschlag aus den AKKUMULIERTEN Mitgliederkurven ---
     kennzahlen_regen = aggregiere_alle_leads(mitglieder_regen, horizont)
@@ -266,7 +289,9 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
             hl_hourly = stundenwerte_je_serie(hl, "temperature_2m") | stundenwerte_je_serie(hl, "temperature_850hPa")
             for feld, praefix in (("temperatur_2m", "temperature_2m"), ("temperatur_850hpa", "temperature_850hPa")):
                 if temperaturen.get(feld) and praefix in hl_hourly:
-                    temperaturen[feld]["hauptlauf"] = tageswert_ohne_akkumulation(hl_hourly[praefix], ziele)
+                    # exakt dieselben Zeitstempel wie die Ensemblereihe, damit
+                    # Hauptlauf und Ensemble Punkt fuer Punkt vergleichbar sind
+                    temperaturen[feld]["hauptlauf"] = stundenreihe(hl_hourly[praefix], temperaturen[feld]["zeiten"])
     elif hl_info:
         hinweise.append(f"deterministischer Lauf ist {hl_info['lauf']:%d.%m. %HZ}, "
                          f"passt nicht zum Ensemble-Lauf {init:%d.%m. %HZ} -- nicht eingebettet")
