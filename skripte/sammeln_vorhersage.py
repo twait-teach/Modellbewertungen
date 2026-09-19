@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Sammelt vollstaendige Ensemble-Mitgliederdaten fuer die drei Diagrammbereiche
-der Seite "Vorhersage": 2-m-Temperatur, aufsummierter Niederschlag und
-850-hPa-Temperatur. Anders als sammeln.py (das pro Kalendertag ein Dokument
+der Seite "Vorhersage": 2-m-Temperatur, 850-hPa-Temperatur und
+aufsummierter Niederschlag. Anders als sammeln.py (das pro Kalendertag ein Dokument
 mit nur Hauptlauf + Ensemble-Kennzahlen fuehrt) speichert dieses Skript pro
 tatsaechlich erkanntem MODELLLAUF ein eigenes Dokument mit allen Einzel-
 mitgliedern -- das ist Voraussetzung fuer den geforderten Laufvergleich
@@ -26,12 +26,13 @@ Modelle:
                reichen offiziell nur rund sechs Tage weit und werden hier
                bewusst nicht als 15-Tage-Lauf erfasst. Horizont: 15 Tage.
 
-Niederschlag wird weiterhin ZUERST JE MITGLIED AKKUMULIERT und erst danach
-werden Mittel/Perzentile aus den akkumulierten Kurven gebildet (kumulieren()).
-Temperatur (2 m und 850 hPa) wird NICHT akkumuliert und NICHT auf einen Wert
-pro Tag verdichtet: gespeichert wird die vollstaendige stuendliche Reihe, wie
-open-meteo sie liefert (in der Langfrist je nach Modell auch groeber --
-es wird genommen, was da ist). Mittel und Perzentile werden je Zeitschritt
+Open-Meteo interpoliert Ensemblewerte auf ein Stundenraster. Fuer die Anzeige
+werden daraus wieder die modellnahen Stuetzstellen gewonnen: GFS dreistuendlich
+bis +240 h und danach sechsstuendlich, ECMWF durchgehend dreistuendlich.
+Niederschlag wird aus den stuendlichen Mengen je Modellintervall gebildet,
+ZUERST JE MITGLIED AKKUMULIERT und erst danach werden Mittel/Perzentile aus
+den akkumulierten Kurven gebildet. Temperatur (2 m und 850 hPa) wird NICHT
+akkumuliert. Mittel und Perzentile werden je Modellstuetzstelle
 direkt aus den zu diesem Zeitpunkt vorhandenen Mitgliedswerten gebildet;
 fehlt ein Mitgliedswert zu einem Zeitpunkt, wird NUR dieser Zeitpunkt fuer
 dieses Mitglied ausgeschlossen (anders als beim Niederschlag bricht das nicht
@@ -144,15 +145,15 @@ def stundenreihe(stundenserie, zeiten):
     return [stundenserie.get(t) for t in zeiten]
 
 
-def temperatur_zeitfenster(verfuegbare_zeiten, init, horizont):
-    """Temperatur-Zeitpunkte vom Modellstart bis zum exakten Horizont.
+def modell_zeitfenster(verfuegbare_zeiten, init, horizont, modell):
+    """Modellnahe Zeitpunkte vom Modellstart bis zum exakten Horizont.
 
     Open-Meteo liefert bei ``timezone=Europe/Berlin`` lokale ISO-Zeiten ohne
     Offset. Fuer Anzeige und Tabellen bleiben diese lesbaren Werte erhalten;
-    zusaetzlich speichern wir Unix-Zeitpunkte. Nur mit diesen kann das
-    Diagramm spaeter stuendliche und groebere Modellschritte zeitlich korrekt
-    auseinanderziehen (und bleibt auch beim Wechsel der Modellaufloesung
-    hinter Tag 10 massstabstreu).
+    zusaetzlich speichern wir Unix-Zeitpunkte. Open-Meteo interpoliert die
+    Ensemble-Ausgabe auf Stundenwerte; angezeigt werden aber nur die
+    modellnahen Stuetzstellen: GFS 3-stuendlich bis einschliesslich +240 h,
+    danach 6-stuendlich; ECMWF durchgehend 3-stuendlich.
     """
     zone = ZoneInfo(TZ_NAME)
     start = init.astimezone(zone)
@@ -164,8 +165,59 @@ def temperatur_zeitfenster(verfuegbare_zeiten, init, horizont):
         except (TypeError, ValueError):
             continue
         if start <= lokal <= ende:
+            lead_stunden = round((lokal.timestamp() - init.timestamp()) / 3600)
+            schritt = 6 if modell == "gfs" and lead_stunden > 240 else 3
+            if lead_stunden % schritt:
+                continue
             auswahl.append((text, int(lokal.timestamp())))
     return [x[0] for x in auswahl], [x[1] for x in auswahl]
+
+
+def niederschlag_kumulieren(stundenserie, alle_zeiten, ausgabe_zeiten, init):
+    """Stuendliche Niederschlagsmengen zu Modellintervallen zusammenfassen.
+
+    Der Wert am Modellstart ist 0 mm. Fuer jeden folgenden modellnahen
+    Zeitpunkt werden alle Stundenmengen seit der vorherigen Stuetzstelle
+    addiert (GFS also 3 h, ab +240 h 6 h) und anschliessend fortlaufend
+    kumuliert. Fehlt ein Stundenwert, ist die Summenkette ab dort ``None``;
+    eine Datenluecke wird niemals als 0 mm interpretiert.
+    """
+    zone = ZoneInfo(TZ_NAME)
+    start_unix = int(init.timestamp())
+    ziel_unix = {
+        int(dt.datetime.fromisoformat(text).replace(tzinfo=zone).timestamp()): text
+        for text in ausgabe_zeiten
+    }
+    if not ziel_unix:
+        return []
+    ende_unix = max(ziel_unix)
+    stunden = []
+    for text in alle_zeiten:
+        try:
+            unix = int(dt.datetime.fromisoformat(text).replace(tzinfo=zone).timestamp())
+        except (TypeError, ValueError):
+            continue
+        if start_unix < unix <= ende_unix:
+            stunden.append((unix, text))
+    stunden.sort()
+
+    out = []
+    summe = 0.0
+    abgebrochen = False
+    index = 0
+    for unix in sorted(ziel_unix):
+        if unix == start_unix:
+            out.append(0.0)
+            continue
+        while index < len(stunden) and stunden[index][0] <= unix:
+            wert = stundenserie.get(stunden[index][1])
+            if wert is None:
+                abgebrochen = True
+            elif not abgebrochen:
+                summe += wert
+            index += 1
+        out.append(None if abgebrochen else round(summe, 2))
+    return out
 
 
 def aggregiere_lead(mitglieder_werte, lead_index, runden=2):
@@ -211,14 +263,11 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
     horizont = cfg["horizont"]
     ziele = [(init.date() + dt.timedelta(days=lead)).isoformat() for lead in range(1, horizont + 1)]
 
-    # EIN Abruf liefert Niederschlag (daily) UND beide Temperaturreihen
-    # (hourly) zusammen -- getestet, dass open-meteo daily+hourly im selben
-    # Aufruf kombiniert; das haelt die Zahl der API-Aufrufe gleich niedrig
-    # wie vor der Temperatur-Erweiterung.
+    # EIN Abruf liefert alle drei Groessen im Stundenraster. Daraus werden
+    # unten die modellnahen 3-/6-Stunden-Stuetzstellen rekonstruiert.
     ens = hole("https://ensemble-api.open-meteo.com/v1/ensemble",
                {"latitude": LAT, "longitude": LON,
-                "daily": "precipitation_sum",
-                "hourly": "temperature_2m,temperature_850hPa",
+                "hourly": "temperature_2m,temperature_850hPa,precipitation",
                 # Ein 18Z-Lauf wird oft erst nach Mitternacht vollstaendig.
                 # Ohne den Vortag fehlen dann seine ersten Modellstunden.
                 "past_days": 1, "forecast_days": horizont + 1,
@@ -227,15 +276,35 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
     if not ens:
         return None, [f"{kurz}: Ensemble-Daten nicht abrufbar"]
 
-    # --- Niederschlag: wie bisher, akkumuliert ---
-    serien_regen = tageswerte_je_serie(ens, "precipitation_sum")
-    if "precipitation_sum" not in serien_regen:
-        return None, [f"{kurz}: Kontrolllauf-Spalte (Niederschlag) fehlt in der Antwort"]
-    kontrolle_regen = kumulieren(serien_regen["precipitation_sum"], ziele)
-    mitglieder_keys = sorted(k for k in serien_regen if k != "precipitation_sum")
-    mitglieder_regen = [kumulieren(serien_regen[k], ziele) for k in mitglieder_keys]
+    hourly_zeiten = (ens.get("hourly") or {}).get("time", [])
+    zeiten, zeitpunkte_unix = modell_zeitfenster(hourly_zeiten, init, horizont, kurz)
+    if not zeiten:
+        return None, [f"{kurz}: keine modellnahen Zeitpunkte in der Antwort"]
 
-    # --- Temperatur: 2 m und 850 hPa, NICHT akkumuliert, VOLLE stuendliche Reihe ---
+    # --- Niederschlag: Stundenmengen erst zu 3-/6-h-Intervallen gruppieren,
+    # dann je Mitglied akkumulieren, erst danach Ensemble-Kennzahlen bilden. ---
+    serien_regen = stundenwerte_je_serie(ens, "precipitation")
+    if "precipitation" not in serien_regen:
+        return None, [f"{kurz}: Kontrolllauf-Spalte (Niederschlag) fehlt in der Antwort"]
+    kontrolle_regen = niederschlag_kumulieren(
+        serien_regen["precipitation"], hourly_zeiten, zeiten, init)
+    mitglieder_keys = sorted(k for k in serien_regen if k != "precipitation")
+    mitglieder_regen = [
+        niederschlag_kumulieren(serien_regen[k], hourly_zeiten, zeiten, init)
+        for k in mitglieder_keys
+    ]
+    kennzahlen_regen = aggregiere_alle_leads(mitglieder_regen, len(zeiten))
+    niederschlag = {
+        "zeiten": zeiten,
+        "zeitpunkte_unix": zeitpunkte_unix,
+        "zeitzone": TZ_NAME,
+        "kontrolllauf": kontrolle_regen,
+        "mitglieder": mitglieder_regen,
+        "hauptlauf": None,
+        **kennzahlen_regen,
+    }
+
+    # --- Temperatur: NICHT akkumuliert, nur modellnahe Stuetzstellen ---
     temperaturen = {}
     for feld, praefix in (("temperatur_2m", "temperature_2m"), ("temperatur_850hpa", "temperature_850hPa")):
         serien_temp = stundenwerte_je_serie(ens, praefix)
@@ -243,15 +312,6 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
             temperaturen[feld] = None
             hinweise.append(f"{feld}: Spalte fehlt in der Antwort -- fuer diesen Lauf nicht gespeichert")
             continue
-        # Alle Zeitschritte vom tatsaechlichen Modellstart bis zum exakten
-        # Vorhersagehorizont, chronologisch. Anders als der taegliche
-        # Niederschlag beginnt das Meteogramm also nicht erst am Folgetag.
-        # Die Zeitstempel sind bereits Ortszeit Europe/Berlin, weil die API mit
-        # timezone=Europe/Berlin abgefragt wird (TZ_NAME) -- open-meteo liefert
-        # die hourly-"time"-Werte dann als lokale Zeit ohne Zonensuffix.
-        # Die API liefert je nach Modell/Reichweite stuendlich oder (in der
-        # Langfrist) groeber -- es wird genommen, was da ist, ohne zu verdichten.
-        zeiten, zeitpunkte_unix = temperatur_zeitfenster(serien_temp[praefix], init, horizont)
         temp_keys = sorted(k for k in serien_temp if k != praefix)
         kontrolle_t = stundenreihe(serien_temp[praefix], zeiten)
         mitglieder_t = [stundenreihe(serien_temp[k], zeiten) for k in temp_keys]
@@ -271,10 +331,10 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
     erwartete_mitglieder = {"gfs": 30, "ecmwf": 50}[kurz]
     if len(mitglieder_keys) < erwartete_mitglieder - 2:  # etwas Toleranz, Modelle aendern Mitgliederzahl gelegentlich
         hinweise.append(f"nur {len(mitglieder_keys)} statt erwarteter {erwartete_mitglieder} Mitglieder")
-    letzter_lead_leer = sum(1 for s in mitglieder_regen if s[-1] is None)
+    letzter_lead_leer = sum(1 for s in mitglieder_regen if not s or s[-1] is None)
     if letzter_lead_leer > len(mitglieder_regen) * 0.5:
         hinweise.append(f"Horizont unvollstaendig: bei {letzter_lead_leer}/{len(mitglieder_regen)} "
-                         f"Mitgliedern bricht die Niederschlagsreihe vor Tag {horizont} ab")
+                         f"Mitgliedern bricht die Niederschlagsreihe vor dem Horizont ab")
     vollstaendig = letzter_lead_leer == 0 and len(mitglieder_keys) >= erwartete_mitglieder - 2
 
     # Auch die Temperaturreihen muessen den vorgesehenen Horizont
@@ -299,9 +359,6 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
             hinweise.append(f"{feld}: zum letzten Zeitpunkt liegen keine Mitgliedswerte vor")
             vollstaendig = False
 
-    # --- Kennzahlen Niederschlag aus den AKKUMULIERTEN Mitgliederkurven ---
-    kennzahlen_regen = aggregiere_alle_leads(mitglieder_regen, horizont)
-
     # --- Deterministischer Hauptlauf, nur wenn seine Initialisierung nachweislich passt ---
     hl_info = laufinfo(cfg["meta_hauptlauf"], fehler)
     hauptlauf_regen = None
@@ -312,15 +369,19 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
         # beim Hauptlauf schlicht leer.
         hl = hole("https://api.open-meteo.com/v1/forecast",
                   {"latitude": LAT, "longitude": LON,
-                   "daily": "precipitation_sum",
-                   "hourly": "temperature_2m,temperature_850hPa",
+                   "hourly": "temperature_2m,temperature_850hPa,precipitation",
                    "past_days": 1, "forecast_days": min(horizont + 1, 16), "timezone": TZ_NAME,
                    "models": cfg["hauptlauf_datensatz"]},
                   fehlerliste=fehler)
         if hl:
-            if hl.get("daily"):
-                hauptlauf_regen = kumulieren(dict(zip(hl["daily"]["time"], hl["daily"]["precipitation_sum"])), ziele)
-            hl_hourly = stundenwerte_je_serie(hl, "temperature_2m") | stundenwerte_je_serie(hl, "temperature_850hPa")
+            hl_zeiten = (hl.get("hourly") or {}).get("time", [])
+            hl_regen = stundenwerte_je_serie(hl, "precipitation")
+            if "precipitation" in hl_regen:
+                hauptlauf_regen = niederschlag_kumulieren(
+                    hl_regen["precipitation"], hl_zeiten, zeiten, init)
+                niederschlag["hauptlauf"] = hauptlauf_regen
+            hl_hourly = (stundenwerte_je_serie(hl, "temperature_2m")
+                         | stundenwerte_je_serie(hl, "temperature_850hPa"))
             for feld, praefix in (("temperatur_2m", "temperature_2m"), ("temperatur_850hpa", "temperature_850hPa")):
                 if temperaturen.get(feld) and praefix in hl_hourly:
                     # exakt dieselben Zeitstempel wie die Ensemblereihe, damit
@@ -338,19 +399,11 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
         "verfuegbar_seit": ens_info["verfuegbar"].strftime("%Y-%m-%dT%H:%MZ"),
         "abgerufen": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"),
         "horizont_tage": horizont,
+        "zeitauflosung": "modellnativ-v1",
         "mitglieder_n": len(mitglieder_keys),
         "leads": list(range(1, horizont + 1)),
         "ziele": ziele,
-        "kontrolllauf_kumulativ": kontrolle_regen,
-        "mitglieder_kumulativ": mitglieder_regen,
-        "hauptlauf_kumulativ": hauptlauf_regen,
-        "mittel_kumulativ": kennzahlen_regen["mittel"],
-        "p10_kumulativ": kennzahlen_regen["p10"],
-        "p50_kumulativ": kennzahlen_regen["p50"],
-        "p90_kumulativ": kennzahlen_regen["p90"],
-        "min_kumulativ": kennzahlen_regen["min"],
-        "max_kumulativ": kennzahlen_regen["max"],
-        "n_kumulativ": kennzahlen_regen["n"],
+        "niederschlag": niederschlag,
         "temperatur_2m": temperaturen.get("temperatur_2m"),
         "temperatur_850hpa": temperaturen.get("temperatur_850hpa"),
         "vollstaendig": vollstaendig,
@@ -363,19 +416,22 @@ def dateiname(kurz, init: dt.datetime) -> str:
     return f"{kurz}_{init.strftime('%Y-%m-%dT%H')}.json"
 
 
-def hat_stuendliche_temperaturen(lauf):
-    """True nur fuer das neue Meteogrammformat beider Temperaturfelder.
+def hat_modellnative_meteogrammdaten(lauf):
+    """True nur fuer das modellnahe Zeitraster aller drei Diagramme.
 
-    Aeltere Dateien koennen bereits ``vollstaendig: true`` tragen, obwohl sie
-    gar keine Temperatur oder nur einen 12-Uhr-Wert je Tag enthalten. Solche
-    Dateien muessen beim Metadaten-Kurzschluss erneut abgerufen werden.
+    Aeltere Dateien koennen bereits ``vollstaendig: true`` tragen und sogar
+    stuendliche Temperaturen enthalten. Ohne Formatmarker koennten darin aber
+    noch die kuenstlichen Interpolationszacken stecken. Solche Dateien muessen
+    beim Metadaten-Kurzschluss erneut abgerufen werden.
     """
-    for feld in ("temperatur_2m", "temperatur_850hpa"):
-        temperatur = lauf.get(feld)
-        if not isinstance(temperatur, dict):
+    if lauf.get("zeitauflosung") != "modellnativ-v1":
+        return False
+    for feld in ("temperatur_2m", "temperatur_850hpa", "niederschlag"):
+        reihe = lauf.get(feld)
+        if not isinstance(reihe, dict):
             return False
-        zeiten = temperatur.get("zeiten")
-        unix = temperatur.get("zeitpunkte_unix")
+        zeiten = reihe.get("zeiten")
+        unix = reihe.get("zeitpunkte_unix")
         if (not isinstance(zeiten, list) or not zeiten
                 or not isinstance(unix, list) or len(unix) != len(zeiten)):
             return False
@@ -420,11 +476,11 @@ def main():
                     bereits = json.loads(erwarteter_pfad.read_text(encoding="utf-8"))
                 except Exception:
                     bereits = {}
-                if bereits.get("vollstaendig") and hat_stuendliche_temperaturen(bereits):
+                if bereits.get("vollstaendig") and hat_modellnative_meteogrammdaten(bereits):
                     print(f"{kurz}: Lauf {vorab_info['lauf']:%Y-%m-%dT%H:%MZ} bereits vollstaendig gespeichert -- nichts zu tun")
                     continue
                 print(f"{kurz}: Lauf {vorab_info['lauf']:%Y-%m-%dT%H:%MZ} ist unvollstaendig oder noch im alten "
-                      "Temperaturformat gespeichert -- erneuter Versuch")
+                      "Meteogrammformat gespeichert -- erneuter Versuch")
 
         lauf, hinweise = verarbeite_modell(kurz, cfg, fehler, heute)
         if not lauf:
@@ -448,7 +504,8 @@ def main():
         entfernt = aufraeumen(kurz)
         status = "neu gespeichert" if neu else "aktualisiert (nochmal abgerufen)"
         print(f"{kurz}: Lauf {lauf['init']} {status} -- {lauf['mitglieder_n']} Mitglieder, "
-              f"Horizont {lauf['horizont_tage']} Tage, hauptlauf={'ja' if lauf['hauptlauf_kumulativ'] else 'nein'}, "
+              f"Horizont {lauf['horizont_tage']} Tage, "
+              f"hauptlauf={'ja' if lauf['niederschlag']['hauptlauf'] else 'nein'}, "
               f"temp2m={'ja' if lauf['temperatur_2m'] else 'nein'}, temp850={'ja' if lauf['temperatur_850hpa'] else 'nein'}")
         if hinweise:
             print("  Hinweise:", *hinweise, sep="\n    ")

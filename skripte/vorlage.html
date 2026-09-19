@@ -223,8 +223,8 @@ footer a{color:var(--ink-2)}
       <h2>2-m-Temperatur über den Vorhersagezeitraum</h2>
       <p class="hinweis">
         Die bodennahe Lufttemperatur in rund zwei Metern Höhe — die im Alltag gemeinte „Temperatur draußen".
-        Jede dünne Linie ist ein einzelnes Ensemblemitglied, dargestellt als durchgehende stündliche
-        Kurve — der Tagesgang ist dadurch direkt ablesbar.
+        Jede dünne Linie ist ein einzelnes Ensemblemitglied, dargestellt an den modellnahen
+        3-Stunden-Zeitpunkten — der Tagesgang ist dadurch direkt ablesbar, ohne künstliche Stundeninterpolation.
         Das dunkle Band zeigt das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel. Kontrolllauf und
         deterministischer Hauptlauf sind gesondert hervorgehoben. Anders als beim Niederschlag wird hier
         <strong>nicht</strong> aufsummiert — jeder Zeitpunkt steht für sich.
@@ -253,8 +253,10 @@ footer a{color:var(--ink-2)}
       <p class="dachzeile">Ensemble-Meteogramm</p>
       <h2>Aufsummierter Niederschlag über den Vorhersagezeitraum</h2>
       <p class="hinweis">
-        Jede dünne Linie ist ein einzelnes Ensemblemitglied — zuerst wird je Mitglied über die Zeit
-        aufsummiert, erst danach werden daraus Mittelwert und Streuung gebildet. Das dunkle Band zeigt
+        Jede dünne Linie ist ein einzelnes Ensemblemitglied. Die stündlichen Niederschlagsmengen werden
+        zunächst zu den Modellintervallen zusammengefasst (GFS: 3 Stunden, ab +240 Stunden 6 Stunden;
+        ECMWF: 3 Stunden) und dann je Mitglied über die Zeit aufsummiert. Erst danach werden daraus
+        Mittelwert und Streuung gebildet. Das dunkle Band zeigt
         das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel. Kontrolllauf und deterministischer
         Hauptlauf sind gesondert hervorgehoben.
       </p>
@@ -284,8 +286,8 @@ footer a{color:var(--ink-2)}
       <p class="hinweis">
         Die Temperatur der freien Atmosphäre in rund 1.500 Metern Höhe — gut geeignet, um die
         großräumige Luftmasse einzuschätzen (mild/warm oder kalt), aber <strong>nicht identisch</strong>
-        mit der Temperatur am Boden. Darstellung wie bei der 2-m-Temperatur: durchgehende stündliche
-        Kurven, dadurch sind auch kurzfristige Luftmassenwechsel zeitlich genau erkennbar; nicht aufsummiert.
+        mit der Temperatur am Boden. Darstellung wie bei der 2-m-Temperatur: modellnahe 3-Stunden-
+        Zeitpunkte ohne künstliche Stundeninterpolation; nicht aufsummiert.
       </p>
 
       <div class="bedienleiste">
@@ -534,14 +536,17 @@ const bias = p => p.length ? p.reduce((s, x) => s + (x.vor - x.ist), 0) / p.leng
    SEITE „VORHERSAGE" — Ensemble-Meteogramm
    ====================================================================== */
 // Ein Bereich je Diagramm, in Anzeige-Reihenfolge. "feld" verweist auf das
-// (bei aelteren Laeufen ggf. fehlende) Unterobjekt im Laufdokument; bei
-// Niederschlag liegen die Felder direkt auf dem Laufobjekt (historisch
-// gewachsen), deshalb feld:null als Sonderfall in datenAusLauf().
+// zugehoerige Unterobjekt im modellnativen Laufdokument.
 const BEREICHE = [
   { id: "temp2m", einheit: "°C", akkumuliert: false, nullbasiert: false, feld: "temperatur_2m", bezeichnung: "2-m-Temperatur" },
-  { id: "niederschlag", einheit: "mm", akkumuliert: true, nullbasiert: true, feld: null, bezeichnung: "Niederschlag" },
   { id: "temp850", einheit: "°C", akkumuliert: false, nullbasiert: false, feld: "temperatur_850hpa", bezeichnung: "850-hPa-Temperatur" },
+  { id: "niederschlag", einheit: "mm", akkumuliert: true, nullbasiert: true, feld: "niederschlag", bezeichnung: "Niederschlag" },
 ];
+
+// Auch die semantische DOM-Reihenfolge an die fachliche Reihenfolge angleichen.
+// appendChild verschiebt die bereits vorhandenen Abschnitte, es dupliziert sie nicht.
+const vorhersageSeite = $("#seite-vorhersage");
+BEREICHE.forEach(b => vorhersageSeite.appendChild($(`#s-${b.id}`)));
 
 // Eigener, unabhaengiger Auswahlzustand je Bereich -- Modell, Laufindex und
 // Mitgliederschalter duerfen sich zwischen den drei Diagrammen unterscheiden.
@@ -551,28 +556,22 @@ BEREICHE.forEach(b => { ZUSTAND[b.id] = { modell: "ecmwf", laufIndex: 0, mitglie
 function laeufeFuer(modell) { return DATEN.vorhersage?.[modell] || []; }
 
 function modellMitVerfuegbaremLauf() {
-  // Bevorzugt ECMWF; wenn dafuer kein Lauf vorliegt, auf GFS ausweichen.
-  if (laeufeFuer("ecmwf").length) return "ecmwf";
-  if (laeufeFuer("gfs").length) return "gfs";
+  // Bevorzugt ECMWF nur dann, wenn bereits mindestens ein Lauf im neuen
+  // modellnahen Format vorliegt; alte Dateien sollen keinen leeren
+  // Startbildschirm verursachen.
+  const hatModellraster = modell => laeufeFuer(modell)
+    .some(lauf => lauf.zeitauflosung === "modellnativ-v1");
+  if (hatModellraster("ecmwf")) return "ecmwf";
+  if (hatModellraster("gfs")) return "gfs";
   return "ecmwf";
 }
 
-/** Normiert die Rohdaten eines Laufs auf ein einheitliches Format, unabhaengig
- * davon, ob es sich um Niederschlag (Felder direkt auf lauf) oder Temperatur
- * (verschachtelt unter lauf.temperatur_2m / lauf.temperatur_850hpa, bei
- * aelteren Laeufen ggf. gar nicht vorhanden) handelt. */
+/** Normiert die drei verschachtelten, modellnahen Zeitreihen. Dateien ohne
+ * Formatmarker werden bewusst abgelehnt: sie enthalten entweder Tageswerte
+ * oder die kuenstlich auf Stundenwerte interpolierten Temperaturkurven. */
 function datenAusLauf(bereich, lauf) {
-  if (!bereich.feld) {
-    return {
-      verfuegbar: true, zeiten: null,
-      kontrolllauf: lauf.kontrolllauf_kumulativ, mitglieder: lauf.mitglieder_kumulativ, hauptlauf: lauf.hauptlauf_kumulativ,
-      mittel: lauf.mittel_kumulativ, p10: lauf.p10_kumulativ, p90: lauf.p90_kumulativ, n: lauf.n_kumulativ,
-    };
-  }
+  if (lauf.zeitauflosung !== "modellnativ-v1") return { verfuegbar: false };
   const t = lauf[bereich.feld];
-  // Nur das neue stündliche Format ist als Meteogramm verwendbar. Die erste
-  // Temperatur-Version speicherte lediglich einen 12-Uhr-Wert je Tag. Diese
-  // Altwerte duerfen nicht stillschweigend als hochaufgeloeste Kurve erscheinen.
   if (!t || !Array.isArray(t.zeiten) || !t.zeiten.length
       || !Array.isArray(t.zeitpunkte_unix) || t.zeitpunkte_unix.length !== t.zeiten.length) {
     return { verfuegbar: false };
@@ -582,8 +581,7 @@ function datenAusLauf(bereich, lauf) {
            mittel: t.mittel, p10: t.p10, p90: t.p90, n: t.n };
 }
 
-/** Reale Zeitwerte fuer die x-Achse. Temperaturdaten verwenden Unix-Zeit,
- * Niederschlag weiterhin gleichmaessige Tagesindizes. */
+/** Reale Unix-Zeitwerte fuer die gemeinsame x-Achse aller drei Diagramme. */
 function zeitachsenWerte(daten, punkte) {
   if (Array.isArray(daten.zeitpunkte_unix) && daten.zeitpunkte_unix.length === punkte
       && daten.zeitpunkte_unix.every(Number.isFinite)) return daten.zeitpunkte_unix;
@@ -663,12 +661,12 @@ function zeichneBereich(bereich) {
 
   const daten = datenAusLauf(bereich, lauf);
   if (!daten.verfuegbar) {
-    // Aeltere Laufdatei ohne Temperaturdaten: verstaendliche Meldung statt
-    // eines JS-Fehlers oder eines irrefuehrend leeren Diagramms.
+    // Aeltere Laufdatei ohne modellnahes Raster: verstaendliche Meldung statt
+    // eines JS-Fehlers oder einer irrefuehrenden interpolierten Kurve.
     svg.innerHTML = "";
     $(`#leg-${bereich.id}`).innerHTML = "";
     $(`#tab-${bereich.id}`).innerHTML = "";
-    warnzeile.innerHTML = `<div class="warnzeile">Für diesen älteren Lauf sind noch keine stündlichen Temperaturdaten gespeichert.</div>`;
+    warnzeile.innerHTML = `<div class="warnzeile">Für diesen älteren Lauf sind noch keine Daten im modellnahen 3-/6-Stunden-Raster gespeichert.</div>`;
     return;
   }
 
@@ -678,9 +676,7 @@ function zeichneBereich(bereich) {
   if (meldungen.length) warnzeile.innerHTML = `<div class="warnzeile">${meldungen.join(" · ")}</div>`;
 
   const horizont = lauf.horizont_tage;
-  // Zahl der Stuetzstellen: bei Temperatur ein Punkt je Zeitstempel der
-  // stuendlichen Reihe, bei Niederschlag ein Punkt je Vorhersagetag (Lead).
-  const punkte = daten.zeiten ? daten.zeiten.length : horizont;
+  const punkte = daten.zeiten.length;
   const W = 900, H = 340, L = 46, R = 18, O = 20, U = 40;
   const iw = W - L - R, ih = H - O - U;
 
@@ -798,7 +794,7 @@ function zeichneBereich(bereich) {
   ].filter(Boolean);
 
   if (daten.zeiten) {
-    // --- Stuendliche Temperaturreihe ---
+    // --- Gemeinsames modellnahes Zeitraster ---
     // Datumsbeschriftung ungefaehr einmal pro Tag: am ersten Zeitpunkt jedes
     // neuen Kalendertags (und, falls zu viele Tage, nur jeden n-ten davon).
     const tagesIndizes = [];
@@ -817,9 +813,13 @@ function zeichneBereich(bereich) {
       // genauer oertlicher Zeitpunkt, z.B. "19.09., 20:00 Uhr"
       const zeitpunkt = `${t.slice(8, 10)}.${t.slice(5, 7)}., ${t.slice(11, 16)} Uhr`;
       const [tx, tw] = trefferGrenzen(i);
-      treffer(svg, tx, O, tw, ih, `${zeitpunkt} (Ortszeit)\n` + werteZeilen(i).join("\n"));
+      const zusatz = bereich.akkumuliert ? ", aufsummiert seit Laufbeginn" : "";
+      treffer(svg, tx, O, tw, ih, `${zeitpunkt} (Ortszeit${zusatz})\n` + werteZeilen(i).join("\n"));
     });
-    svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" }, "Zeitpunkt (Ortszeit, stündliche Werte)"));
+    svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" },
+      bereich.akkumuliert
+        ? "Zeitpunkt (Ortszeit, 3-/6-h-Mengen seit Initialisierung aufsummiert)"
+        : "Zeitpunkt (Ortszeit, modellnahe 3-/6-h-Schritte)"));
   } else {
     // --- Taegliche Niederschlagsreihe (unveraendert) ---
     for (let lead = 1; lead <= horizont; lead++) {

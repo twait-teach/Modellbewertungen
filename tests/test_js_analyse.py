@@ -308,19 +308,10 @@ def _lauf(init, *, mit_temperatur=True, horizont=3, mitglieder_n=3, temp_offset=
         "init": init, "verfuegbar_seit": init, "abgerufen": init,
         "horizont_tage": horizont, "mitglieder_n": mitglieder_n,
         "leads": list(range(1, horizont + 1)), "ziele": ziele,
-        "kontrolllauf_kumulativ": [1.0, 2.0, 3.0][:horizont],
-        "mitglieder_kumulativ": [[1.0, 2.0, 3.0][:horizont] for _ in range(mitglieder_n)],
-        "hauptlauf_kumulativ": None,
-        "mittel_kumulativ": [1.0, 2.0, 3.0][:horizont],
-        "p10_kumulativ": [0.5, 1.5, 2.5][:horizont],
-        "p50_kumulativ": [1.0, 2.0, 3.0][:horizont],
-        "p90_kumulativ": [1.5, 2.5, 3.5][:horizont],
-        "min_kumulativ": [0.0, 1.0, 2.0][:horizont],
-        "max_kumulativ": [2.0, 3.0, 4.0][:horizont],
-        "n_kumulativ": [mitglieder_n] * horizont,
         "vollstaendig": True, "hinweise": [],
     }
     if mit_temperatur:
+        d["zeitauflosung"] = "modellnativ-v1"
         # bewusst NEGATIVE Werte, um die Achsenskalierung zu pruefen
         werte = [-5.0 + temp_offset, 0.0 + temp_offset, 4.0 + temp_offset][:horizont]
         zeiten = [f"2026-02-02T{stunde:02d}:00" for stunde in range(horizont)]
@@ -334,6 +325,15 @@ def _lauf(init, *, mit_temperatur=True, horizont=3, mitglieder_n=3, temp_offset=
                 "mittel": werte, "p10": [w - 1 for w in werte], "p50": werte, "p90": [w + 1 for w in werte],
                 "min": [w - 2 for w in werte], "max": [w + 2 for w in werte], "n": [mitglieder_n] * horizont,
             }
+        regen = [1.0, 2.0, 3.0][:horizont]
+        d["niederschlag"] = {
+            "zeiten": zeiten, "zeitpunkte_unix": zeitpunkte_unix, "zeitzone": "Europe/Berlin",
+            "kontrolllauf": regen, "mitglieder": [regen[:] for _ in range(mitglieder_n)],
+            "hauptlauf": None, "mittel": regen, "p10": [0.5, 1.5, 2.5][:horizont],
+            "p50": regen, "p90": [1.5, 2.5, 3.5][:horizont],
+            "min": [0.0, 1.0, 2.0][:horizont], "max": [2.0, 3.0, 4.0][:horizont],
+            "n": [mitglieder_n] * horizont,
+        }
     else:
         d["temperatur_2m"] = None
         d["temperatur_850hpa"] = None
@@ -374,6 +374,8 @@ def test_drei_bereiche_haben_unabhaengige_zustaende():
             const t = window.__TEST__;
             return {
                 bereiche: t.BEREICHE.map(b => b.id),
+                dom_reihenfolge: Array.from(document.querySelectorAll('#seite-vorhersage > section'))
+                    .map(s => s.id),
                 // Zustaende muessen getrennte Objekte sein, nicht dasselbe
                 getrennt: t.ZUSTAND.temp2m !== t.ZUSTAND.niederschlag
                           && t.ZUSTAND.niederschlag !== t.ZUSTAND.temp850,
@@ -391,7 +393,8 @@ def test_drei_bereiche_haben_unabhaengige_zustaende():
         }""")
         browser.close()
     testdatei.unlink()
-    assert ergebnis["bereiche"] == ["temp2m", "niederschlag", "temp850"]  # geforderte Reihenfolge
+    assert ergebnis["bereiche"] == ["temp2m", "temp850", "niederschlag"]  # geforderte Reihenfolge
+    assert ergebnis["dom_reihenfolge"] == ["s-temp2m", "s-temp850", "s-niederschlag"]
     assert ergebnis["getrennt"] is True
     assert ergebnis["eigene_elemente"] is True
 
@@ -425,7 +428,7 @@ def test_laufauswahl_und_mitgliederschalter_wirken_nur_im_eigenen_bereich():
     assert z["regen_mit"] is False and z["t2_mit"] is True and z["t850_mit"] is True
 
 
-def test_alter_lauf_ohne_temperaturdaten_zeigt_meldung_statt_fehler():
+def test_alter_lauf_ohne_modellraster_zeigt_meldung_statt_fehler():
     testdatei = _seite_vorhersage("_test_alter_lauf.html")
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -439,15 +442,15 @@ def test_alter_lauf_ohne_temperaturdaten_zeigt_meldung_statt_fehler():
         page.locator("#laufwahl-temp2m button").nth(2).click()
         page.wait_for_timeout(200)
         text = page.locator("#laufwarnung-temp2m").inner_text()
-        # Niederschlag desselben alten Laufs muss weiterhin normal funktionieren
+        # Auch Niederschlag darf nicht mehr aus dem alten Tagesformat stammen.
         page.locator("#laufwahl-niederschlag button").nth(2).click()
         page.wait_for_timeout(200)
         regen_hat_pfade = page.evaluate("() => document.querySelectorAll('#chart-niederschlag path').length > 0")
         browser.close()
         assert not fehler, f"JS-Laufzeitfehler bei altem Lauf ohne Temperatur: {fehler}"
     testdatei.unlink()
-    assert "keine stündlichen Temperaturdaten" in text
-    assert regen_hat_pfade is True, "Niederschlag muss auch bei altem Lauf weiterhin gezeichnet werden"
+    assert "modellnahen 3-/6-Stunden-Raster" in text
+    assert regen_hat_pfade is False
 
 
 def test_negative_temperaturen_werden_dargestellt():
@@ -526,14 +529,17 @@ def test_temperatur_wird_nicht_akkumuliert_dargestellt():
         ergebnis = page.evaluate("""() => {
             const t = window.__TEST__;
             const lauf = {
-                kontrolllauf_kumulativ: [1, 3, 6], mitglieder_kumulativ: [[1, 3, 6]], hauptlauf_kumulativ: null,
-                mittel_kumulativ: [1, 3, 6], p10_kumulativ: [1, 3, 6], p90_kumulativ: [1, 3, 6], n_kumulativ: [1, 1, 1],
+                zeitauflosung: 'modellnativ-v1',
                 temperatur_2m: { zeiten: ['2026-02-02T01:00', '2026-02-02T02:00', '2026-02-02T08:00'],
                                  zeitpunkte_unix: [0, 3600, 25200],
                                  kontrolllauf: [-5, 0, 4], mitglieder: [[-5, 0, 4]], hauptlauf: null,
                                  mittel: [-5, 0, 4], p10: [-6, -1, 3], p90: [-4, 1, 5], n: [1, 1, 1] },
                 temperatur_850hpa: { kontrolllauf: [-5, 0, 4], mitglieder: [[-5, 0, 4]], hauptlauf: null,
                                      mittel: [-5, 0, 4], p10: [-6, -1, 3], p90: [-4, 1, 5], n: [1, 1, 1] },
+                niederschlag: { zeiten: ['2026-02-02T01:00', '2026-02-02T04:00', '2026-02-02T07:00'],
+                                 zeitpunkte_unix: [0, 10800, 21600],
+                                 kontrolllauf: [0, 3, 6], mitglieder: [[0, 3, 6]], hauptlauf: null,
+                                 mittel: [0, 3, 6], p10: [0, 3, 6], p90: [0, 3, 6], n: [1, 1, 1] },
             };
             const bTemp = t.BEREICHE.find(b => b.id === 'temp2m');
             const bRegen = t.BEREICHE.find(b => b.id === 'niederschlag');
@@ -550,7 +556,7 @@ def test_temperatur_wird_nicht_akkumuliert_dargestellt():
         browser.close()
     testdatei.unlink()
     assert ergebnis["temp"]["mittel"] == [-5, 0, 4]        # roh, nicht aufsummiert
-    assert ergebnis["regen"]["mittel"] == [1, 3, 6]        # kumulierte Felder
+    assert ergebnis["regen"]["mittel"] == [0, 3, 6]        # zeitaufgeloest kumulierte Felder
     assert ergebnis["zeitachse"] == [0, 3600, 25200]        # 1h, danach 6h: nicht indexbasiert gestaucht
     assert ergebnis["temp_akkumuliert_flag"] is False
     assert ergebnis["regen_akkumuliert_flag"] is True

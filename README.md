@@ -175,19 +175,22 @@ werden aktualisiert (etwa bei nachträglichen DWD-Korrekturen).
 
 **Vorhersagen:** [open-meteo.com](https://open-meteo.com) — Hauptläufe `ecmwf_ifs025` und
 `gfs_seamless`, Ensembles `ecmwf_ifs025` (51 Läufe) und `gfs_seamless` (31 Läufe — `gfs025` allein
-liefert Mitgliederdaten nur bis Tag 10). Bei GFS kann die zeitliche Auflösung in der Langfrist
-gröber werden; die Diagrammachse verwendet deshalb echte Zeitstempel und bleibt maßstabstreu.
+liefert Mitgliederdaten nur bis Tag 10). Open-Meteo interpoliert Ensemblewerte auf ein
+Stundenraster. Für die Meteogramme werden daraus wieder modellnahe Zeitpunkte gewählt: GFS
+3-stündlich bis +240 Stunden und danach 6-stündlich, ECMWF durchgehend 3-stündlich. Die
+Diagrammachse verwendet echte Zeitstempel und bleibt maßstabstreu.
 Eine fertige Ensemble-Mittelwert-Reihe liefert die
 Schnittstelle nicht; Mittel, Perzentile und der Anteil der Läufe über 5 mm werden aus den
 Einzelläufen selbst gebildet — für das Meteogramm ausdrücklich **aus den bereits je Mitglied
-akkumulierten Kurven**, nicht aus aufsummierten Tageswert-Perzentilen (die beiden Wege liefern bei
+akkumulierten Kurven**, nicht aus aufsummierten Intervall-Perzentilen (die beiden Wege liefern bei
 Perzentilen unterschiedliche, und nur der erste methodisch korrekte, Ergebnisse).
 
-**Abgerufene Variablen:** `precipitation_sum` (täglich, für den Niederschlag) sowie `temperature_2m`
-und `temperature_850hPa` (stündlich, in °C, für die beiden Temperaturbereiche). Beide Temperatur-
-variablen werden ohne Tagesaggregation als zeitlich aufgelöstes Meteogramm vom Modellstart bis zum
-Horizont gespeichert und dargestellt. Wo das Modell in der Langfrist gröbere Originalschritte
-liefert, bleiben diese als solche erhalten. Der Abruf schließt den Vortag ein, damit bei einem erst
+**Abgerufene Variablen:** `precipitation`, `temperature_2m` und `temperature_850hPa`, jeweils im
+von Open-Meteo bereitgestellten Stundenraster. Beide Temperaturvariablen werden ohne Aggregation
+an den modellnahen 3-/6-Stunden-Zeitpunkten dargestellt. Beim Niederschlag werden die Stundenmengen
+zunächst zu jedem 3-/6-Stunden-Modellintervall addiert und dann je Ensemblemitglied fortlaufend
+aufsummiert; erst danach entstehen Mittel und Perzentile. Es werden weder Tagesmittel noch
+Tagessummen als Kurvenstützstellen verwendet. Der Abruf schließt den Vortag ein, damit bei einem erst
 nach Mitternacht vollständig verfügbaren 18-UTC-Lauf auch dessen erste Stunden erhalten bleiben.
 Niederschlag und beide Temperaturreihen kommen aus
 **einem** Abruf je Lauf, damit die Zahl der API-Aufrufe unverändert niedrig bleibt.
