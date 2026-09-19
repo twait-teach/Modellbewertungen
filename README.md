@@ -3,9 +3,17 @@
 Ensemble-Meteogramm und Modellvergleich für die DWD-Station Mühldorf am Inn. Die Seite hat zwei
 Bereiche:
 
-- **Vorhersage** — Ensemble-Meteogramm für **GFS** und **ECMWF-IFS** (das klassische physikalische
-  Modell, nicht die KI-Variante AIFS), mit Umschaltung zwischen Modell und den letzten gespeicherten
-  Läufen ("aktuell / vorheriger Lauf / davorliegender Lauf").
+- **Vorhersage** — drei Ensemble-Meteogramme untereinander: **2-m-Temperatur**, **aufsummierter
+  Niederschlag** und **850-hPa-Temperatur**, jeweils für **GFS** und **ECMWF-IFS** (das klassische
+  physikalische Modell, nicht die KI-Variante AIFS). Jeder Bereich hat eine eigene, voneinander
+  unabhängige Bedienleiste: Modellumschaltung, Auswahl eines gespeicherten Laufs (mit echtem Datum
+  und Uhrzeit, z. B. „aktuell · 18.09., 12 UTC"), eigener Schalter für die Einzelmitglieder, eigene
+  Legende, eigenes Diagramm und eigene Zahlentabelle.
+  Wichtig zur Methodik: Der **Niederschlag** wird zuerst je Mitglied über die Zeit aufsummiert, erst
+  danach werden Mittel und Perzentile aus den akkumulierten Kurven gebildet. **Temperaturen werden
+  nicht akkumuliert** — dort werden Mittel und Perzentile für jeden Vorhersagetag direkt aus den an
+  diesem Tag vorhandenen Mitgliedswerten berechnet (Wert um 12 Uhr Ortszeit); fehlende Mitgliedswerte
+  werden ausgeschlossen, nie als 0 °C gewertet.
 - **Analyse** — wie genau frühere Vorhersagen waren: tagesgenaue Güte (Tag 1–5), Bias, 5-mm-Schwelle,
   Rückblick, Ensemble-Spannweite, und ein Witterungs-/Summenvergleich über die Zeitfenster Tag 1–3,
   4–7 und 8–14 gegen die tatsächlich gemessenen Tagessummen der DWD-Station.
@@ -171,6 +179,13 @@ Schnittstelle nicht; Mittel, Perzentile und der Anteil der Läufe über 5 mm wer
 Einzelläufen selbst gebildet — für das Meteogramm ausdrücklich **aus den bereits je Mitglied
 akkumulierten Kurven**, nicht aus aufsummierten Tageswert-Perzentilen (die beiden Wege liefern bei
 Perzentilen unterschiedliche, und nur der erste methodisch korrekte, Ergebnisse).
+
+**Abgerufene Variablen:** `precipitation_sum` (täglich, für den Niederschlag) sowie `temperature_2m`
+und `temperature_850hPa` (stündlich, in °C, für die beiden Temperaturbereiche). Beide Temperatur-
+variablen gibt es bei open-meteo nur stündlich; daraus wird je Vorhersagetag der Wert um 12 Uhr
+Ortszeit als Tageswert genommen (einheitlich für 2 m und 850 hPa, da für 850 hPa keine fertige
+Tagesaggregation existiert). Niederschlag und beide Temperaturreihen kommen aus **einem** Abruf je
+Lauf, damit die Zahl der API-Aufrufe unverändert niedrig bleibt.
 
 **Was der Vergleich nicht kann:** Die Station liegt rund 4 km vom Modellgitterpunkt entfernt. Bei
 Schauern und Gewittern können allein daraus mehrere Millimeter Unterschied entstehen — ein Teil des

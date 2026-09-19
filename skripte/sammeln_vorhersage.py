@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Sammelt vollstaendige Ensemble-Mitgliederdaten fuer das Meteogramm der Seite
-"Vorhersage". Anders als sammeln.py (das pro Kalendertag ein Dokument mit nur
-Hauptlauf + Ensemble-Kennzahlen fuehrt) speichert dieses Skript pro tatsaechlich
-erkanntem MODELLLAUF ein eigenes Dokument mit allen Einzelmitgliedern -- das
-ist Voraussetzung fuer den in der Aufgabenstellung geforderten Laufvergleich
+Sammelt vollstaendige Ensemble-Mitgliederdaten fuer die drei Diagrammbereiche
+der Seite "Vorhersage": 2-m-Temperatur, aufsummierter Niederschlag und
+850-hPa-Temperatur. Anders als sammeln.py (das pro Kalendertag ein Dokument
+mit nur Hauptlauf + Ensemble-Kennzahlen fuehrt) speichert dieses Skript pro
+tatsaechlich erkanntem MODELLLAUF ein eigenes Dokument mit allen Einzel-
+mitgliedern -- das ist Voraussetzung fuer den geforderten Laufvergleich
 ("aktuell / vorheriger Lauf / davorliegender Lauf") und fuer die pro Mitglied
-akkumulierte Darstellung.
+akkumulierte Niederschlagsdarstellung.
 
 Modelle:
   GFS       -- Datensatz gfs_seamless (Ensemble- UND Hauptlauf-Endpunkt).
@@ -25,10 +26,24 @@ Modelle:
                reichen offiziell nur rund sechs Tage weit und werden hier
                bewusst nicht als 15-Tage-Lauf erfasst. Horizont: 15 Tage.
 
+Niederschlag wird weiterhin ZUERST JE MITGLIED AKKUMULIERT und erst danach
+werden Mittel/Perzentile aus den akkumulierten Kurven gebildet (kumulieren()).
+Temperatur (2 m und 850 hPa) wird NICHT akkumuliert -- open-meteo liefert dafuer
+Stundenwerte (hourly), aus denen hier je Vorhersagetag der Wert um 12:00 Ortszeit
+als Tageswert entnommen wird (fuer 2-m- UND 850-hPa-Temperatur einheitlich, da
+850 hPa keine fertige Tagesaggregation kennt -- separat getestet). Mittel und
+Perzentile werden pro Lead direkt aus den an diesem Tag vorhandenen Mitglieds-
+werten gebildet; fehlt ein Mitgliedswert an einem Tag, wird NUR dieser Tag fuer
+dieses Mitglied ausgeschlossen (anders als beim Niederschlag bricht das nicht
+die Kette fuer die folgenden Tage, da Temperatur nicht kumuliert wird).
+
 Pro erkanntem Lauf wird eine Datei daten/vorhersage/<modell>_<initISO>.json
-angelegt. Aeltere Laeufe werden nach dem Schreiben ueber AUFBEWAHREN hinaus
-geloescht (vollstaendige Mitgliederdaten muessen laut Aufgabenstellung nicht
-unbegrenzt archiviert werden).
+angelegt -- aber ERST, wenn Laufweite und Mitgliederzahl vollstaendig
+vorliegen (siehe VOLLSTAENDIGKEITSPRUEFUNG in verarbeite_modell()); ein noch
+unvollstaendiger Lauf wird nicht gespeichert, sondern beim naechsten stuend-
+lichen Durchlauf erneut versucht. Aeltere Laeufe werden nach dem Schreiben
+ueber AUFBEWAHREN hinaus geloescht (vollstaendige Mitgliederdaten muessen laut
+Aufgabenstellung nicht unbegrenzt archiviert werden).
 """
 
 import argparse
@@ -42,6 +57,12 @@ LAT, LON = 48.2456, 12.5228
 TZ_NAME = "Europe/Berlin"
 OUT = Path(__file__).resolve().parent.parent / "daten" / "vorhersage"
 AUFBEWAHREN = 12  # so viele Laeufe je Modell werden mit vollen Mitgliederdaten behalten
+
+# Tageswert fuer die (nicht akkumulierten) Temperaturreihen: der Stundenwert
+# um diese Ortszeit. Fuer 2-m- UND 850-hPa-Temperatur einheitlich verwendet,
+# damit beide Diagramme methodisch vergleichbar bleiben (850 hPa hat bei
+# open-meteo keine eigene Tagesaggregation, siehe Moduldoku oben).
+TAGESSTUNDE = "12:00"
 
 MODELLE = {
     "gfs": {
@@ -75,13 +96,25 @@ def laufinfo(datensatz, fehler):
     }
 
 
-def tageswerte_je_serie(d):
-    """{spaltenname: {datum: wert}} aus einer /daily-Antwort."""
-    daily = d["daily"]
-    zeiten = daily["time"]
+def tageswerte_je_serie(d, praefix):
+    """{spaltenname: {datum: wert}} aus dem 'daily'-Block einer Antwort."""
+    daily = d.get("daily") or {}
+    zeiten = daily.get("time", [])
     out = {}
     for spalte, werte in daily.items():
-        if spalte == "time" or not spalte.startswith("precipitation_sum"):
+        if spalte == "time" or not spalte.startswith(praefix):
+            continue
+        out[spalte] = dict(zip(zeiten, werte))
+    return out
+
+
+def stundenwerte_je_serie(d, praefix):
+    """{spaltenname: {'JJJJ-MM-TTTHH:MM': wert}} aus dem 'hourly'-Block."""
+    hourly = d.get("hourly") or {}
+    zeiten = hourly.get("time", [])
+    out = {}
+    for spalte, werte in hourly.items():
+        if spalte == "time" or not spalte.startswith(praefix):
             continue
         out[spalte] = dict(zip(zeiten, werte))
     return out
@@ -107,6 +140,43 @@ def kumulieren(tagesreihe, ziele):
     return out
 
 
+def tageswert_ohne_akkumulation(stundenreihe, ziele, tagesstunde=TAGESSTUNDE):
+    """Fuer Temperatur: je Zieldatum einfach der Stundenwert zur festen
+    Tagesstunde -- KEINE Akkumulation. Fehlt der Wert an einem Tag, ist NUR
+    dieser eine Tag None; anders als bei kumulieren() wirkt sich das nicht auf
+    andere Tage aus, weil hier nichts fortgeschrieben wird."""
+    return [stundenreihe.get(f"{tag}T{tagesstunde}") for tag in ziele]
+
+
+def aggregiere_lead(mitglieder_werte, lead_index, runden=2):
+    """Mittel/Perzentile/Spannweite fuer EINEN Lead-Index aus den Werten aller
+    Mitglieder an dieser Stelle -- fehlende Werte (None) werden ausgeschlossen,
+    nicht als 0 gewertet. Gemeinsam fuer akkumulierte (Niederschlag) und nicht
+    akkumulierte (Temperatur) Reihen nutzbar, da die Rundenlogik nur auf den
+    bereits fertigen Werten an diesem Lead arbeitet."""
+    w = sorted(s[lead_index] for s in mitglieder_werte if s[lead_index] is not None)
+    if not w:
+        return {"mittel": None, "p10": None, "p50": None, "p90": None, "min": None, "max": None, "n": 0}
+    return {
+        "mittel": round(sum(w) / len(w), runden),
+        "p10": round(perzentil(w, 0.10), runden),
+        "p50": round(perzentil(w, 0.50), runden),
+        "p90": round(perzentil(w, 0.90), runden),
+        "min": round(w[0], runden),
+        "max": round(w[-1], runden),
+        "n": len(w),
+    }
+
+
+def aggregiere_alle_leads(mitglieder_werte, horizont, runden=2):
+    kennzahlen = [aggregiere_lead(mitglieder_werte, i, runden) for i in range(horizont)]
+    zusammen = {"mittel": [], "p10": [], "p50": [], "p90": [], "min": [], "max": [], "n": []}
+    for k in kennzahlen:
+        for feld in zusammen:
+            zusammen[feld].append(k[feld])
+    return zusammen
+
+
 def verarbeite_modell(kurz, cfg, fehler, heute):
     ens_info = laufinfo(cfg["meta_ensemble"], fehler)
     if not ens_info:
@@ -121,62 +191,82 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
     horizont = cfg["horizont"]
     ziele = [(init.date() + dt.timedelta(days=lead)).isoformat() for lead in range(1, horizont + 1)]
 
+    # EIN Abruf liefert Niederschlag (daily) UND beide Temperaturreihen
+    # (hourly) zusammen -- getestet, dass open-meteo daily+hourly im selben
+    # Aufruf kombiniert; das haelt die Zahl der API-Aufrufe gleich niedrig
+    # wie vor der Temperatur-Erweiterung.
     ens = hole("https://ensemble-api.open-meteo.com/v1/ensemble",
-               {"latitude": LAT, "longitude": LON, "daily": "precipitation_sum",
+               {"latitude": LAT, "longitude": LON,
+                "daily": "precipitation_sum",
+                "hourly": "temperature_2m,temperature_850hPa",
                 "forecast_days": horizont + 1, "timezone": TZ_NAME, "models": cfg["ensemble_datensatz"]},
                fehlerliste=fehler)
     if not ens:
         return None, [f"{kurz}: Ensemble-Daten nicht abrufbar"]
 
-    serien = tageswerte_je_serie(ens)
-    if "precipitation_sum" not in serien:
-        return None, [f"{kurz}: Kontrolllauf-Spalte fehlt in der Antwort"]
+    # --- Niederschlag: wie bisher, akkumuliert ---
+    serien_regen = tageswerte_je_serie(ens, "precipitation_sum")
+    if "precipitation_sum" not in serien_regen:
+        return None, [f"{kurz}: Kontrolllauf-Spalte (Niederschlag) fehlt in der Antwort"]
+    kontrolle_regen = kumulieren(serien_regen["precipitation_sum"], ziele)
+    mitglieder_keys = sorted(k for k in serien_regen if k != "precipitation_sum")
+    mitglieder_regen = [kumulieren(serien_regen[k], ziele) for k in mitglieder_keys]
 
-    kontrolle_kum = kumulieren(serien["precipitation_sum"], ziele)
-    mitglieder_keys = sorted(k for k in serien if k != "precipitation_sum")
-    mitglieder_kum = [kumulieren(serien[k], ziele) for k in mitglieder_keys]
+    # --- Temperatur: 2 m und 850 hPa, NICHT akkumuliert ---
+    temperaturen = {}
+    for feld, praefix in (("temperatur_2m", "temperature_2m"), ("temperatur_850hpa", "temperature_850hPa")):
+        serien_temp = stundenwerte_je_serie(ens, praefix)
+        if praefix not in serien_temp:
+            temperaturen[feld] = None
+            hinweise.append(f"{feld}: Spalte fehlt in der Antwort -- fuer diesen Lauf nicht gespeichert")
+            continue
+        temp_keys = sorted(k for k in serien_temp if k != praefix)
+        kontrolle_t = tageswert_ohne_akkumulation(serien_temp[praefix], ziele)
+        mitglieder_t = [tageswert_ohne_akkumulation(serien_temp[k], ziele) for k in temp_keys]
+        kennzahlen_t = aggregiere_alle_leads(mitglieder_t, horizont)
+        temperaturen[feld] = {
+            "kontrolllauf": kontrolle_t,
+            "mitglieder": mitglieder_t,
+            "hauptlauf": None,  # wird unten befuellt, falls Hauptlauf passt
+            **kennzahlen_t,
+        }
 
-    # --- Pruefungen vor dem Speichern ---
+    # --- Pruefungen vor dem Speichern (gilt fuer den GESAMTEN Lauf: erst
+    # speichern, wenn Laufweite UND Mitgliederzahl vollstaendig vorliegen) ---
     erwartete_mitglieder = {"gfs": 30, "ecmwf": 50}[kurz]
     if len(mitglieder_keys) < erwartete_mitglieder - 2:  # etwas Toleranz, Modelle aendern Mitgliederzahl gelegentlich
         hinweise.append(f"nur {len(mitglieder_keys)} statt erwarteter {erwartete_mitglieder} Mitglieder")
-    letzter_lead_leer = sum(1 for s in mitglieder_kum if s[-1] is None)
-    if letzter_lead_leer > len(mitglieder_kum) * 0.5:
-        hinweise.append(f"Horizont unvollstaendig: bei {letzter_lead_leer}/{len(mitglieder_kum)} "
-                         f"Mitgliedern bricht die Reihe vor Tag {horizont} ab")
+    letzter_lead_leer = sum(1 for s in mitglieder_regen if s[-1] is None)
+    if letzter_lead_leer > len(mitglieder_regen) * 0.5:
+        hinweise.append(f"Horizont unvollstaendig: bei {letzter_lead_leer}/{len(mitglieder_regen)} "
+                         f"Mitgliedern bricht die Niederschlagsreihe vor Tag {horizont} ab")
+    vollstaendig = letzter_lead_leer == 0 and len(mitglieder_keys) >= erwartete_mitglieder - 2
 
-    # --- Kennzahlen je Lead aus den AKKUMULIERTEN Mitgliederkurven ---
-    mittel_kum, p10_kum, p50_kum, p90_kum, min_kum, max_kum, n_kum = [], [], [], [], [], [], []
-    for i in range(horizont):
-        w = sorted(s[i] for s in mitglieder_kum if s[i] is not None)
-        if not w:
-            mittel_kum.append(None); p10_kum.append(None); p50_kum.append(None)
-            p90_kum.append(None); min_kum.append(None); max_kum.append(None); n_kum.append(0)
-            continue
-        mittel_kum.append(round(sum(w) / len(w), 2))
-        p10_kum.append(round(perzentil(w, 0.10), 2))
-        p50_kum.append(round(perzentil(w, 0.50), 2))
-        p90_kum.append(round(perzentil(w, 0.90), 2))
-        min_kum.append(round(w[0], 2))
-        max_kum.append(round(w[-1], 2))
-        n_kum.append(len(w))
+    # --- Kennzahlen Niederschlag aus den AKKUMULIERTEN Mitgliederkurven ---
+    kennzahlen_regen = aggregiere_alle_leads(mitglieder_regen, horizont)
 
     # --- Deterministischer Hauptlauf, nur wenn seine Initialisierung nachweislich passt ---
     hl_info = laufinfo(cfg["meta_hauptlauf"], fehler)
-    hauptlauf_kum = None
+    hauptlauf_regen = None
     if hl_info and hl_info["lauf"] == init:
         # Die normale /v1/forecast-Schnittstelle (anders als die Ensemble-API)
         # erlaubt hoechstens forecast_days=16 (heute + 15 Tage). Reicht der
         # Ensemble-Horizont weiter (GFS: 16 Tage), bleiben die letzten Leads
-        # beim Hauptlauf schlicht leer -- kumulieren() haengt dort ab, sobald
-        # ein Tageswert fehlt.
+        # beim Hauptlauf schlicht leer.
         hl = hole("https://api.open-meteo.com/v1/forecast",
-                  {"latitude": LAT, "longitude": LON, "daily": "precipitation_sum",
+                  {"latitude": LAT, "longitude": LON,
+                   "daily": "precipitation_sum",
+                   "hourly": "temperature_2m,temperature_850hPa",
                    "forecast_days": min(horizont + 1, 16), "timezone": TZ_NAME,
                    "models": cfg["hauptlauf_datensatz"]},
                   fehlerliste=fehler)
         if hl:
-            hauptlauf_kum = kumulieren(dict(zip(hl["daily"]["time"], hl["daily"]["precipitation_sum"])), ziele)
+            if hl.get("daily"):
+                hauptlauf_regen = kumulieren(dict(zip(hl["daily"]["time"], hl["daily"]["precipitation_sum"])), ziele)
+            hl_hourly = stundenwerte_je_serie(hl, "temperature_2m") | stundenwerte_je_serie(hl, "temperature_850hPa")
+            for feld, praefix in (("temperatur_2m", "temperature_2m"), ("temperatur_850hpa", "temperature_850hPa")):
+                if temperaturen.get(feld) and praefix in hl_hourly:
+                    temperaturen[feld]["hauptlauf"] = tageswert_ohne_akkumulation(hl_hourly[praefix], ziele)
     elif hl_info:
         hinweise.append(f"deterministischer Lauf ist {hl_info['lauf']:%d.%m. %HZ}, "
                          f"passt nicht zum Ensemble-Lauf {init:%d.%m. %HZ} -- nicht eingebettet")
@@ -192,17 +282,19 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
         "mitglieder_n": len(mitglieder_keys),
         "leads": list(range(1, horizont + 1)),
         "ziele": ziele,
-        "kontrolllauf_kumulativ": kontrolle_kum,
-        "mitglieder_kumulativ": mitglieder_kum,
-        "hauptlauf_kumulativ": hauptlauf_kum,
-        "mittel_kumulativ": mittel_kum,
-        "p10_kumulativ": p10_kum,
-        "p50_kumulativ": p50_kum,
-        "p90_kumulativ": p90_kum,
-        "min_kumulativ": min_kum,
-        "max_kumulativ": max_kum,
-        "n_kumulativ": n_kum,
-        "vollstaendig": letzter_lead_leer == 0 and len(mitglieder_keys) >= erwartete_mitglieder - 2,
+        "kontrolllauf_kumulativ": kontrolle_regen,
+        "mitglieder_kumulativ": mitglieder_regen,
+        "hauptlauf_kumulativ": hauptlauf_regen,
+        "mittel_kumulativ": kennzahlen_regen["mittel"],
+        "p10_kumulativ": kennzahlen_regen["p10"],
+        "p50_kumulativ": kennzahlen_regen["p50"],
+        "p90_kumulativ": kennzahlen_regen["p90"],
+        "min_kumulativ": kennzahlen_regen["min"],
+        "max_kumulativ": kennzahlen_regen["max"],
+        "n_kumulativ": kennzahlen_regen["n"],
+        "temperatur_2m": temperaturen.get("temperatur_2m"),
+        "temperatur_850hpa": temperaturen.get("temperatur_850hpa"),
+        "vollstaendig": vollstaendig,
         "hinweise": hinweise,
     }
     return lauf, hinweise
@@ -213,8 +305,12 @@ def dateiname(kurz, init: dt.datetime) -> str:
 
 
 def aufraeumen(kurz):
-    """Nur die AUFBEWAHREN juengsten Laeufe je Modell behalten."""
-    dateien = sorted(OUT.glob(f"{kurz}_*.json"), reverse=True)
+    """Nur die AUFBEWAHREN juengsten Laeufe je Modell behalten. Sortiert wird
+    nicht nach Dateiname/Stunde, sondern nach der tatsaechlichen, im
+    Dateinamen enthaltenen vollen Initialisierung (JJJJ-MM-TTThh) -- der
+    Dateiname ist so gebaut, dass ein einfacher Textvergleich schon korrekt
+    chronologisch sortiert (siehe dateiname())."""
+    dateien = sorted(OUT.glob(f"{kurz}_*.json"), key=lambda p: p.name, reverse=True)
     entfernt = []
     for pfad in dateien[AUFBEWAHREN:]:
         pfad.unlink()
@@ -255,6 +351,17 @@ def main():
         if not lauf:
             print(f"{kurz}: kein neuer Lauf gespeichert. " + "; ".join(hinweise))
             continue
+
+        # Ein Lauf wird ERST gespeichert, wenn er vollstaendig ist (erwartete
+        # Laufweite UND Mitgliederzahl). Ein noch unvollstaendiger Lauf wird
+        # NICHT geschrieben -- weder neu noch ueberschreibend -- sondern beim
+        # naechsten stuendlichen Durchlauf erneut versucht (siehe Vorab-Pruefung
+        # oben, die dann wieder "unvollstaendig" vorfindet und es erneut versucht).
+        if not lauf["vollstaendig"]:
+            print(f"{kurz}: Lauf {lauf['init']} noch nicht vollstaendig -- wird noch NICHT gespeichert. "
+                  + ("Hinweise: " + "; ".join(hinweise) if hinweise else ""))
+            continue
+
         init = dt.datetime.strptime(lauf["init"], "%Y-%m-%dT%H:%MZ").replace(tzinfo=dt.timezone.utc)
         ziel = OUT / dateiname(kurz, init)
         neu = not ziel.exists()
@@ -263,7 +370,7 @@ def main():
         status = "neu gespeichert" if neu else "aktualisiert (nochmal abgerufen)"
         print(f"{kurz}: Lauf {lauf['init']} {status} -- {lauf['mitglieder_n']} Mitglieder, "
               f"Horizont {lauf['horizont_tage']} Tage, hauptlauf={'ja' if lauf['hauptlauf_kumulativ'] else 'nein'}, "
-              f"vollstaendig={lauf['vollstaendig']}")
+              f"temp2m={'ja' if lauf['temperatur_2m'] else 'nein'}, temp850={'ja' if lauf['temperatur_850hpa'] else 'nein'}")
         if hinweise:
             print("  Hinweise:", *hinweise, sep="\n    ")
         if entfernt:

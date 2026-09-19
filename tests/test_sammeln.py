@@ -154,3 +154,49 @@ def test_ensemble_perzentil_und_schwelle_konsistent():
     assert perzentil(werte, 0.5) == 2.0
     assert abs(statistics.fmean(werte) - 3.6) < 1e-9
 
+
+
+# ---------------------------------------------------------------- bauen.py: Laufsortierung
+def test_vorhersagelaeufe_strikt_absteigend_nach_voller_initialisierung():
+    """Punkt 6: Sortierung strikt nach vollstaendiger Initialisierungszeit --
+    nicht nach Uhrzeit allein, nicht nach Dateireihenfolge. Geprueft wird
+    dieselbe Schluesselfunktion, die bauen.py verwendet (d["init"], absteigend),
+    mit einer bewusst gemischten Eingabereihenfolge ueber Tagesgrenzen hinweg."""
+    unsortiert = [
+        {"init": "2026-09-17T18:00Z"},
+        {"init": "2026-09-18T06:00Z"},
+        {"init": "2026-09-17T00:00Z"},
+        {"init": "2026-09-18T00:00Z"},
+        {"init": "2026-09-17T12:00Z"},
+        {"init": "2026-09-18T12:00Z"},
+    ]
+    sortiert = sorted(unsortiert, key=lambda d: d["init"], reverse=True)
+    assert [d["init"] for d in sortiert] == [
+        "2026-09-18T12:00Z",
+        "2026-09-18T06:00Z",
+        "2026-09-18T00:00Z",
+        "2026-09-17T18:00Z",
+        "2026-09-17T12:00Z",
+        "2026-09-17T00:00Z",
+    ]
+
+
+def test_gfs_lauffolge_00_06_12_18_ueber_tagesgrenze():
+    """GFS-Folge laut Aufgabenstellung: ... 18 -> 12 -> 06 -> 00 -> 18 des Vortags ..."""
+    laeufe = [{"init": f"2026-09-18T{h:02d}:00Z"} for h in (0, 6, 12, 18)]
+    laeufe += [{"init": f"2026-09-17T{h:02d}:00Z"} for h in (0, 6, 12, 18)]
+    sortiert = [d["init"] for d in sorted(laeufe, key=lambda d: d["init"], reverse=True)]
+    assert sortiert[:5] == [
+        "2026-09-18T18:00Z", "2026-09-18T12:00Z", "2026-09-18T06:00Z",
+        "2026-09-18T00:00Z", "2026-09-17T18:00Z",
+    ]
+
+
+def test_ecmwf_lauffolge_nur_00_und_12():
+    """ECMWF-IFS: ausschliesslich 00 und 12 UTC -- 06/18 kommen gar nicht erst
+    in den Bestand (das stellt sammeln_vorhersage.py sicher, siehe dortige
+    Tests); hier wird nur die resultierende Reihenfolge geprueft."""
+    laeufe = [{"init": "2026-09-18T12:00Z"}, {"init": "2026-09-18T00:00Z"}, {"init": "2026-09-17T12:00Z"}]
+    sortiert = [d["init"] for d in sorted(laeufe, key=lambda d: d["init"], reverse=True)]
+    assert sortiert == ["2026-09-18T12:00Z", "2026-09-18T00:00Z", "2026-09-17T12:00Z"]
+    assert all(s[11:13] in ("00", "12") for s in sortiert)

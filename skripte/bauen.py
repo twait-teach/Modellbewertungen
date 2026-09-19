@@ -56,9 +56,14 @@ def main():
     if not forecasts:
         raise SystemExit("Keine Vorhersagedaten in daten/ gefunden — erst skripte/sammeln.py laufen lassen.")
 
-    # Ensemble-Meteogrammlaeufe fuer die Vorhersage-Seite: je Modell absteigend
-    # nach Initialisierung sortiert, damit "aktuell / vorheriger / davor" auf
-    # der Seite einfach die ersten drei Eintraege sind.
+    # Ensemble-Meteogrammlaeufe fuer die Vorhersage-Seite: je Modell STRIKT
+    # absteigend nach der VOLLSTAENDIGEN Initialisierungszeit sortiert (nicht
+    # nach Uhrzeit allein und nicht nach Dateireihenfolge) -- "init" ist ein
+    # ISO-Zeitstempel JJJJ-MM-TTThh:mmZ, dessen Textsortierung deshalb exakt
+    # der chronologischen Reihenfolge entspricht, auch ueber Tages-, Monats-
+    # und Jahresgrenzen hinweg. Historische Luecken (Laeufe, die vor Einfuehrung
+    # des Sammlers nie gespeichert wurden) bleiben einfach Luecken; es wird
+    # nichts erfunden oder aufgefuellt.
     vorhersage = {"gfs": [], "ecmwf": []}
     for pfad in sorted((DATEN / "vorhersage").glob("*.json")) if (DATEN / "vorhersage").exists() else []:
         d = json.loads(pfad.read_text(encoding="utf-8"))

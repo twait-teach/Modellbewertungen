@@ -161,11 +161,25 @@ def _meta(lauf: dt.datetime, verfuegbar: dt.datetime):
     }
 
 
-def _ensemble_antwort(ziele, member_werte, kontrolle_werte):
+def _ensemble_antwort(ziele, member_werte, kontrolle_werte, temp2m_stunden=None, temp850_stunden=None):
+    """Baut eine Fake-Ensemble-Antwort. temp2m_stunden/temp850_stunden sind
+    optional: {'JJJJ-MM-TTThh:mm': [kontrolle, member1, member2, ...]} je
+    Zeitstempel -- wird nur gebraucht, wenn ein Test Temperatur pruefen will."""
     daily = {"time": ziele, "precipitation_sum": kontrolle_werte}
     for i, werte in enumerate(member_werte, start=1):
         daily[f"precipitation_sum_member{i:02d}"] = werte
-    return {"daily": daily}
+    antwort = {"daily": daily}
+    for feld, praefix, quelle in (("temperature_2m", "temperature_2m", temp2m_stunden),
+                                   ("temperature_850hPa", "temperature_850hPa", temp850_stunden)):
+        if quelle is None:
+            continue
+        zeiten = sorted(quelle)
+        hourly = antwort.setdefault("hourly", {"time": zeiten})
+        hourly[praefix] = [quelle[t][0] for t in zeiten]
+        n_mitglieder = len(next(iter(quelle.values()))) - 1
+        for i in range(1, n_mitglieder + 1):
+            hourly[f"{praefix}_member{i:02d}"] = [quelle[t][i] for t in zeiten]
+    return antwort
 
 
 def test_verarbeite_modell_lehnt_falsche_laufstunde_ab(monkeypatch):
@@ -274,3 +288,168 @@ def test_verarbeite_modell_meldet_zu_wenig_mitglieder(monkeypatch):
     assert lauf is not None
     assert lauf["vollstaendig"] is False
     assert any("Mitglieder" in h for h in hinweise)
+
+
+# ---------------------------------------------------------------- Temperatur: nicht akkumuliert
+def test_tageswert_ohne_akkumulation_keine_kette():
+    """Anders als beim Niederschlag darf eine fehlende Temperatur an einem Tag
+    NICHT die folgenden Tage mit-beeinflussen -- jeder Tag ist unabhaengig."""
+    stundenreihe = {"2026-01-01T12:00": 5.0, "2026-01-03T12:00": 7.0}  # Tag 2 fehlt
+    ziele = ["2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04"]
+    out = sv.tageswert_ohne_akkumulation(stundenreihe, ziele)
+    assert out == [5.0, None, 7.0, None]  # Tag 3 ist trotz Luecke an Tag 2 intakt
+
+
+def test_aggregiere_lead_mittel_und_perzentile():
+    # 3 Mitglieder an einem Lead: -2.0, 3.0, 5.0
+    mitglieder = [[-2.0, 1.0], [3.0, 1.0], [5.0, 1.0]]
+    k = sv.aggregiere_lead(mitglieder, 0)
+    assert k["mittel"] == 2.0
+    assert k["min"] == -2.0
+    assert k["max"] == 5.0
+    assert k["n"] == 3
+    assert k["p50"] == 3.0
+
+
+def test_aggregiere_lead_fehlender_mitgliedswert_wird_ausgeschlossen_nicht_als_null():
+    """Ein fehlender Mitgliedswert (None) darf das Mittel nicht Richtung 0 ziehen."""
+    mitglieder = [[10.0], [12.0], [None]]  # drittes Mitglied fehlt an diesem Lead
+    k = sv.aggregiere_lead(mitglieder, 0)
+    assert k["n"] == 2
+    assert k["mittel"] == 11.0  # (10+12)/2, NICHT (10+12+0)/3
+
+
+def test_aggregiere_lead_ohne_daten_liefert_none_ueberall():
+    k = sv.aggregiere_lead([[None], [None]], 0)
+    assert k == {"mittel": None, "p10": None, "p50": None, "p90": None, "min": None, "max": None, "n": 0}
+
+
+def test_aggregiere_lead_negative_temperaturen_korrekt_sortiert():
+    """Negative Werte muessen numerisch (nicht als Text) sortiert werden --
+    -10 ist kleiner als -2, obwohl "-10" als Text nach "-2" kaeme."""
+    mitglieder = [[-2.0], [-10.0], [-5.0]]
+    k = sv.aggregiere_lead(mitglieder, 0)
+    assert k["min"] == -10.0
+    assert k["max"] == -2.0
+    assert k["mittel"] == pytest.approx(-17.0 / 3, abs=0.01)
+
+
+def test_verarbeite_modell_liefert_temperatur_direkt_pro_tag(monkeypatch):
+    """End-to-End (mit gefakter API-Antwort): Temperatur wird NICHT akkumuliert
+    -- ein hoher Wert an Tag 1 darf sich nicht in Tag 2 fortsetzen (anders als
+    beim Niederschlag)."""
+    heute = dt.date(2026, 9, 17)
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    cfg = dict(sv.MODELLE["gfs"])
+    cfg["horizont"] = 2
+    ziele = ["2026-09-17", "2026-09-18", "2026-09-19"]
+
+    member_werte_regen = [[1.0, 1.0, 1.0] for _ in range(30)]
+    # Temperatur: Kontrolle + 30 Mitglieder, je 3 Zeitschritte (00-09-17..19, jeweils T12:00)
+    temp2m_stunden = {
+        "2026-09-17T12:00": [10.0] + [10.0 + i * 0.1 for i in range(30)],
+        "2026-09-18T12:00": [-3.0] + [-3.0 + i * 0.1 for i in range(30)],  # negativ + unabhaengig von Tag 1
+        "2026-09-19T12:00": [8.0] + [8.0 + i * 0.1 for i in range(30)],
+    }
+    ens_antwort = _ensemble_antwort(ziele, member_werte_regen, [0.5, 0.5, 0.5], temp2m_stunden=temp2m_stunden)
+
+    def hole(url, params=None, roh=False, versuche=4, fehlerliste=None, timeout=90):
+        if cfg["meta_ensemble"] in url:
+            return _meta(init, init + dt.timedelta(hours=6))
+        if cfg["meta_hauptlauf"] in url:
+            return None
+        if "ensemble-api" in url:
+            return ens_antwort
+        return None
+
+    monkeypatch.setattr(sv, "hole", hole)
+    fehler = []
+    lauf, hinweise = sv.verarbeite_modell("gfs", cfg, fehler, heute)
+    assert lauf is not None
+    t2 = lauf["temperatur_2m"]
+    assert t2 is not None
+    assert t2["kontrolllauf"] == [-3.0, 8.0]  # nicht akkumuliert: Lead 1 (09-18, negativ) unabhaengig von Lead 2 (09-19, positiv)
+    assert t2["mittel"][0] < 0  # Lead 1 (negativ) korrekt uebernommen, keine Verunreinigung durch einen "Tag 0"
+    assert t2["n"] == [30, 30]
+    # 850 hPa wurde in dieser Antwort nicht mitgeschickt -> muss None sein, kein Crash
+    assert lauf["temperatur_850hpa"] is None
+    assert any("temperatur_850hpa" in h for h in hinweise)
+
+
+# ---------------------------------------------------------------- main(): erst speichern, wenn vollstaendig
+def test_main_speichert_unvollstaendigen_lauf_nicht(monkeypatch, tmp_path):
+    heute = dt.date(2026, 9, 17)
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    monkeypatch.setattr(sv, "OUT", tmp_path)
+
+    unvollstaendiger_lauf = {
+        "modell": "gfs", "modellname": "GFS", "init": init.strftime("%Y-%m-%dT%H:%MZ"),
+        "mitglieder_n": 5, "vollstaendig": False, "hinweise": ["zu wenige Mitglieder"],
+        "hauptlauf_kumulativ": None, "temperatur_2m": None, "temperatur_850hpa": None,
+        "horizont_tage": 16,
+    }
+    monkeypatch.setattr(sv, "verarbeite_modell", lambda kurz, cfg, fehler, heute: (unvollstaendiger_lauf, ["zu wenige Mitglieder"]))
+    monkeypatch.setattr(sv, "laufinfo", lambda datensatz, fehler: None)  # Vorab-Check findet nichts -> faellt durch zu verarbeite_modell
+
+    import sys as _sys
+    monkeypatch.setattr(_sys, "argv", ["sammeln_vorhersage.py", "--modell", "gfs"])
+    sv.main()
+
+    erwartete_datei = tmp_path / sv.dateiname("gfs", init)
+    assert not erwartete_datei.exists(), "unvollstaendiger Lauf wurde faelschlich gespeichert"
+
+
+def test_main_speichert_vollstaendigen_lauf(monkeypatch, tmp_path):
+    heute = dt.date(2026, 9, 17)
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    monkeypatch.setattr(sv, "OUT", tmp_path)
+
+    vollstaendiger_lauf = {
+        "modell": "gfs", "modellname": "GFS", "init": init.strftime("%Y-%m-%dT%H:%MZ"),
+        "mitglieder_n": 30, "vollstaendig": True, "hinweise": [],
+        "hauptlauf_kumulativ": None, "temperatur_2m": None, "temperatur_850hpa": None,
+        "horizont_tage": 16,
+    }
+    monkeypatch.setattr(sv, "verarbeite_modell", lambda kurz, cfg, fehler, heute: (vollstaendiger_lauf, []))
+    monkeypatch.setattr(sv, "laufinfo", lambda datensatz, fehler: None)
+
+    import sys as _sys
+    monkeypatch.setattr(_sys, "argv", ["sammeln_vorhersage.py", "--modell", "gfs"])
+    sv.main()
+
+    erwartete_datei = tmp_path / sv.dateiname("gfs", init)
+    assert erwartete_datei.exists(), "vollstaendiger Lauf wurde nicht gespeichert"
+
+
+# ---------------------------------------------------------------- Sortierung ueber Tagesgrenzen
+def test_aufraeumen_sortiert_ueber_tagesgrenzen_korrekt(tmp_path, monkeypatch):
+    """dateiname() codiert die volle Initialisierung (JJJJ-MM-TTThh), ein reiner
+    Textvergleich muss deshalb ueber Monats-/Tagesgrenzen hinweg richtig
+    chronologisch sortieren (z.B. ...09-30T18 vor ...10-01T00, nicht danach)."""
+    monkeypatch.setattr(sv, "OUT", tmp_path)
+    monkeypatch.setattr(sv, "AUFBEWAHREN", 2)
+    laeufe = [
+        dt.datetime(2026, 9, 30, 18, tzinfo=dt.timezone.utc),
+        dt.datetime(2026, 10, 1, 0, tzinfo=dt.timezone.utc),
+        dt.datetime(2026, 10, 1, 6, tzinfo=dt.timezone.utc),
+    ]
+    for init in laeufe:
+        (tmp_path / sv.dateiname("gfs", init)).write_text("{}", encoding="utf-8")
+    entfernt = sv.aufraeumen("gfs")
+    # AUFBEWAHREN=2 -> die beiden juengsten (10-01 06Z, 10-01 00Z) bleiben,
+    # der aelteste (09-30 18Z) wird entfernt
+    assert entfernt == [sv.dateiname("gfs", laeufe[0])]
+    verbleibend = sorted(p.name for p in tmp_path.glob("gfs_*.json"))
+    assert verbleibend == sorted([sv.dateiname("gfs", laeufe[1]), sv.dateiname("gfs", laeufe[2])])
+
+
+def test_dateinamen_string_sortierung_entspricht_chronologischer_reihenfolge():
+    """Regressionstest fuer genau das Muster aus Punkt 6 der Aufgabenstellung:
+    GFS-Lauffolge ueber eine Tagesgrenze, rein als String verglichen."""
+    namen = [
+        sv.dateiname("gfs", dt.datetime(2026, 9, 17, 18, tzinfo=dt.timezone.utc)),
+        sv.dateiname("gfs", dt.datetime(2026, 9, 18, 0, tzinfo=dt.timezone.utc)),
+        sv.dateiname("gfs", dt.datetime(2026, 9, 18, 6, tzinfo=dt.timezone.utc)),
+        sv.dateiname("gfs", dt.datetime(2026, 9, 18, 12, tzinfo=dt.timezone.utc)),
+    ]
+    assert sorted(namen) == namen  # aufsteigend sortiert == chronologisch aufsteigend

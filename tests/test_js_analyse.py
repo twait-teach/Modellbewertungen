@@ -296,3 +296,254 @@ def test_kategorie_grenzfaelle_je_fenster():
     assert ergebnis["zwanzig_mm_im_kurzen_fenster"] == "sehr nass"
     assert ergebnis["zwanzig_mm_im_langen_fenster"] == "mäßig nass"
 
+
+
+# ---------------------------------------------------------------- Vorhersage-Seite: drei unabhaengige Bereiche
+def _lauf(init, *, mit_temperatur=True, horizont=3, mitglieder_n=3, temp_offset=0.0):
+    """Baut ein Laufdokument wie sammeln_vorhersage.py es schreibt.
+    mit_temperatur=False erzeugt bewusst einen ALTEN Lauf ohne Temperaturfelder."""
+    ziele = [(dt.date(2026, 2, 1) + dt.timedelta(days=i)).isoformat() for i in range(1, horizont + 1)]
+    d = {
+        "modell": "gfs", "modellname": "GFS", "ensemble_datensatz": "gfs_seamless",
+        "init": init, "verfuegbar_seit": init, "abgerufen": init,
+        "horizont_tage": horizont, "mitglieder_n": mitglieder_n,
+        "leads": list(range(1, horizont + 1)), "ziele": ziele,
+        "kontrolllauf_kumulativ": [1.0, 2.0, 3.0][:horizont],
+        "mitglieder_kumulativ": [[1.0, 2.0, 3.0][:horizont] for _ in range(mitglieder_n)],
+        "hauptlauf_kumulativ": None,
+        "mittel_kumulativ": [1.0, 2.0, 3.0][:horizont],
+        "p10_kumulativ": [0.5, 1.5, 2.5][:horizont],
+        "p50_kumulativ": [1.0, 2.0, 3.0][:horizont],
+        "p90_kumulativ": [1.5, 2.5, 3.5][:horizont],
+        "min_kumulativ": [0.0, 1.0, 2.0][:horizont],
+        "max_kumulativ": [2.0, 3.0, 4.0][:horizont],
+        "n_kumulativ": [mitglieder_n] * horizont,
+        "vollstaendig": True, "hinweise": [],
+    }
+    if mit_temperatur:
+        # bewusst NEGATIVE Werte, um die Achsenskalierung zu pruefen
+        werte = [-5.0 + temp_offset, 0.0 + temp_offset, 4.0 + temp_offset][:horizont]
+        for feld in ("temperatur_2m", "temperatur_850hpa"):
+            d[feld] = {
+                "kontrolllauf": werte,
+                "mitglieder": [[w + i * 0.5 for w in werte] for i in range(mitglieder_n)],
+                "hauptlauf": None,
+                "mittel": werte, "p10": [w - 1 for w in werte], "p50": werte, "p90": [w + 1 for w in werte],
+                "min": [w - 2 for w in werte], "max": [w + 2 for w in werte], "n": [mitglieder_n] * horizont,
+            }
+    else:
+        d["temperatur_2m"] = None
+        d["temperatur_850hpa"] = None
+    return d
+
+
+DATEN_VORHERSAGE = {
+    "messungen": {}, "history": {}, "forecasts": {},
+    "vorhersage": {
+        # absteigend nach voller Initialisierung, ueber eine Tagesgrenze hinweg
+        "gfs": [
+            _lauf("2026-02-02T00:00Z"),
+            _lauf("2026-02-01T18:00Z", temp_offset=1.0),
+            _lauf("2026-02-01T12:00Z", mit_temperatur=False),  # ALTER Lauf ohne Temperaturdaten
+        ],
+        "ecmwf": [],
+    },
+    "gebaut": "2026-09-18T00:00Z",
+}
+
+
+def _seite_vorhersage(name="_test_vorhersage.html", daten=None):
+    return _seite_mit_testdaten(daten or DATEN_VORHERSAGE, name)
+
+
+def test_drei_bereiche_haben_unabhaengige_zustaende():
+    testdatei = _seite_vorhersage("_test_bereiche.html")
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        fehler = []
+        page.on("pageerror", lambda exc: fehler.append(str(exc)))
+        page.goto(f"file://{testdatei}")
+        page.wait_for_timeout(250)
+        assert not fehler, f"JS-Laufzeitfehler: {fehler}"
+
+        ergebnis = page.evaluate("""() => {
+            const t = window.__TEST__;
+            return {
+                bereiche: t.BEREICHE.map(b => b.id),
+                // Zustaende muessen getrennte Objekte sein, nicht dasselbe
+                getrennt: t.ZUSTAND.temp2m !== t.ZUSTAND.niederschlag
+                          && t.ZUSTAND.niederschlag !== t.ZUSTAND.temp850,
+                // je Bereich existieren eigene Bedienelemente
+                eigene_elemente: t.BEREICHE.every(b =>
+                    document.querySelector(`#modellwahl-${b.id}`)
+                    && document.querySelector(`#laufwahl-${b.id}`)
+                    && document.querySelector(`#mitgliederEin-${b.id}`)
+                    && document.querySelector(`#chart-${b.id}`)
+                    && document.querySelector(`#leg-${b.id}`)
+                    && document.querySelector(`#tab-${b.id}`)
+                    && document.querySelector(`#laufinfoZeile-${b.id}`)
+                    && document.querySelector(`#laufwarnung-${b.id}`)),
+            };
+        }""")
+        browser.close()
+    testdatei.unlink()
+    assert ergebnis["bereiche"] == ["temp2m", "niederschlag", "temp850"]  # geforderte Reihenfolge
+    assert ergebnis["getrennt"] is True
+    assert ergebnis["eigene_elemente"] is True
+
+
+def test_laufauswahl_und_mitgliederschalter_wirken_nur_im_eigenen_bereich():
+    testdatei = _seite_vorhersage("_test_bereiche_unabhaengig.html")
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        fehler = []
+        page.on("pageerror", lambda exc: fehler.append(str(exc)))
+        page.goto(f"file://{testdatei}")
+        page.wait_for_timeout(250)
+
+        # im Niederschlagsbereich den zweiten Lauf waehlen, Mitglieder ausschalten
+        page.locator("#laufwahl-niederschlag button").nth(1).click()
+        page.locator("#mitgliederEin-niederschlag").click()
+        page.wait_for_timeout(150)
+
+        z = page.evaluate("""() => {
+            const Z = window.__TEST__.ZUSTAND;
+            return {
+                t2_lauf: Z.temp2m.laufIndex, regen_lauf: Z.niederschlag.laufIndex, t850_lauf: Z.temp850.laufIndex,
+                t2_mit: Z.temp2m.mitglieder, regen_mit: Z.niederschlag.mitglieder, t850_mit: Z.temp850.mitglieder,
+            };
+        }""")
+        browser.close()
+        assert not fehler, f"JS-Laufzeitfehler: {fehler}"
+    testdatei.unlink()
+    assert z["regen_lauf"] == 1 and z["t2_lauf"] == 0 and z["t850_lauf"] == 0
+    assert z["regen_mit"] is False and z["t2_mit"] is True and z["t850_mit"] is True
+
+
+def test_alter_lauf_ohne_temperaturdaten_zeigt_meldung_statt_fehler():
+    testdatei = _seite_vorhersage("_test_alter_lauf.html")
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        fehler = []
+        page.on("pageerror", lambda exc: fehler.append(str(exc)))
+        page.goto(f"file://{testdatei}")
+        page.wait_for_timeout(250)
+
+        # dritter Lauf (Index 2) ist der alte ohne Temperaturdaten
+        page.locator("#laufwahl-temp2m button").nth(2).click()
+        page.wait_for_timeout(200)
+        text = page.locator("#laufwarnung-temp2m").inner_text()
+        # Niederschlag desselben alten Laufs muss weiterhin normal funktionieren
+        page.locator("#laufwahl-niederschlag button").nth(2).click()
+        page.wait_for_timeout(200)
+        regen_hat_pfade = page.evaluate("() => document.querySelectorAll('#chart-niederschlag path').length > 0")
+        browser.close()
+        assert not fehler, f"JS-Laufzeitfehler bei altem Lauf ohne Temperatur: {fehler}"
+    testdatei.unlink()
+    assert "keine Temperaturdaten" in text
+    assert regen_hat_pfade is True, "Niederschlag muss auch bei altem Lauf weiterhin gezeichnet werden"
+
+
+def test_negative_temperaturen_werden_dargestellt():
+    testdatei = _seite_vorhersage("_test_negativ.html")
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        fehler = []
+        page.on("pageerror", lambda exc: fehler.append(str(exc)))
+        page.goto(f"file://{testdatei}")
+        page.wait_for_timeout(250)
+        # Achsenbeschriftungen des 2m-Diagramms einsammeln
+        labels = page.evaluate("""() => Array.from(document.querySelectorAll('#chart-temp2m text.ax'))
+            .map(t => t.textContent).filter(s => /^-?\\d/.test(s.replace(',', '.')))""")
+        pfade = page.evaluate("() => document.querySelectorAll('#chart-temp2m path').length")
+        browser.close()
+        assert not fehler, f"JS-Laufzeitfehler: {fehler}"
+    testdatei.unlink()
+    # Fixture enthaelt Werte bis -7 (min) -> mindestens eine negative Achsenbeschriftung
+    assert any(s.strip().startswith("-") or s.strip().startswith("−") for s in labels), f"keine negative Achse gefunden: {labels}"
+    assert pfade > 0
+
+
+def test_laufbeschriftung_zeigt_datum_und_uhrzeit():
+    testdatei = _seite_vorhersage("_test_labels.html")
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.goto(f"file://{testdatei}")
+        page.wait_for_timeout(250)
+        labels = page.evaluate("() => Array.from(document.querySelectorAll('#laufwahl-temp2m button')).map(b => b.textContent)")
+        via_funktion = page.evaluate("""() => {
+            const t = window.__TEST__;
+            return [
+                t.laufLabel({ init: '2026-02-02T00:00Z' }, 0),
+                t.laufLabel({ init: '2026-02-01T18:00Z' }, 1),
+            ];
+        }""")
+        browser.close()
+    testdatei.unlink()
+    # kein "vorheriger Lauf"/"davorliegender Lauf" mehr, stattdessen echtes Datum
+    assert not any("vorheriger" in s or "davorliegender" in s for s in labels), labels
+    assert via_funktion[0] == "aktuell · 02.02., 00 UTC"
+    assert via_funktion[1] == "01.02., 18 UTC"
+    assert all(("UTC" in s and "." in s) for s in labels), labels
+
+
+def test_laeufe_sind_chronologisch_absteigend_ueber_tagesgrenze():
+    """Die Reihenfolge der Buttons muss der Reihenfolge der Laeufe im Datenpaket
+    entsprechen, und die ist (von bauen.py) streng absteigend nach voller
+    Initialisierung sortiert -- auch ueber eine Tagesgrenze hinweg."""
+    testdatei = _seite_vorhersage("_test_sortierung.html")
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.goto(f"file://{testdatei}")
+        page.wait_for_timeout(250)
+        inits = page.evaluate("() => (window.DATEN ? null : null) || Array.from(document.querySelectorAll('#laufwahl-temp2m button')).map(b => b.textContent)")
+        browser.close()
+    testdatei.unlink()
+    # Fixture: 02.02. 00 UTC, dann 01.02. 18 UTC, dann 01.02. 12 UTC
+    assert "02.02., 00 UTC" in inits[0]
+    assert "01.02., 18 UTC" in inits[1]
+    assert "01.02., 12 UTC" in inits[2]
+
+
+def test_temperatur_wird_nicht_akkumuliert_dargestellt():
+    """datenAusLauf() muss fuer Temperatur die rohen (nicht aufsummierten)
+    Reihen liefern, fuer Niederschlag dagegen die kumulierten Felder."""
+    testdatei = _seite_vorhersage("_test_nicht_akkumuliert.html")
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.goto(f"file://{testdatei}")
+        page.wait_for_timeout(250)
+        ergebnis = page.evaluate("""() => {
+            const t = window.__TEST__;
+            const lauf = {
+                kontrolllauf_kumulativ: [1, 3, 6], mitglieder_kumulativ: [[1, 3, 6]], hauptlauf_kumulativ: null,
+                mittel_kumulativ: [1, 3, 6], p10_kumulativ: [1, 3, 6], p90_kumulativ: [1, 3, 6], n_kumulativ: [1, 1, 1],
+                temperatur_2m: { kontrolllauf: [-5, 0, 4], mitglieder: [[-5, 0, 4]], hauptlauf: null,
+                                 mittel: [-5, 0, 4], p10: [-6, -1, 3], p90: [-4, 1, 5], n: [1, 1, 1] },
+                temperatur_850hpa: null,
+            };
+            const bTemp = t.BEREICHE.find(b => b.id === 'temp2m');
+            const bRegen = t.BEREICHE.find(b => b.id === 'niederschlag');
+            const b850 = t.BEREICHE.find(b => b.id === 'temp850');
+            return {
+                temp: t.datenAusLauf(bTemp, lauf),
+                regen: t.datenAusLauf(bRegen, lauf),
+                fehlend: t.datenAusLauf(b850, lauf),
+                temp_akkumuliert_flag: bTemp.akkumuliert,
+                regen_akkumuliert_flag: bRegen.akkumuliert,
+            };
+        }""")
+        browser.close()
+    testdatei.unlink()
+    assert ergebnis["temp"]["mittel"] == [-5, 0, 4]        # roh, nicht aufsummiert
+    assert ergebnis["regen"]["mittel"] == [1, 3, 6]        # kumulierte Felder
+    assert ergebnis["temp_akkumuliert_flag"] is False
+    assert ergebnis["regen_akkumuliert_flag"] is True
+    assert ergebnis["fehlend"]["verfuegbar"] is False      # fehlendes Feld -> sauber als nicht verfuegbar

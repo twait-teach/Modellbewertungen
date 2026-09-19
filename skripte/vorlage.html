@@ -218,7 +218,37 @@ footer a{color:var(--ink-2)}
   <!-- ======================================================= SEITE: VORHERSAGE ======================================================= -->
   <main id="seite-vorhersage">
 
-    <section id="s-meteogramm">
+    <section id="s-temp2m">
+      <p class="dachzeile">Ensemble-Meteogramm</p>
+      <h2>2-m-Temperatur über den Vorhersagezeitraum</h2>
+      <p class="hinweis">
+        Die bodennahe Lufttemperatur in rund zwei Metern Höhe — die im Alltag gemeinte „Temperatur draußen".
+        Jede dünne Linie ist ein einzelnes Ensemblemitglied zu diesem Zeitpunkt (12 Uhr Ortszeit je Vorhersagetag).
+        Das dunkle Band zeigt das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel. Kontrolllauf und
+        deterministischer Hauptlauf sind gesondert hervorgehoben. Anders als beim Niederschlag wird hier
+        <strong>nicht</strong> aufsummiert — jeder Tag steht für sich.
+      </p>
+
+      <div class="bedienleiste">
+        <div class="schaltergruppe" id="modellwahl-temp2m" role="group" aria-label="Modell"></div>
+        <div class="schaltergruppe" id="laufwahl-temp2m" role="group" aria-label="Modelllauf"></div>
+        <label class="mitgliederschalter">
+          <input type="checkbox" id="mitgliederEin-temp2m" checked>
+          Einzelne Läufe zeigen
+        </label>
+      </div>
+      <div class="laufinfo" id="laufinfoZeile-temp2m"></div>
+      <div id="laufwarnung-temp2m"></div>
+
+      <div class="legende" id="leg-temp2m"></div>
+      <div class="plot gross"><svg id="chart-temp2m" role="img" aria-label="Ensemble-Meteogramm der 2-Meter-Temperatur"></svg></div>
+      <details>
+        <summary>Zahlen als Tabelle</summary>
+        <div class="tabellenhuelle"><table id="tab-temp2m"></table></div>
+      </details>
+    </section>
+
+    <section id="s-niederschlag">
       <p class="dachzeile">Ensemble-Meteogramm</p>
       <h2>Aufsummierter Niederschlag über den Vorhersagezeitraum</h2>
       <p class="hinweis">
@@ -229,21 +259,50 @@ footer a{color:var(--ink-2)}
       </p>
 
       <div class="bedienleiste">
-        <div class="schaltergruppe" id="modellwahl" role="group" aria-label="Modell"></div>
-        <div class="schaltergruppe" id="laufwahl" role="group" aria-label="Modelllauf"></div>
+        <div class="schaltergruppe" id="modellwahl-niederschlag" role="group" aria-label="Modell"></div>
+        <div class="schaltergruppe" id="laufwahl-niederschlag" role="group" aria-label="Modelllauf"></div>
         <label class="mitgliederschalter">
-          <input type="checkbox" id="mitgliederEin" checked>
+          <input type="checkbox" id="mitgliederEin-niederschlag" checked>
           Einzelne Läufe zeigen
         </label>
       </div>
-      <div class="laufinfo" id="laufinfoZeile"></div>
-      <div id="laufwarnung"></div>
+      <div class="laufinfo" id="laufinfoZeile-niederschlag"></div>
+      <div id="laufwarnung-niederschlag"></div>
 
-      <div class="legende" id="leg-meteogramm"></div>
-      <div class="plot gross"><svg id="chart-meteogramm" role="img" aria-label="Ensemble-Meteogramm der Niederschlagssumme"></svg></div>
+      <div class="legende" id="leg-niederschlag"></div>
+      <div class="plot gross"><svg id="chart-niederschlag" role="img" aria-label="Ensemble-Meteogramm der Niederschlagssumme"></svg></div>
       <details>
         <summary>Zahlen als Tabelle</summary>
-        <div class="tabellenhuelle"><table id="tab-meteogramm"></table></div>
+        <div class="tabellenhuelle"><table id="tab-niederschlag"></table></div>
+      </details>
+    </section>
+
+    <section id="s-temp850">
+      <p class="dachzeile">Ensemble-Meteogramm</p>
+      <h2>850-hPa-Temperatur über den Vorhersagezeitraum</h2>
+      <p class="hinweis">
+        Die Temperatur der freien Atmosphäre in rund 1.500 Metern Höhe — gut geeignet, um die
+        großräumige Luftmasse einzuschätzen (mild/warm oder kalt), aber <strong>nicht identisch</strong>
+        mit der Temperatur am Boden. Darstellung wie bei der 2-m-Temperatur: Wert um 12 Uhr Ortszeit je
+        Vorhersagetag, nicht aufsummiert.
+      </p>
+
+      <div class="bedienleiste">
+        <div class="schaltergruppe" id="modellwahl-temp850" role="group" aria-label="Modell"></div>
+        <div class="schaltergruppe" id="laufwahl-temp850" role="group" aria-label="Modelllauf"></div>
+        <label class="mitgliederschalter">
+          <input type="checkbox" id="mitgliederEin-temp850" checked>
+          Einzelne Läufe zeigen
+        </label>
+      </div>
+      <div class="laufinfo" id="laufinfoZeile-temp850"></div>
+      <div id="laufwarnung-temp850"></div>
+
+      <div class="legende" id="leg-temp850"></div>
+      <div class="plot gross"><svg id="chart-temp850" role="img" aria-label="Ensemble-Meteogramm der 850-hPa-Temperatur"></svg></div>
+      <details>
+        <summary>Zahlen als Tabelle</summary>
+        <div class="tabellenhuelle"><table id="tab-temp850"></table></div>
       </details>
     </section>
 
@@ -473,7 +532,20 @@ const bias = p => p.length ? p.reduce((s, x) => s + (x.vor - x.ist), 0) / p.leng
 /* ======================================================================
    SEITE „VORHERSAGE" — Ensemble-Meteogramm
    ====================================================================== */
-const ZUSTAND = { modell: "ecmwf", laufIndex: 0, mitglieder: true };
+// Ein Bereich je Diagramm, in Anzeige-Reihenfolge. "feld" verweist auf das
+// (bei aelteren Laeufen ggf. fehlende) Unterobjekt im Laufdokument; bei
+// Niederschlag liegen die Felder direkt auf dem Laufobjekt (historisch
+// gewachsen), deshalb feld:null als Sonderfall in datenAusLauf().
+const BEREICHE = [
+  { id: "temp2m", einheit: "°C", akkumuliert: false, nullbasiert: false, feld: "temperatur_2m", bezeichnung: "2-m-Temperatur" },
+  { id: "niederschlag", einheit: "mm", akkumuliert: true, nullbasiert: true, feld: null, bezeichnung: "Niederschlag" },
+  { id: "temp850", einheit: "°C", akkumuliert: false, nullbasiert: false, feld: "temperatur_850hpa", bezeichnung: "850-hPa-Temperatur" },
+];
+
+// Eigener, unabhaengiger Auswahlzustand je Bereich -- Modell, Laufindex und
+// Mitgliederschalter duerfen sich zwischen den drei Diagrammen unterscheiden.
+const ZUSTAND = {};
+BEREICHE.forEach(b => { ZUSTAND[b.id] = { modell: "ecmwf", laufIndex: 0, mitglieder: true }; });
 
 function laeufeFuer(modell) { return DATEN.vorhersage?.[modell] || []; }
 
@@ -484,101 +556,149 @@ function modellMitVerfuegbaremLauf() {
   return "ecmwf";
 }
 
-function modellwahlZeichnen() {
-  const ziel = $("#modellwahl");
+/** Normiert die Rohdaten eines Laufs auf ein einheitliches Format, unabhaengig
+ * davon, ob es sich um Niederschlag (Felder direkt auf lauf) oder Temperatur
+ * (verschachtelt unter lauf.temperatur_2m / lauf.temperatur_850hpa, bei
+ * aelteren Laeufen ggf. gar nicht vorhanden) handelt. */
+function datenAusLauf(bereich, lauf) {
+  if (!bereich.feld) {
+    return {
+      verfuegbar: true,
+      kontrolllauf: lauf.kontrolllauf_kumulativ, mitglieder: lauf.mitglieder_kumulativ, hauptlauf: lauf.hauptlauf_kumulativ,
+      mittel: lauf.mittel_kumulativ, p10: lauf.p10_kumulativ, p90: lauf.p90_kumulativ, n: lauf.n_kumulativ,
+    };
+  }
+  const t = lauf[bereich.feld];
+  if (!t) return { verfuegbar: false };
+  return { verfuegbar: true, kontrolllauf: t.kontrolllauf, mitglieder: t.mitglieder, hauptlauf: t.hauptlauf,
+           mittel: t.mittel, p10: t.p10, p90: t.p90, n: t.n };
+}
+
+/** Beschriftung eines Laufwahl-Buttons: immer das tatsaechliche Datum und die
+ * Uhrzeit, nicht mehr die missverstaendlichen "vorheriger/davorliegender
+ * Lauf" -- diese Bezeichnungen sagen nichts darueber, WANN ein Lauf war, und
+ * bei Luecken in der Historie waere die Reihenfolge sonst irreführend. */
+function laufLabel(lauf, i) {
+  const tagMonat = lauf.init.slice(8, 10) + "." + lauf.init.slice(5, 7) + ".";
+  const stunde = lauf.init.slice(11, 13);
+  return (i === 0 ? "aktuell · " : "") + `${tagMonat}, ${stunde} UTC`;
+}
+
+function modellwahlZeichnen(bereich) {
+  const z = ZUSTAND[bereich.id];
+  const ziel = $(`#modellwahl-${bereich.id}`);
   ziel.innerHTML = "";
   MODELLE.forEach(m => {
     const anzahl = laeufeFuer(m.id).length;
     const btn = document.createElement("button");
     btn.type = "button";
     btn.textContent = m.name;
-    btn.setAttribute("aria-pressed", String(ZUSTAND.modell === m.id));
+    btn.setAttribute("aria-pressed", String(z.modell === m.id));
     btn.disabled = anzahl === 0;
     btn.title = anzahl ? `${anzahl} gespeicherte(r) Lauf/Läufe` : "keine Daten gespeichert";
-    btn.addEventListener("click", () => { ZUSTAND.modell = m.id; ZUSTAND.laufIndex = 0; meteogrammNeuZeichnen(); });
+    btn.addEventListener("click", () => { z.modell = m.id; z.laufIndex = 0; bereichNeuZeichnen(bereich); });
     ziel.appendChild(btn);
   });
 }
 
-function laufwahlZeichnen() {
-  const laeufe = laeufeFuer(ZUSTAND.modell);
-  const ziel = $("#laufwahl");
+function laufwahlZeichnen(bereich) {
+  const z = ZUSTAND[bereich.id];
+  const laeufe = laeufeFuer(z.modell);
+  const ziel = $(`#laufwahl-${bereich.id}`);
   ziel.innerHTML = "";
-  const bezeichnung = ["aktuell", "vorheriger Lauf", "davorliegender Lauf"];
   laeufe.slice(0, Math.max(3, Math.min(laeufe.length, 6))).forEach((lauf, i) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    const init = new Date(lauf.init.replace("Z", "").replace("T", "T") + ":00Z");
-    const stunde = lauf.init.slice(11, 13);
-    btn.textContent = (bezeichnung[i] || `Lauf −${i}`) + ` (${stunde} UTC)`;
-    btn.setAttribute("aria-pressed", String(ZUSTAND.laufIndex === i));
-    btn.addEventListener("click", () => { ZUSTAND.laufIndex = i; meteogrammNeuZeichnen(); });
+    btn.textContent = laufLabel(lauf, i);
+    btn.setAttribute("aria-pressed", String(z.laufIndex === i));
+    btn.addEventListener("click", () => { z.laufIndex = i; zeichneBereich(bereich); });
     ziel.appendChild(btn);
   });
 }
 
-function aktuellerLauf() {
-  const laeufe = laeufeFuer(ZUSTAND.modell);
-  return laeufe[ZUSTAND.laufIndex] || laeufe[0] || null;
+function aktuellerLauf(bereich) {
+  const z = ZUSTAND[bereich.id];
+  const laeufe = laeufeFuer(z.modell);
+  return laeufe[z.laufIndex] || laeufe[0] || null;
 }
 
-function meteogrammZeichnen() {
-  const modellInfo = MODELLE.find(m => m.id === ZUSTAND.modell);
-  const lauf = aktuellerLauf();
-  const svg = $("#chart-meteogramm");
-  const warnzeile = $("#laufwarnung");
+function zeichneBereich(bereich) {
+  const z = ZUSTAND[bereich.id];
+  const modellInfo = MODELLE.find(m => m.id === z.modell);
+  const lauf = aktuellerLauf(bereich);
+  const svg = $(`#chart-${bereich.id}`);
+  const warnzeile = $(`#laufwarnung-${bereich.id}`);
   warnzeile.innerHTML = "";
 
   if (!lauf) {
     svg.innerHTML = "";
-    $("#laufinfoZeile").textContent = "Für dieses Modell liegt noch kein gespeicherter Lauf vor.";
-    $("#leg-meteogramm").innerHTML = "";
-    $("#tab-meteogramm").innerHTML = "";
+    $(`#laufinfoZeile-${bereich.id}`).textContent = "Für dieses Modell liegt noch kein gespeicherter Lauf vor.";
+    $(`#leg-${bereich.id}`).innerHTML = "";
+    $(`#tab-${bereich.id}`).innerHTML = "";
     return;
   }
 
   const initDatum = lauf.init.slice(0, 10).split("-").reverse().join(".");
-  $("#laufinfoZeile").innerHTML =
+  $(`#laufinfoZeile-${bereich.id}`).innerHTML =
     `<b>${modellInfo.name}, Lauf vom ${initDatum}, ${lauf.init.slice(11, 13)} UTC</b> · `
     + `${lauf.mitglieder_n} Ensemblemitglieder · Horizont ${lauf.horizont_tage} Tage · `
     + `verfügbar seit ${lauf.verfuegbar_seit.slice(11, 16)} UTC · abgerufen ${lauf.abgerufen.slice(0, 16).replace("T", " ")} UTC`;
-  $("#standDatum").textContent = "Lauf vom " + initDatum.slice(0, 6) + initDatum.slice(6);
+  if (bereich.id === "niederschlag") $("#standDatum").textContent = "Lauf vom " + initDatum;
 
-  if (!lauf.vollstaendig || (lauf.hinweise && lauf.hinweise.length)) {
-    const teile = [];
-    if (!lauf.vollstaendig) teile.push("Daten werden noch vervollständigt — dieser Lauf ist noch nicht vollständig eingetroffen.");
-    (lauf.hinweise || []).forEach(h => teile.push(h));
-    warnzeile.innerHTML = `<div class="warnzeile">${teile.join(" · ")}</div>`;
+  const daten = datenAusLauf(bereich, lauf);
+  if (!daten.verfuegbar) {
+    // Aeltere Laufdatei ohne Temperaturdaten: verstaendliche Meldung statt
+    // eines JS-Fehlers oder eines irrefuehrend leeren Diagramms.
+    svg.innerHTML = "";
+    $(`#leg-${bereich.id}`).innerHTML = "";
+    $(`#tab-${bereich.id}`).innerHTML = "";
+    warnzeile.innerHTML = `<div class="warnzeile">Für diesen älteren Lauf sind noch keine Temperaturdaten gespeichert.</div>`;
+    return;
   }
+
+  const meldungen = [];
+  if (!lauf.vollstaendig) meldungen.push("Daten werden noch vervollständigt — dieser Lauf ist noch nicht vollständig eingetroffen.");
+  (lauf.hinweise || []).forEach(h => meldungen.push(h));
+  if (meldungen.length) warnzeile.innerHTML = `<div class="warnzeile">${meldungen.join(" · ")}</div>`;
 
   const horizont = lauf.horizont_tage;
   const W = 900, H = 340, L = 46, R = 18, O = 20, U = 40;
   const iw = W - L - R, ih = H - O - U;
 
-  const alleWerte = [
-    ...lauf.mitglieder_kumulativ.flat(),
-    ...(lauf.hauptlauf_kumulativ || []),
-    ...lauf.p90_kumulativ,
-  ].filter(v => v != null);
-  const maxWert = Math.max(5, ...alleWerte);
-  const obergrenze = Math.ceil(maxWert / 5) * 5;
+  const alleWerte = [...daten.mitglieder.flat(), ...(daten.hauptlauf || []), ...daten.p90, ...daten.p10].filter(v => v != null);
+  let unten0, oben0;
+  if (bereich.nullbasiert) {
+    unten0 = 0;
+    oben0 = Math.ceil(Math.max(5, ...alleWerte) / 5) * 5;
+  } else {
+    // Temperatur: kein Null-Ursprung -- negative Werte muessen korrekt Platz
+    // finden. Skalierung mit etwas Rand ober- und unterhalb der Extremwerte.
+    const minWert = alleWerte.length ? Math.min(...alleWerte) : 0;
+    const maxWert = alleWerte.length ? Math.max(...alleWerte) : 1;
+    const puffer = Math.max(1, (maxWert - minWert) * 0.12);
+    unten0 = Math.floor((minWert - puffer) / 2) * 2;
+    oben0 = Math.ceil((maxWert + puffer) / 2) * 2;
+    if (oben0 === unten0) oben0 += 2;
+  }
   const x = lead => L + ((lead - 1) / Math.max(1, horizont - 1)) * iw;
-  const y = v => O + ih - (v / obergrenze) * ih;
+  const y = v => O + ih - ((v - unten0) / (oben0 - unten0)) * ih;
 
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = "";
 
-  for (let t = 0; t <= obergrenze; t += obergrenze / 5) {
+  const schritte = 5;
+  for (let i = 0; i <= schritte; i++) {
+    const t = unten0 + (oben0 - unten0) * i / schritte;
     svg.appendChild(el("line", { x1: L, y1: y(t), x2: W - R, y2: y(t), class: "gitter" }));
-    svg.appendChild(el("text", { x: L - 8, y: y(t) + 3.5, "text-anchor": "end", class: "ax" }, nf(t, 0)));
+    svg.appendChild(el("text", { x: L - 8, y: y(t) + 3.5, "text-anchor": "end", class: "ax" }, nf(t, bereich.nullbasiert ? 0 : 1)));
   }
-  svg.appendChild(el("text", { x: L - 8, y: O - 7, "text-anchor": "end", class: "axl" }, "mm"));
+  svg.appendChild(el("text", { x: L - 8, y: O - 7, "text-anchor": "end", class: "axl" }, bereich.einheit));
 
   const pfad = werte => werte.map((v, i) => v == null ? null : (i ? "L" : "M") + x(i + 1) + " " + y(v))
     .filter(Boolean).join(" ");
 
   // Unsicherheitsband 10.-90. Perzentil
-  const oben = lauf.p90_kumulativ, unten = lauf.p10_kumulativ;
+  const oben = daten.p90, unten = daten.p10;
   const bandPunkte = [];
   oben.forEach((v, i) => { if (v != null) bandPunkte.push([x(i + 1), y(v)]); });
   for (let i = unten.length - 1; i >= 0; i--) { if (unten[i] != null) bandPunkte.push([x(i + 1), y(unten[i])]); }
@@ -588,31 +708,38 @@ function meteogrammZeichnen() {
   }
 
   // Einzelne Ensemblemitglieder: duenne, transparente Linien
-  if (ZUSTAND.mitglieder) {
-    lauf.mitglieder_kumulativ.forEach(serie => {
+  if (z.mitglieder) {
+    daten.mitglieder.forEach(serie => {
       const d = pfad(serie);
       if (d) svg.appendChild(el("path", { d, fill: "none", stroke: modellInfo.farbe, "stroke-width": .8, opacity: .22, "stroke-linejoin": "round" }));
     });
   }
 
   // Ensemble-Mittel
-  const dMittel = pfad(lauf.mittel_kumulativ);
+  const dMittel = pfad(daten.mittel);
   if (dMittel) svg.appendChild(el("path", { d: dMittel, fill: "none", stroke: modellInfo.farbe, "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round" }));
 
   // Kontrolllauf
-  const dKontrolle = pfad(lauf.kontrolllauf_kumulativ);
+  const dKontrolle = pfad(daten.kontrolllauf);
   if (dKontrolle) svg.appendChild(el("path", { d: dKontrolle, fill: "none", stroke: "var(--mess)", "stroke-width": 2, "stroke-dasharray": "1 4", "stroke-linecap": "round" }));
 
-  // Deterministischer Hauptlauf
-  if (lauf.hauptlauf_kumulativ) {
-    const dHl = pfad(lauf.hauptlauf_kumulativ);
+  // Deterministischer Hauptlauf -- nur eingebettet, wenn seine Initialisierung
+  // exakt zum Ensemblelauf passt (das stellt schon sammeln_vorhersage.py sicher;
+  // hier gilt nur noch: vorhanden -> zeichnen, sonst nicht).
+  if (daten.hauptlauf) {
+    const dHl = pfad(daten.hauptlauf);
     if (dHl) svg.appendChild(el("path", { d: dHl, fill: "none", stroke: modellInfo.farbe, "stroke-width": 2, "stroke-dasharray": "7 3.5", "stroke-linecap": "round" }));
   }
 
-  svg.appendChild(el("line", { x1: L, y1: y(0), x2: W - R, y2: y(0), class: "achse" }));
+  // Nulllinie: bei Niederschlag immer die Achse; bei Temperatur nur, wenn 0°C
+  // tatsaechlich im dargestellten Bereich liegt (sonst irrelevant/verwirrend).
+  if (bereich.nullbasiert || (unten0 < 0 && oben0 > 0)) {
+    svg.appendChild(el("line", { x1: L, y1: y(0), x2: W - R, y2: y(0), class: bereich.nullbasiert ? "achse" : undefined, stroke: bereich.nullbasiert ? undefined : "var(--ink-3)", "stroke-width": bereich.nullbasiert ? undefined : 1.3 }));
+  }
 
   // x-Achse + Tooltip-Spalten
   const bw = iw / horizont;
+  const zeiteinheit = bereich.akkumuliert ? "aufsummiert seit Laufbeginn" : "12 Uhr Ortszeit, nicht aufsummiert";
   for (let lead = 1; lead <= horizont; lead++) {
     const ziel = lauf.ziele[lead - 1];
     if (lead % Math.ceil(horizont / 10) === 0 || lead === 1 || lead === horizont) {
@@ -620,39 +747,41 @@ function meteogrammZeichnen() {
       svg.appendChild(el("text", { x: x(lead), y: H - U + 29, "text-anchor": "middle", class: "ax" }, "+" + lead));
     }
     const werte = [
-      `Ensemble-Mittel: ${nf(lauf.mittel_kumulativ[lead - 1])} mm`,
-      `Band 10–90 %: ${nf(lauf.p10_kumulativ[lead - 1])}–${nf(lauf.p90_kumulativ[lead - 1])} mm`,
-      `Kontrolllauf: ${nf(lauf.kontrolllauf_kumulativ[lead - 1])} mm`,
-      lauf.hauptlauf_kumulativ ? `Hauptlauf: ${nf(lauf.hauptlauf_kumulativ[lead - 1])} mm` : null,
-      `Mitglieder mit Daten: ${lauf.n_kumulativ[lead - 1]}/${lauf.mitglieder_n}`,
+      `Ensemble-Mittel: ${nf(daten.mittel[lead - 1], bereich.nullbasiert ? 1 : 1)} ${bereich.einheit}`,
+      `Band 10–90 %: ${nf(daten.p10[lead - 1])}–${nf(daten.p90[lead - 1])} ${bereich.einheit}`,
+      `Kontrolllauf: ${nf(daten.kontrolllauf[lead - 1])} ${bereich.einheit}`,
+      daten.hauptlauf ? `Hauptlauf: ${nf(daten.hauptlauf[lead - 1])} ${bereich.einheit}` : null,
+      `Mitglieder mit Daten: ${daten.n[lead - 1]}/${lauf.mitglieder_n}`,
     ].filter(Boolean);
-    treffer(svg, x(lead) - bw / 2, O, bw, ih, `${datumLang(ziel)} (+${lead} Tage, aufsummiert seit Laufbeginn)\n` + werte.join("\n"));
+    treffer(svg, x(lead) - bw / 2, O, bw, ih, `${datumLang(ziel)} (+${lead} Tage, ${zeiteinheit})\n` + werte.join("\n"));
   }
-  svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" }, "Vorhersagetag (aufsummiert seit Initialisierung)"));
+  svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" }, bereich.akkumuliert ? "Vorhersagetag (aufsummiert seit Initialisierung)" : "Vorhersagetag (Wert um 12 Uhr Ortszeit)"));
 
-  legende("#leg-meteogramm", [
+  legende(`#leg-${bereich.id}`, [
     { mark: markLinie(modellInfo.farbe, false, 3), text: modellInfo.name + " Ensemble-Mittel" },
     { mark: markFlaeche(modellInfo.farbe, .18), text: "10.–90. Perzentil" },
     { mark: markLinie("var(--mess)", true), text: "Kontrolllauf" },
-    ...(lauf.hauptlauf_kumulativ ? [{ mark: markLinie(modellInfo.farbe, true), text: "Deterministischer Hauptlauf" }] : []),
-    ...(ZUSTAND.mitglieder ? [{ mark: markLinie(modellInfo.farbe, false, .8), text: "Einzelne Ensemblemitglieder" }] : []),
+    ...(daten.hauptlauf ? [{ mark: markLinie(modellInfo.farbe, true), text: "Deterministischer Hauptlauf" }] : []),
+    ...(z.mitglieder ? [{ mark: markLinie(modellInfo.farbe, false, .8), text: "Einzelne Ensemblemitglieder" }] : []),
   ]);
 
-  $("#tab-meteogramm").innerHTML =
+  $(`#tab-${bereich.id}`).innerHTML =
     `<thead><tr><th>Tag</th><th>Vorlauf</th><th>Mittel</th><th>Band 10–90</th><th>Kontrolllauf</th><th>Hauptlauf</th></tr></thead><tbody>` +
     lauf.ziele.map((ziel, i) => `<tr><td>${datumKurz(ziel)}</td><td>+${i + 1}</td>
-      <td>${nf(lauf.mittel_kumulativ[i])}</td><td>${nf(lauf.p10_kumulativ[i])}–${nf(lauf.p90_kumulativ[i])}</td>
-      <td>${nf(lauf.kontrolllauf_kumulativ[i])}</td><td>${lauf.hauptlauf_kumulativ ? nf(lauf.hauptlauf_kumulativ[i]) : "–"}</td></tr>`).join("")
+      <td>${nf(daten.mittel[i])}</td><td>${nf(daten.p10[i])}–${nf(daten.p90[i])}</td>
+      <td>${nf(daten.kontrolllauf[i])}</td><td>${daten.hauptlauf ? nf(daten.hauptlauf[i]) : "–"}</td></tr>`).join("")
     + `</tbody>`;
 }
 
-function meteogrammNeuZeichnen() {
-  modellwahlZeichnen();
-  laufwahlZeichnen();
-  meteogrammZeichnen();
+function bereichNeuZeichnen(bereich) {
+  modellwahlZeichnen(bereich);
+  laufwahlZeichnen(bereich);
+  zeichneBereich(bereich);
 }
 
-$("#mitgliederEin").addEventListener("change", e => { ZUSTAND.mitglieder = e.target.checked; meteogrammZeichnen(); });
+BEREICHE.forEach(bereich => {
+  $(`#mitgliederEin-${bereich.id}`).addEventListener("change", e => { ZUSTAND[bereich.id].mitglieder = e.target.checked; zeichneBereich(bereich); });
+});
 
 /* ======================================================================
    SEITE „ANALYSE", TEIL A — Tagesgenaue Vorhersagegüte (Tag 1–5)
@@ -1094,16 +1223,16 @@ function analyseZeichnen() {
     + `Vorhersageläufe: ${Object.keys(laeufe()).length} Tage erfasst, Hauptlauf-Historie ECMWF ${Object.keys(hist("ecmwf")).length} / GFS ${Object.keys(hist("gfs")).length} Tage`;
 }
 
-ZUSTAND.modell = modellMitVerfuegbaremLauf();
+BEREICHE.forEach(bereich => { ZUSTAND[bereich.id].modell = modellMitVerfuegbaremLauf(); });
 seiteAnzeigen();
-meteogrammNeuZeichnen();
+BEREICHE.forEach(bereich => bereichNeuZeichnen(bereich));
 analyseZeichnen();
 addEventListener("resize", () => { tipAus(); });
 /* Reine statische Seite: alle Daten sind oben eingebettet, kein Nachladen nötig. */
 
 /* Test-Hook: reine Berechnungsfunktionen fuer automatisierte Tests freigeben.
    Aendert kein Verhalten der Seite selbst, wird von keiner UI-Funktion gelesen. */
-window.__TEST__ = { paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer };
+window.__TEST__ = { paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, laufLabel };
 
 
 </script>
