@@ -730,8 +730,8 @@
   30,
   30
  ],
- "vollstaendig":true,
- "hinweise":[
-  "deterministischer Lauf ist 18.09. 06Z, passt nicht zum Ensemble-Lauf 18.09. 12Z -- nicht eingebettet"
- ]
+ "vollstaendig":false,
+ "hinweise":[],
+ "ensemble_vollstaendig":false,
+ "hauptlauf_vollstaendig":false
 }

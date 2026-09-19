@@ -1049,5 +1049,7 @@
  "vollstaendig":false,
  "hinweise":[
   "Horizont unvollstaendig: bei 50/50 Mitgliedern bricht die Reihe vor Tag 15 ab"
- ]
+ ],
+ "ensemble_vollstaendig":false,
+ "hauptlauf_vollstaendig":false
 }

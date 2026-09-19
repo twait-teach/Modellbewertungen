@@ -32491,6 +32491,8 @@
    30
   ]
  },
- "vollstaendig":true,
- "hinweise":[]
+ "vollstaendig":false,
+ "hinweise":[],
+ "ensemble_vollstaendig":false,
+ "hauptlauf_vollstaendig":false
 }
