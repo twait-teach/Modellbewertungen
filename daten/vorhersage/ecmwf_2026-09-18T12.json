@@ -3,8 +3,8 @@
  "modellname":"ECMWF-IFS",
  "ensemble_datensatz":"ecmwf_ifs025",
  "init":"2026-09-18T12:00Z",
- "verfuegbar_seit":"2026-09-18T22:49Z",
- "abgerufen":"2026-09-18T23:25Z",
+ "verfuegbar_seit":"2026-09-18T22:30Z",
+ "abgerufen":"2026-09-19T00:32Z",
  "horizont_tage":15,
  "mitglieder_n":50,
  "leads":[
