@@ -19,8 +19,11 @@ Bereiche:
   Rückblick, Ensemble-Spannweite, und ein Witterungs-/Summenvergleich über die Zeitfenster Tag 1–3,
   4–7 und 8–14 gegen die tatsächlich gemessenen Tagessummen der DWD-Station.
 
-Die Seite läuft ohne Server und ohne Datenbank: `docs/index.html` ist eine einzige Datei mit allen
-Daten darin.
+Die Seite läuft ohne eigenen Server und ohne Datenbank. `docs/index.html` ist ein sehr kleiner
+Loader, der bei jedem Aufruf die eigentliche Oberfläche aus `docs/app.html` und die aktuellen
+Wetterdaten aus `docs/daten.js` mit einem Cache-Buster lädt. Dadurch zeigt auch die normale
+Pages-Adresse zuverlässig den aktuellen Stand, ohne dass veraltete Wetterdaten aus dem
+Browser-Cache verwendet werden.
 
 ---
 
@@ -114,7 +117,9 @@ daten/                       der Datenbestand, in git versioniert
   vorhersage/                   Ensemble-Meteogrammdaten, ein Dokument je erkanntem Modelllauf
     gfs_JJJJ-MM-TTThh.json         (nur die letzten 12 Läufe je Modell, siehe oben)
     ecmwf_JJJJ-MM-TTThh.json
-docs/index.html               die fertige Seite — wird gebaut, nicht von Hand geändert
+docs/index.html               kleiner, dauerhaft stabiler Loader für die normale Pages-Adresse
+docs/app.html                 Oberfläche und Auswertungslogik — wird gebaut
+docs/daten.js                 aktuelle Wetterdaten — wird bei Datenänderungen neu gebaut
 skripte/
   gemeinsam.py                 geteilte Hilfsfunktionen: Abruf mit Wiederholung, atomares
                                  Schreiben, Perzentil
@@ -137,11 +142,17 @@ python3 -m pytest tests/ -q --ignore=tests/test_js_analyse.py   # Selbsttests oh
 python3 skripte/sammeln.py --alles              # tagesgenaue Daten + Messwerte
 python3 skripte/sammeln_vorhersage.py --modell beide  # Ensemble-Meteogrammdaten
 python3 skripte/historie.py                     # Vorgeschichte der Hauptläufe
-python3 skripte/bauen.py                        # docs/index.html neu bauen
+python3 skripte/bauen.py                        # docs/index.html, app.html und daten.js neu bauen
 ```
 
-Änderungen am Aussehen gehören in `skripte/vorlage.html`; `docs/index.html` wird bei jedem Lauf
-überschrieben.
+Änderungen am Aussehen gehören in `skripte/vorlage.html`; die Dateien unter `docs/` werden vom
+Bau-Skript erzeugt und nicht von Hand geändert. Bei reinen Datenaktualisierungen ändert sich nur
+`docs/daten.js`. Das vermeidet Konflikte zwischen automatisch aktualisierten Daten und manuellen
+Änderungen an der Oberfläche.
+
+Die beiden Temperaturdiagramme verwenden je Bereich und ausgewähltem Laufindex dieselbe
+dynamische Y-Achse für GFS und ECMWF. Sie umfasst die Extremwerte beider Modelle mit zusätzlichem
+Rand; die ganzzahligen Teilstriche liegen je nach Spannweite 1, 2 oder höchstens 5 °C auseinander.
 
 ---
 

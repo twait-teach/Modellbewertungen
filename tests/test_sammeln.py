@@ -219,3 +219,37 @@ def test_bauen_zeigt_ensemble_slot_auch_ohne_hauptlauf():
     assert meteogrammlauf_anzeigbar(lauf("gfs", [1.0], [0.8])) is True
     # ECMWF benoetigt keinen separaten Kontrolllauf.
     assert meteogrammlauf_anzeigbar(lauf("ecmwf", [1.0], None)) is True
+
+
+def test_bauen_trennt_statische_seite_von_wechselnden_daten(tmp_path, monkeypatch):
+    import bauen
+
+    daten = tmp_path / "daten"
+    docs = tmp_path / "docs"
+    daten.mkdir()
+    vorlage = tmp_path / "vorlage.html"
+    vorlage.write_text(bauen.VORLAGE.read_text(encoding="utf-8"), encoding="utf-8")
+    forecast = daten / "forecasts_2026-09-19.json"
+    forecast.write_text(json.dumps({"lauf": "2026-09-19", "wert": 1}), encoding="utf-8")
+
+    monkeypatch.setattr(bauen, "DATEN", daten)
+    monkeypatch.setattr(bauen, "VORLAGE", vorlage)
+    monkeypatch.setattr(bauen, "START_ZIEL", docs / "index.html")
+    monkeypatch.setattr(bauen, "ZIEL", docs / "app.html")
+    monkeypatch.setattr(bauen, "DATEN_ZIEL", docs / "daten.js")
+
+    bauen.main()
+    loader_vorher = (docs / "index.html").read_text(encoding="utf-8")
+    app_vorher = (docs / "app.html").read_text(encoding="utf-8")
+    daten_vorher = (docs / "daten.js").read_text(encoding="utf-8")
+    assert "app.html?v=" in loader_vorher
+    assert 'src="daten.js?v=' in app_vorher
+    assert '"wert":1' in daten_vorher
+    assert '"wert":1' not in loader_vorher
+    assert '"wert":1' not in app_vorher
+
+    forecast.write_text(json.dumps({"lauf": "2026-09-19", "wert": 2}), encoding="utf-8")
+    bauen.main()
+    assert (docs / "index.html").read_text(encoding="utf-8") == loader_vorher
+    assert (docs / "app.html").read_text(encoding="utf-8") == app_vorher
+    assert (docs / "daten.js").read_text(encoding="utf-8") != daten_vorher
