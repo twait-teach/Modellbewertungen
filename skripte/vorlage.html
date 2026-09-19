@@ -96,18 +96,19 @@ section > h2{
 .schaltergruppe button[aria-pressed="true"]{background:var(--ink); color:var(--panel)}
 .schaltergruppe button:disabled{opacity:.35; cursor:default}
 .schaltergruppe button:disabled:hover{background:transparent; color:var(--ink-2)}
-.laufinfo{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; color:var(--ink-2)}
+.laufinfo{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; color:var(--ink-2); min-height:34px}
 .laufinfo b{color:var(--ink); font-weight:500}
 .mitgliederschalter{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-2); margin-left:auto}
 .mitgliederschalter input{accent-color:var(--ink)}
 .warnzeile{
   font-size:12.5px; color:var(--warn); background:color-mix(in srgb,var(--warn) 10%,transparent);
   border:1px solid color-mix(in srgb,var(--warn) 35%,transparent); border-radius:3px;
-  padding:8px 12px; margin-bottom:14px;
+  padding:8px 12px; width:100%; box-sizing:border-box;
 }
+.laufstatus{height:48px; margin-bottom:14px; overflow:auto}
 
 /* ---------- Legende ---------- */
-.legende{display:flex; flex-wrap:wrap; gap:8px 20px; margin:0 0 14px; align-items:center}
+.legende{display:flex; flex-wrap:wrap; gap:8px 20px; margin:0 0 14px; align-items:center; min-height:20px}
 .leg{display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-2)}
 .leg svg{display:block; flex:none}
 
@@ -239,7 +240,7 @@ footer a{color:var(--ink-2)}
         </label>
       </div>
       <div class="laufinfo" id="laufinfoZeile-temp2m"></div>
-      <div id="laufwarnung-temp2m"></div>
+      <div class="laufstatus" id="laufwarnung-temp2m"></div>
 
       <div class="legende" id="leg-temp2m"></div>
       <div class="plot gross"><svg id="chart-temp2m" role="img" aria-label="Ensemble-Meteogramm der 2-Meter-Temperatur"></svg></div>
@@ -270,7 +271,7 @@ footer a{color:var(--ink-2)}
         </label>
       </div>
       <div class="laufinfo" id="laufinfoZeile-niederschlag"></div>
-      <div id="laufwarnung-niederschlag"></div>
+      <div class="laufstatus" id="laufwarnung-niederschlag"></div>
 
       <div class="legende" id="leg-niederschlag"></div>
       <div class="plot gross"><svg id="chart-niederschlag" role="img" aria-label="Ensemble-Meteogramm der Niederschlagssumme"></svg></div>
@@ -299,7 +300,7 @@ footer a{color:var(--ink-2)}
         </label>
       </div>
       <div class="laufinfo" id="laufinfoZeile-temp850"></div>
-      <div id="laufwarnung-temp850"></div>
+      <div class="laufstatus" id="laufwarnung-temp850"></div>
 
       <div class="legende" id="leg-temp850"></div>
       <div class="plot gross"><svg id="chart-temp850" role="img" aria-label="Ensemble-Meteogramm der 850-hPa-Temperatur"></svg></div>
@@ -442,7 +443,10 @@ const nf = (v, d = 1) => v == null || Number.isNaN(v) ? "–" : v.toFixed(d).rep
 const TAG_KURZ = ["So","Mo","Di","Mi","Do","Fr","Sa"];
 const datumKurz = iso => { const d = new Date(iso + "T12:00:00"); return TAG_KURZ[d.getDay()] + " " + d.getDate() + "." + (d.getMonth() + 1) + "."; };
 const datumLang = iso => { const d = new Date(iso + "T12:00:00"); return d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" }); };
-const MODELLE = [{ id: "ecmwf", name: "ECMWF-IFS", farbe: "var(--ecmwf)" }, { id: "gfs", name: "GFS", farbe: "var(--gfs)" }];
+const MODELLE = [
+  { id: "ecmwf", name: "ECMWF-IFS", farbe: "var(--ecmwf)", temperaturFarbe: "#b77900", niederschlagFarbe: "#63a9dd" },
+  { id: "gfs", name: "GFS", farbe: "var(--gfs)", temperaturFarbe: "#c1500f", niederschlagFarbe: "#174f86" },
+];
 
 /* Tooltip */
 const tip = $("#tip");
@@ -538,10 +542,15 @@ const bias = p => p.length ? p.reduce((s, x) => s + (x.vor - x.ist), 0) / p.leng
 // Ein Bereich je Diagramm, in Anzeige-Reihenfolge. "feld" verweist auf das
 // zugehoerige Unterobjekt im modellnativen Laufdokument.
 const BEREICHE = [
-  { id: "temp2m", einheit: "°C", akkumuliert: false, nullbasiert: false, feld: "temperatur_2m", bezeichnung: "2-m-Temperatur" },
-  { id: "temp850", einheit: "°C", akkumuliert: false, nullbasiert: false, feld: "temperatur_850hpa", bezeichnung: "850-hPa-Temperatur" },
+  { id: "temp2m", einheit: "°C", akkumuliert: false, nullbasiert: false, referenz: 10, feld: "temperatur_2m", bezeichnung: "2-m-Temperatur" },
+  { id: "temp850", einheit: "°C", akkumuliert: false, nullbasiert: false, referenz: 0, feld: "temperatur_850hpa", bezeichnung: "850-hPa-Temperatur" },
   { id: "niederschlag", einheit: "mm", akkumuliert: true, nullbasiert: true, feld: "niederschlag", bezeichnung: "Niederschlag" },
 ];
+
+// Temperaturdiagramme unterscheiden die Modelle roetlich (GFS) bzw.
+// gelblich (ECMWF); beim Niederschlag dunkelblau bzw. hellblau.
+const bereichsfarbe = (modell, bereich) =>
+  bereich.akkumuliert ? modell.niederschlagFarbe : modell.temperaturFarbe;
 
 // Auch die semantische DOM-Reihenfolge an die fachliche Reihenfolge angleichen.
 // appendChild verschiebt die bereits vorhandenen Abschnitte, es dupliziert sie nicht.
@@ -577,7 +586,12 @@ function datenAusLauf(bereich, lauf) {
     return { verfuegbar: false };
   }
   return { verfuegbar: true, zeiten: t.zeiten, zeitpunkte_unix: t.zeitpunkte_unix,
-           kontrolllauf: t.kontrolllauf, mitglieder: t.mitglieder, hauptlauf: t.hauptlauf,
+           // ECMWF zeigt nur den operationellen Hauptlauf. Seine unsuffigierte
+           // Ensemble-Basisreihe wird weder als Kontroll- noch ersatzweise als
+           // Hauptlauf ausgegeben; ein fehlender Hauptlauf bleibt sichtbar offen.
+           kontrolllauf: lauf.modell === "gfs" ? t.kontrolllauf : null,
+           mitglieder: t.mitglieder,
+           hauptlauf: t.hauptlauf,
            mittel: t.mittel, p10: t.p10, p90: t.p90, n: t.n };
 }
 
@@ -586,6 +600,24 @@ function zeitachsenWerte(daten, punkte) {
   if (Array.isArray(daten.zeitpunkte_unix) && daten.zeitpunkte_unix.length === punkte
       && daten.zeitpunkte_unix.every(Number.isFinite)) return daten.zeitpunkte_unix;
   return Array.from({ length: punkte }, (_, i) => i);
+}
+
+/** Ganzzahlige, gut lesbare Temperaturskala. Die feste Referenz (10 °C bei
+ * 2 m, 0 °C bei 850 hPa) wird immer eingeschlossen, damit GFS und ECMWF in
+ * demselben Diagrammbereich dieselbe hervorgehobene Vergleichslinie haben. */
+function temperaturSkala(werte, referenz) {
+  const sauber = werte.filter(Number.isFinite);
+  let min = sauber.length ? Math.min(...sauber, referenz) : referenz - 1;
+  let max = sauber.length ? Math.max(...sauber, referenz) : referenz + 1;
+  const puffer = Math.max(1, (max - min) * .12);
+  const roh = Math.max(1, (max - min + 2 * puffer) / 5);
+  const potenz = 10 ** Math.floor(Math.log10(roh));
+  const schritt = [1, 2, 5, 10].map(x => x * potenz).find(x => x >= roh && x >= 1)
+    || Math.ceil(roh);
+  let unten = Math.floor((min - puffer) / schritt) * schritt;
+  let oben = Math.ceil((max + puffer) / schritt) * schritt;
+  if (oben === unten) oben += schritt;
+  return { unten, oben, schritt, referenz };
 }
 
 /** Beschriftung eines Laufwahl-Buttons: immer das tatsaechliche Datum und die
@@ -639,6 +671,7 @@ function aktuellerLauf(bereich) {
 function zeichneBereich(bereich) {
   const z = ZUSTAND[bereich.id];
   const modellInfo = MODELLE.find(m => m.id === z.modell);
+  const modellFarbe = bereichsfarbe(modellInfo, bereich);
   const lauf = aktuellerLauf(bereich);
   const svg = $(`#chart-${bereich.id}`);
   const warnzeile = $(`#laufwarnung-${bereich.id}`);
@@ -671,7 +704,11 @@ function zeichneBereich(bereich) {
   }
 
   const meldungen = [];
-  if (!lauf.vollstaendig) meldungen.push("Daten werden noch vervollständigt — dieser Lauf ist noch nicht vollständig eingetroffen.");
+  if (lauf.ensemble_vollstaendig !== false && !daten.hauptlauf) {
+    meldungen.push("Ensemble vollständig verfügbar — der passende Hauptlauf wird automatisch nachgetragen.");
+  } else if (!lauf.vollstaendig) {
+    meldungen.push("Daten werden noch vervollständigt — dieser Lauf ist noch nicht vollständig eingetroffen.");
+  }
   (lauf.hinweise || []).forEach(h => meldungen.push(h));
   if (meldungen.length) warnzeile.innerHTML = `<div class="warnzeile">${meldungen.join(" · ")}</div>`;
 
@@ -680,20 +717,15 @@ function zeichneBereich(bereich) {
   const W = 900, H = 340, L = 46, R = 18, O = 20, U = 40;
   const iw = W - L - R, ih = H - O - U;
 
-  const alleWerte = [...daten.mitglieder.flat(), ...(daten.hauptlauf || []), ...daten.p90, ...daten.p10].filter(v => v != null);
+  const alleWerte = [...daten.mitglieder.flat(), ...(daten.kontrolllauf || []), ...(daten.hauptlauf || []), ...daten.p90, ...daten.p10].filter(v => v != null);
   let unten0, oben0;
   if (bereich.nullbasiert) {
     unten0 = 0;
     oben0 = Math.ceil(Math.max(5, ...alleWerte) / 5) * 5;
   } else {
-    // Temperatur: kein Null-Ursprung -- negative Werte muessen korrekt Platz
-    // finden. Skalierung mit etwas Rand ober- und unterhalb der Extremwerte.
-    const minWert = alleWerte.length ? Math.min(...alleWerte) : 0;
-    const maxWert = alleWerte.length ? Math.max(...alleWerte) : 1;
-    const puffer = Math.max(1, (maxWert - minWert) * 0.12);
-    unten0 = Math.floor((minWert - puffer) / 2) * 2;
-    oben0 = Math.ceil((maxWert + puffer) / 2) * 2;
-    if (oben0 === unten0) oben0 += 2;
+    const skala = temperaturSkala(alleWerte, bereich.referenz);
+    unten0 = skala.unten;
+    oben0 = skala.oben;
   }
   // Temperatur wird nach echter Zeit positioniert. Das ist entscheidend,
   // weil GFS in der Langfrist von stuendlichen auf groebere Schritte wechselt.
@@ -706,11 +738,14 @@ function zeichneBereich(bereich) {
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = "";
 
-  const schritte = 5;
-  for (let i = 0; i <= schritte; i++) {
-    const t = unten0 + (oben0 - unten0) * i / schritte;
+  const ySchritt = bereich.nullbasiert ? (oben0 - unten0) / 5 : temperaturSkala(alleWerte, bereich.referenz).schritt;
+  for (let t = unten0; t <= oben0 + ySchritt / 100; t += ySchritt) {
     svg.appendChild(el("line", { x1: L, y1: y(t), x2: W - R, y2: y(t), class: "gitter" }));
-    svg.appendChild(el("text", { x: L - 8, y: y(t) + 3.5, "text-anchor": "end", class: "ax" }, nf(t, bereich.nullbasiert ? 0 : 1)));
+    svg.appendChild(el("text", { x: L - 8, y: y(t) + 3.5, "text-anchor": "end", class: "ax" }, nf(t, 0)));
+  }
+  if (!bereich.nullbasiert) {
+    svg.appendChild(el("line", { x1: L, y1: y(bereich.referenz), x2: W - R, y2: y(bereich.referenz),
+      stroke: "var(--ink)", "stroke-width": 2.2, opacity: .72, "data-serie": "temperatur-referenz" }));
   }
   svg.appendChild(el("text", { x: L - 8, y: O - 7, "text-anchor": "end", class: "axl" }, bereich.einheit));
 
@@ -736,7 +771,7 @@ function zeichneBereich(bereich) {
     for (let i = bandStart; i <= ende; i++) bandPunkte.push([x(i), y(oben[i])]);
     for (let i = ende; i >= bandStart; i--) bandPunkte.push([x(i), y(unten[i])]);
     const d = bandPunkte.map((p, i) => (i ? "L" : "M") + p[0] + " " + p[1]).join(" ") + " Z";
-    svg.appendChild(el("path", { d, fill: modellInfo.farbe, opacity: .16, stroke: "none" }));
+    svg.appendChild(el("path", { d, fill: modellFarbe, opacity: .16, stroke: "none", "data-serie": "perzentilband" }));
     bandStart = null;
   };
   for (let i = 0; i <= punkte; i++) {
@@ -749,29 +784,29 @@ function zeichneBereich(bereich) {
   if (z.mitglieder) {
     daten.mitglieder.forEach(serie => {
       const d = pfad(serie);
-      if (d) svg.appendChild(el("path", { d, fill: "none", stroke: modellInfo.farbe, "stroke-width": .8, opacity: .22, "stroke-linejoin": "round" }));
+      if (d) svg.appendChild(el("path", { d, fill: "none", stroke: modellFarbe, "stroke-width": .8, opacity: .22, "stroke-linejoin": "round", "data-serie": "mitglied" }));
     });
   }
 
   // Ensemble-Mittel
   const dMittel = pfad(daten.mittel);
-  if (dMittel) svg.appendChild(el("path", { d: dMittel, fill: "none", stroke: modellInfo.farbe, "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+  if (dMittel) svg.appendChild(el("path", { d: dMittel, fill: "none", stroke: modellFarbe, "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round", "data-serie": "ensemble-mittel" }));
 
   // Kontrolllauf
-  const dKontrolle = pfad(daten.kontrolllauf);
-  if (dKontrolle) svg.appendChild(el("path", { d: dKontrolle, fill: "none", stroke: "var(--mess)", "stroke-width": 2, "stroke-dasharray": "1 4", "stroke-linecap": "round" }));
+  const dKontrolle = daten.kontrolllauf ? pfad(daten.kontrolllauf) : "";
+  if (dKontrolle) svg.appendChild(el("path", { d: dKontrolle, fill: "none", stroke: "var(--ink)", "stroke-width": 2, "stroke-dasharray": "7 3.5", "stroke-linecap": "round", "data-serie": "kontrolllauf" }));
 
   // Deterministischer Hauptlauf -- nur eingebettet, wenn seine Initialisierung
   // exakt zum Ensemblelauf passt (das stellt schon sammeln_vorhersage.py sicher;
   // hier gilt nur noch: vorhanden -> zeichnen, sonst nicht).
   if (daten.hauptlauf) {
     const dHl = pfad(daten.hauptlauf);
-    if (dHl) svg.appendChild(el("path", { d: dHl, fill: "none", stroke: modellInfo.farbe, "stroke-width": 2, "stroke-dasharray": "7 3.5", "stroke-linecap": "round" }));
+    if (dHl) svg.appendChild(el("path", { d: dHl, fill: "none", stroke: "var(--ink)", "stroke-width": 2.4, "stroke-linecap": "round", "data-serie": "hauptlauf" }));
   }
 
   // Nulllinie: bei Niederschlag immer die Achse; bei Temperatur nur, wenn 0°C
   // tatsaechlich im dargestellten Bereich liegt (sonst irrelevant/verwirrend).
-  if (bereich.nullbasiert || (unten0 < 0 && oben0 > 0)) {
+  if (bereich.nullbasiert || (bereich.referenz !== 0 && unten0 < 0 && oben0 > 0)) {
     svg.appendChild(el("line", { x1: L, y1: y(0), x2: W - R, y2: y(0), class: bereich.nullbasiert ? "achse" : undefined, stroke: bereich.nullbasiert ? undefined : "var(--ink-3)", "stroke-width": bereich.nullbasiert ? undefined : 1.3 }));
   }
 
@@ -788,7 +823,7 @@ function zeichneBereich(bereich) {
   const werteZeilen = i => [
     `Ensemble-Mittel: ${nf(daten.mittel[i])} ${bereich.einheit}`,
     `Band 10–90 %: ${nf(daten.p10[i])}–${nf(daten.p90[i])} ${bereich.einheit}`,
-    `Kontrolllauf: ${nf(daten.kontrolllauf[i])} ${bereich.einheit}`,
+    daten.kontrolllauf ? `Kontrolllauf: ${nf(daten.kontrolllauf[i])} ${bereich.einheit}` : null,
     daten.hauptlauf ? `Hauptlauf: ${nf(daten.hauptlauf[i])} ${bereich.einheit}` : null,
     `Mitglieder mit Daten: ${daten.n[i]}/${lauf.mitglieder_n}`,
   ].filter(Boolean);
@@ -837,23 +872,24 @@ function zeichneBereich(bereich) {
   }
 
   legende(`#leg-${bereich.id}`, [
-    { mark: markLinie(modellInfo.farbe, false, 3), text: modellInfo.name + " Ensemble-Mittel" },
-    { mark: markFlaeche(modellInfo.farbe, .18), text: "10.–90. Perzentil" },
-    { mark: markLinie("var(--mess)", true), text: "Kontrolllauf" },
-    ...(daten.hauptlauf ? [{ mark: markLinie(modellInfo.farbe, true), text: "Deterministischer Hauptlauf" }] : []),
-    ...(z.mitglieder ? [{ mark: markLinie(modellInfo.farbe, false, .8), text: "Einzelne Ensemblemitglieder" }] : []),
+    { mark: markLinie(modellFarbe, false, 3), text: modellInfo.name + " Ensemble-Mittel" },
+    { mark: markFlaeche(modellFarbe, .18), text: "10.–90. Perzentil" },
+    ...(daten.kontrolllauf ? [{ mark: markLinie("var(--ink)", true), text: "Kontrolllauf" }] : []),
+    ...(daten.hauptlauf ? [{ mark: markLinie("var(--ink)", false, 2.4), text: modellInfo.id === "ecmwf" ? "Operationeller Hauptlauf" : "Deterministischer Hauptlauf" }] : []),
+    ...(z.mitglieder ? [{ mark: markLinie(modellFarbe, false, .8), text: "Einzelne Ensemblemitglieder" }] : []),
   ]);
 
+  const kontrolleKopf = daten.kontrolllauf ? "<th>Kontrolllauf</th>" : "";
   const tabellenZeile = (beschriftung, zweite, i) =>
     `<tr><td>${beschriftung}</td><td>${zweite}</td>
       <td>${nf(daten.mittel[i])}</td><td>${nf(daten.p10[i])}–${nf(daten.p90[i])}</td>
-      <td>${nf(daten.kontrolllauf[i])}</td><td>${daten.hauptlauf ? nf(daten.hauptlauf[i]) : "–"}</td></tr>`;
+      ${daten.kontrolllauf ? `<td>${nf(daten.kontrolllauf[i])}</td>` : ""}<td>${daten.hauptlauf ? nf(daten.hauptlauf[i]) : "–"}</td></tr>`;
 
   $(`#tab-${bereich.id}`).innerHTML = daten.zeiten
-    ? `<thead><tr><th>Tag</th><th>Uhrzeit</th><th>Mittel</th><th>Band 10–90</th><th>Kontrolllauf</th><th>Hauptlauf</th></tr></thead><tbody>`
+    ? `<thead><tr><th>Tag</th><th>Uhrzeit</th><th>Mittel</th><th>Band 10–90</th>${kontrolleKopf}<th>Hauptlauf</th></tr></thead><tbody>`
       + daten.zeiten.map((t, i) => tabellenZeile(datumKurz(t.slice(0, 10)), t.slice(11, 16), i)).join("")
       + `</tbody>`
-    : `<thead><tr><th>Tag</th><th>Vorlauf</th><th>Mittel</th><th>Band 10–90</th><th>Kontrolllauf</th><th>Hauptlauf</th></tr></thead><tbody>`
+    : `<thead><tr><th>Tag</th><th>Vorlauf</th><th>Mittel</th><th>Band 10–90</th>${kontrolleKopf}<th>Hauptlauf</th></tr></thead><tbody>`
       + lauf.ziele.map((ziel, i) => tabellenZeile(datumKurz(ziel), "+" + (i + 1), i)).join("")
       + `</tbody>`;
 }
@@ -1317,7 +1353,7 @@ addEventListener("resize", () => { tipAus(); });
 
 /* Test-Hook: reine Berechnungsfunktionen fuer automatisierte Tests freigeben.
    Aendert kein Verhalten der Seite selbst, wird von keiner UI-Funktion gelesen. */
-window.__TEST__ = { paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, laufLabel, zeitachsenWerte };
+window.__TEST__ = { paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, laufLabel, zeitachsenWerte, temperaturSkala, bereichsfarbe };
 
 
 </script>

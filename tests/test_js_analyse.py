@@ -466,12 +466,47 @@ def test_negative_temperaturen_werden_dargestellt():
         labels = page.evaluate("""() => Array.from(document.querySelectorAll('#chart-temp2m text.ax'))
             .map(t => t.textContent).filter(s => /^-?\\d/.test(s.replace(',', '.')))""")
         pfade = page.evaluate("() => document.querySelectorAll('#chart-temp2m path').length")
+        referenzen = page.evaluate("() => document.querySelectorAll('#chart-temp2m [data-serie=\"temperatur-referenz\"]').length")
         browser.close()
         assert not fehler, f"JS-Laufzeitfehler: {fehler}"
     testdatei.unlink()
     # Fixture enthaelt Werte bis -7 (min) -> mindestens eine negative Achsenbeschriftung
     assert any(s.strip().startswith("-") or s.strip().startswith("−") for s in labels), f"keine negative Achse gefunden: {labels}"
+    assert all("," not in s and "." not in s for s in labels), f"Temperaturachse ist nicht ganzzahlig: {labels}"
+    assert referenzen == 1
     assert pfade > 0
+
+
+def test_fester_statusraum_verhindert_springen_beim_modellwechsel():
+    gfs = _lauf("2026-02-02T00:00Z")
+    gfs["ensemble_vollstaendig"] = True
+    gfs["hauptlauf_vollstaendig"] = False
+    gfs["vollstaendig"] = False
+    ecmwf = json.loads(json.dumps(gfs))
+    ecmwf.update({"modell": "ecmwf", "modellname": "ECMWF-IFS", "vollstaendig": True,
+                  "hauptlauf_vollstaendig": True})
+    for feld in ("temperatur_2m", "temperatur_850hpa", "niederschlag"):
+        ecmwf[feld]["kontrolllauf"] = None
+        ecmwf[feld]["hauptlauf"] = ecmwf[feld]["mittel"][:]
+    daten = {"messungen": {}, "history": {}, "forecasts": {},
+             "vorhersage": {"gfs": [gfs], "ecmwf": [ecmwf]}, "gebaut": "2026-09-19T00:00Z"}
+    testdatei = _seite_vorhersage("_test_fester_statusraum.html", daten)
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1280, "height": 900})
+        page.goto(f"file://{testdatei}")
+        page.wait_for_timeout(200)
+        ecmwf_top = page.locator("#chart-temp2m").bounding_box()["y"]
+        statushoehe = page.locator("#laufwarnung-temp2m").bounding_box()["height"]
+        page.locator('#modellwahl-temp2m button', has_text="GFS").click()
+        page.wait_for_timeout(100)
+        gfs_top = page.locator("#chart-temp2m").bounding_box()["y"]
+        meldung = page.locator("#laufwarnung-temp2m").inner_text()
+        browser.close()
+    testdatei.unlink()
+    assert statushoehe == 48
+    assert gfs_top == ecmwf_top
+    assert "Hauptlauf wird automatisch nachgetragen" in meldung
 
 
 def test_laufbeschriftung_zeigt_datum_und_uhrzeit():
@@ -561,3 +596,59 @@ def test_temperatur_wird_nicht_akkumuliert_dargestellt():
     assert ergebnis["temp_akkumuliert_flag"] is False
     assert ergebnis["regen_akkumuliert_flag"] is True
     assert ergebnis["fehlend"]["verfuegbar"] is False      # altes Tagesformat ohne Zeitachse -> nicht verfuegbar
+
+
+def test_modellfarben_und_haupt_kontrolllauf_linien():
+    gfs = _lauf("2026-02-02T00:00Z")
+    ecmwf = json.loads(json.dumps(gfs))
+    ecmwf.update({"modell": "ecmwf", "modellname": "ECMWF-IFS", "ensemble_datensatz": "ecmwf_ifs025"})
+    for lauf in (gfs, ecmwf):
+        for feld in ("temperatur_2m", "temperatur_850hpa", "niederschlag"):
+            lauf[feld]["hauptlauf"] = lauf[feld]["mittel"][:]
+    # Selbst wenn ein Altbestand noch eine Basisreihe traegt, darf sie beim
+    # ECMWF nicht als zusaetzlicher Kontrolllauf erscheinen.
+    for feld in ("temperatur_2m", "temperatur_850hpa", "niederschlag"):
+        ecmwf[feld]["kontrolllauf"] = ecmwf[feld]["hauptlauf"][:]
+
+    daten = {
+        "messungen": {}, "history": {}, "forecasts": {},
+        "vorhersage": {"gfs": [gfs], "ecmwf": [ecmwf]},
+        "gebaut": "2026-09-19T00:00Z",
+    }
+    testdatei = _seite_vorhersage("_test_linienfarben.html", daten)
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.goto(f"file://{testdatei}")
+        page.wait_for_timeout(250)
+
+        ecmwf_stand = page.evaluate("""() => ({
+            temp: document.querySelector('#chart-temp2m [data-serie="ensemble-mittel"]')?.getAttribute('stroke'),
+            regen: document.querySelector('#chart-niederschlag [data-serie="ensemble-mittel"]')?.getAttribute('stroke'),
+            kontrolle: !!document.querySelector('#chart-temp2m [data-serie="kontrolllauf"]'),
+            hauptFarbe: document.querySelector('#chart-temp2m [data-serie="hauptlauf"]')?.getAttribute('stroke'),
+            hauptGestrichelt: document.querySelector('#chart-temp2m [data-serie="hauptlauf"]')?.hasAttribute('stroke-dasharray'),
+            legende: document.querySelector('#leg-temp2m').textContent,
+        })""")
+        page.locator('#modellwahl-temp2m button', has_text="GFS").click()
+        gfs_stand = page.evaluate("""() => ({
+            temp: document.querySelector('#chart-temp2m [data-serie="ensemble-mittel"]')?.getAttribute('stroke'),
+            kontrolleFarbe: document.querySelector('#chart-temp2m [data-serie="kontrolllauf"]')?.getAttribute('stroke'),
+            kontrolleGestrichelt: document.querySelector('#chart-temp2m [data-serie="kontrolllauf"]')?.getAttribute('stroke-dasharray'),
+            hauptFarbe: document.querySelector('#chart-temp2m [data-serie="hauptlauf"]')?.getAttribute('stroke'),
+            hauptGestrichelt: document.querySelector('#chart-temp2m [data-serie="hauptlauf"]')?.hasAttribute('stroke-dasharray'),
+        })""")
+        browser.close()
+    testdatei.unlink()
+
+    assert ecmwf_stand["temp"] == "#b77900"
+    assert ecmwf_stand["regen"] == "#63a9dd"
+    assert ecmwf_stand["kontrolle"] is False
+    assert "Kontrolllauf" not in ecmwf_stand["legende"]
+    assert ecmwf_stand["hauptFarbe"] == "var(--ink)"
+    assert ecmwf_stand["hauptGestrichelt"] is False
+    assert gfs_stand["temp"] == "#c1500f"
+    assert gfs_stand["kontrolleFarbe"] == "var(--ink)"
+    assert gfs_stand["kontrolleGestrichelt"] == "7 3.5"
+    assert gfs_stand["hauptFarbe"] == "var(--ink)"
+    assert gfs_stand["hauptGestrichelt"] is False

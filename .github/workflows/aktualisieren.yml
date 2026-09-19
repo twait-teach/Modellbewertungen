@@ -1,15 +1,12 @@
 name: Daten holen und Seite bauen
 
-# Laeuft ungefaehr stuendlich zu einer versetzten Minute (17), statt zu wenigen
-# festen Uhrzeiten zu raten, wann ein Modelllauf fertig sein koennte. Jeder
-# Durchlauf prueft zuerst nur Metadaten (billig) und laedt volle Ensemble-
-# daten nur, wenn tatsaechlich ein neuer, noch nicht vollstaendig gespeicherter
-# Lauf vorliegt -- sammeln_vorhersage.py und sammeln.py implementieren diese
-# Pruefung selbst und ueberspringen den teuren Teil sonst (siehe dortige
-# Kommentare "bereits gespeichert" / "bereits erledigt").
+# Prueft halbstuendlich zu versetzten Minuten (17/47, alle Zeiten UTC).
+# Ein vollstaendiges Ensemble wird sofort in seinem Lauf-Slot gespeichert;
+# der exakt passende Hauptlauf wird spaeter aus der Single-Runs-Schnittstelle
+# in denselben Slot nachgetragen. Ohne neue Daten wird weder gebaut noch committed.
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "17,47 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -35,20 +32,36 @@ jobs:
       - name: Selbsttests (vor jedem Datenabruf — kein Schreiben auf Basis kaputten Codes)
         run: python3 -m pytest tests/ -q --ignore=tests/test_js_analyse.py
 
-      - name: Ensemble-Meteogrammdaten (Vorhersage-Seite) — nur neue/unvollständige Läufe
+      - name: Meteogramm-Slots anlegen und Hauptläufe nachtragen
         run: python3 skripte/sammeln_vorhersage.py --modell beide
 
       - name: Tagesgenaue Vorhersage- und Messdaten (Analyse-Seite) — nur falls nötig
         run: python3 skripte/sammeln.py --alles
 
       - name: Historie der Hauptläufe auffrischen (einmal täglich, gegen 12 UTC)
-        if: github.event.schedule == '17 12 * * *' || github.event_name == 'workflow_dispatch'
-        run: python3 skripte/historie.py
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" || "$(date -u '+%H:%M')" == "12:17" ]]; then
+            python3 skripte/historie.py
+          else
+            echo "Historie ist nur beim 12:17-UTC-Lauf vorgesehen."
+          fi
+
+      - name: Prüfen, ob sich Daten geändert haben
+        id: datenstand
+        run: |
+          if [[ -n "$(git status --porcelain -- daten)" ]]; then
+            echo "geaendert=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "geaendert=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Seite bauen
+        if: steps.datenstand.outputs.geaendert == 'true' || github.event_name == 'workflow_dispatch'
         run: python3 skripte/bauen.py
 
       - name: Änderungen sichern
+        if: steps.datenstand.outputs.geaendert == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
