@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""
-Baut aus dem Datenbestand in daten/ die fertige Webseite docs/index.html.
+"""Baut Startdatei, Anwendung und die getrennte Datei docs/daten.js.
 
-Die Daten werden in die Seite eingebettet, nicht nachgeladen -- so ist die Seite
-eine einzige Datei, funktioniert ohne Server und auch lokal im Browser.
+``index.html`` ist ein dauerhaft stabiler Loader. Er oeffnet ``app.html`` mit
+einer frischen Versionskennung; aktualisierte Wetterdaten landen ausschliesslich
+in ``daten.js``. Das vermeidet sowohl Browsercache-Probleme als auch Konflikte
+zwischen dem halbstuendlichen Workflow und Entwicklungsarbeit.
 """
 
 import datetime as dt
@@ -18,7 +19,20 @@ from gemeinsam import atomar_schreiben
 WURZEL = Path(__file__).resolve().parent.parent
 DATEN = WURZEL / "daten"
 VORLAGE = WURZEL / "skripte" / "vorlage.html"
-ZIEL = WURZEL / "docs" / "index.html"
+START_ZIEL = WURZEL / "docs" / "index.html"
+ZIEL = WURZEL / "docs" / "app.html"
+DATEN_ZIEL = WURZEL / "docs" / "daten.js"
+
+STARTSEITE = """<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="index,follow">
+<title>Regenprognose Mühldorf</title></head><body>
+<p>Aktuelle Seite wird geladen …</p>
+<script>location.replace('app.html?v=' + Date.now());</script>
+<noscript><p><a href="app.html">Zur Wetterseite</a></p></noscript>
+</body></html>
+"""
 
 # Wie weit die Messreihe in die Seite soll. Aelteres bleibt im Repo erhalten,
 # wird aber nicht eingebettet -- die Auswertung reicht ohnehin nur so weit
@@ -111,7 +125,10 @@ def main():
     if "/*__DATEN__*/{}" not in vorlage:
         raise SystemExit("Platzhalter /*__DATEN__*/{} fehlt in skripte/vorlage.html")
 
-    seite = vorlage.replace("/*__DATEN__*/{}", json.dumps(paket, ensure_ascii=False, separators=(",", ":")))
+    # Die Vorlage enthaelt nur einen leeren Rueckfall fuer Tests/Fehlerfaelle.
+    # Reale Daten werden als eigene Datei geschrieben und beim Seitenaufruf
+    # mit einem Cache-Buster geladen.
+    seite = vorlage
     # Eine Seite fuers offene Netz braucht Kopf und Rahmen selbst.
     seite = ('<!doctype html>\n<html lang="de">\n<head>\n<meta charset="utf-8">\n'
              '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
@@ -125,10 +142,16 @@ def main():
              + seite.split("</style>", 1)[1] + "\n</body>\n</html>\n")
 
     ZIEL.parent.mkdir(parents=True, exist_ok=True)
+    atomar_schreiben(START_ZIEL, STARTSEITE)
     atomar_schreiben(ZIEL, seite)
+    daten_js = "window.DATEN=" + json.dumps(
+        paket, ensure_ascii=False, separators=(",", ":")) + ";\n"
+    atomar_schreiben(DATEN_ZIEL, daten_js)
 
     tage = sorted(messungen)
-    print(f"docs/index.html gebaut — {len(seite)} Bytes")
+    print(f"docs/index.html gebaut — {len(STARTSEITE)} Bytes (cachefester Loader)")
+    print(f"docs/app.html gebaut — {len(seite)} Bytes (statischer Seitencode)")
+    print(f"docs/daten.js gebaut — {len(daten_js)} Bytes (aktuelle Wetterdaten)")
     print(f"  Messreihe:   {len(tage)} Tage ({tage[0] if tage else '–'} bis {tage[-1] if tage else '–'})")
     print(f"  Läufe:       {len(forecasts)} ({min(forecasts)} bis {max(forecasts)})")
     print(f"  Historie:    " + ", ".join(f"{m} {len(history[m]['tage'])} Tage" for m in history))

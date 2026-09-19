@@ -19,7 +19,10 @@ def _seite_mit_testdaten(daten, name):
     Echtdaten enthaelt) eine Testseite mit frei gewaehlten DATEN -- exakt nach
     demselben Muster wie skripte/bauen.py, nur mit Testdaten statt echtem Bestand."""
     vorlage = SEITE.read_text(encoding="utf-8")
-    ersetzt = vorlage.replace("/*__DATEN__*/{}", json.dumps(daten, ensure_ascii=False))
+    # Testdaten muessen Vorrang vor einer eventuell bereits gebauten
+    # docs/daten.js haben, die die Vorlage im Produktivbetrieb dynamisch laedt.
+    ersetzt = vorlage.replace(
+        "window.DATEN || /*__DATEN__*/{}", json.dumps(daten, ensure_ascii=False))
     seite = ('<!doctype html>\n<html lang="de">\n<head>\n<meta charset="utf-8">\n'
              + ersetzt.split("<style>", 1)[0]
              + "<style>" + ersetzt.split("<style>", 1)[1].split("</style>", 1)[0] + "</style>\n</head>\n<body>\n"
@@ -507,6 +510,36 @@ def test_fester_statusraum_verhindert_springen_beim_modellwechsel():
     assert statushoehe == 48
     assert gfs_top == ecmwf_top
     assert "Hauptlauf wird automatisch nachgetragen" in meldung
+
+
+def test_temperaturachse_ist_fuer_beide_modelle_gemeinsam_und_maximal_fuenf_grad():
+    gfs = _lauf("2026-02-02T00:00Z")
+    ecmwf = json.loads(json.dumps(gfs))
+    ecmwf.update({"modell": "ecmwf", "modellname": "ECMWF-IFS"})
+    for feld in ("temperatur_2m", "temperatur_850hpa"):
+        gfs[feld]["mitglieder"][0][-1] = 39.0
+        gfs[feld]["p90"][-1] = 39.0
+        ecmwf[feld]["mitglieder"][0][-1] = 29.0
+        ecmwf[feld]["p90"][-1] = 29.0
+        ecmwf[feld]["kontrolllauf"] = None
+    daten = {"messungen": {}, "history": {}, "forecasts": {},
+             "vorhersage": {"gfs": [gfs], "ecmwf": [ecmwf]}, "gebaut": "2026-09-19T00:00Z"}
+    testdatei = _seite_vorhersage("_test_gemeinsame_skala.html", daten)
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.goto(f"file://{testdatei}")
+        page.wait_for_timeout(200)
+        labels = lambda: page.evaluate("""() => Array.from(document.querySelectorAll('#chart-temp2m text.ax'))
+            .map(x => Number(x.textContent.replace(',', '.'))).filter(Number.isFinite)""")
+        ecmwf_labels = labels()
+        page.locator('#modellwahl-temp2m button', has_text="GFS").click()
+        gfs_labels = labels()
+        browser.close()
+    testdatei.unlink()
+    assert gfs_labels == ecmwf_labels
+    assert max(gfs_labels) > 39.0  # hoechster Modellwert liegt sichtbar unter dem Rand
+    assert all(b - a <= 5 for a, b in zip(gfs_labels, gfs_labels[1:]))
 
 
 def test_laufbeschriftung_zeigt_datum_und_uhrzeit():
