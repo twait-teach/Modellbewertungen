@@ -47,20 +47,23 @@ body{
   padding-inline:20px; padding-block:0;
   -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:1400px; margin:0 auto; padding-block:24px 72px}
+.wrap{max-width:1400px; margin:0 auto; padding-block:16px 72px}
 /* Die Analyse-Diagramme sind fuer ca. 980 px Breite gezeichnet und bleiben so. */
 #seite-analyse{max-width:980px}
 
 /* ---------- Kopf ---------- */
-.kopf{display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px 28px; padding-bottom:16px}
+.kopf{display:flex; flex-wrap:wrap; align-items:flex-end; gap:8px 28px; padding-bottom:8px}
 .kopf h1{
   font-family:"IBM Plex Serif",Georgia,serif; font-weight:600;
-  font-size:clamp(24px,4.2vw,34px); line-height:1.1; margin:0; letter-spacing:-.015em;
+  font-size:clamp(17px,4.6vw,32px); line-height:1.15; margin:0; letter-spacing:-.015em;
   text-wrap:balance; flex:1 1 280px;
 }
 .kopf .stand{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; color:var(--ink-2); text-align:right; flex:0 1 auto}
-.kopf .stand b{display:block; color:var(--ink); font-weight:500; font-size:13px}
-.unterzeile{color:var(--ink-2); font-size:14px; margin:10px 0 0}
+/* Platz fuer die spaeter eingesetzten Zeitangaben reservieren, damit die Zeile vor und
+   nach dem Fuellen gleich umbricht (sonst verschiebt sich der Kopf nachtraeglich). */
+.kopf .stand b{display:block; color:var(--ink); font-weight:500; font-size:13px; min-width:19ch}
+.kopf .stand.nur-station b{display:inline-block; min-width:21ch}
+.unterzeile{color:var(--ink-2); font-size:14px; margin:8px 0 0}
 
 /* ---------- Navigation ---------- */
 nav.hauptnav{
@@ -81,7 +84,7 @@ main[hidden]{display:none!important}
 
 /* ---------- Sektionen ---------- */
 section{margin-top:44px}
-section:first-of-type{margin-top:32px}
+section:first-of-type{margin-top:22px}
 section > h2{
   font-family:"IBM Plex Serif",Georgia,serif; font-weight:600; font-size:20px;
   margin:0 0 4px; letter-spacing:-.01em;
@@ -214,7 +217,7 @@ footer a{color:var(--ink-2)}
 
 @media (max-width:560px){
   .kopf .stand{text-align:left}
-  .wrap{padding-block:18px 48px}
+  .wrap{padding-block:12px 48px}
   section{margin-top:34px}
   nav.hauptnav a{padding:8px 11px 9px; font-size:11.5px}
   .mitgliederschalter{margin-left:0; width:100%; order:9}
@@ -227,12 +230,23 @@ footer a{color:var(--ink-2)}
   :root:not([data-theme="light"]){--temp:#e0775a; --temp-band:rgba(224,119,90,.20); --regen:#5aa2e0; --regen-summe:#e6ecf1; --normal:#e6ecf1}
 }
 :root[data-theme="dark"]{--temp:#e0775a; --temp-band:rgba(224,119,90,.20); --regen:#5aa2e0; --regen-summe:#e6ecf1; --normal:#e6ecf1}
-/* Kopfzeile, Unterzeile und Hinweise je nach Reiter (body[data-seite] setzt seiteAnzeigen) */
+/* Kopfzeile, Unterzeile und Hinweise je nach Reiter (body[data-seite] setzt seiteAnzeigen).
+   [data-fuer] listet die Reiter, auf denen ein Element sichtbar ist. */
+[data-fuer]{display:none!important}
+body[data-seite="vorhersage"] [data-fuer~="vorhersage"],
+body[data-seite="wetter48"] [data-fuer~="wetter48"],
+body[data-seite="analyse"] [data-fuer~="analyse"],
+body[data-seite="station-heute"] [data-fuer~="station-heute"],
+body[data-seite="station-verlauf"] [data-fuer~="station-verlauf"]{display:revert!important}
+/* Vor dem ersten Skriptlauf (body ohne data-seite) zeigt die Seite den Startreiter. */
+body:not([data-seite]) [data-fuer~="vorhersage"]{display:revert!important}
+/* Jede Ueberschrift bleibt einzeilig; die Schrift skaliert dafuer mit der Breite. */
+.kopf h1 span{white-space:nowrap}
 /* Die Kopfzone (Einleitungstext und Hinweise) ist je Reiter unterschiedlich hoch.
    Ihre Hoehe wird einmal aus allen Varianten gemessen und festgehalten, damit die
    Reiterleiste beim Wechsel nicht springt (kopfzoneMessen im Skript unten). */
 .kopfzone{position:relative}
-.kopf h1,.kopf .stand{position:relative}
+.kopf{box-sizing:border-box}
 .nur-station{display:none!important}
 body[data-seite^="station"] .nur-station{display:revert!important}
 body[data-seite^="station"] .nur-haupt{display:none!important}
@@ -286,26 +300,30 @@ nav.hauptnav a{white-space:nowrap; flex:none}
 <div class="wrap">
 
   <header class="kopf">
-    <h1><span class="nur-haupt">Vorhersage und Analyse Mühldorf</span><span class="nur-station">Wetterstation Stefanskirchen</span></h1>
+    <h1>
+      <span data-fuer="vorhersage">Vorhersage Mühldorf</span><span data-fuer="wetter48">48 Stunden Mühldorf</span><span data-fuer="analyse">Niederschlagsanalyse</span><span data-fuer="station-heute station-verlauf">Wetterstation Stefanskirchen</span>
+    </h1>
     <div class="stand nur-haupt">
       <b id="standDatum">–</b>
-      Station 03366 · 48,279° N 12,502° E<br>
-      406 m ü. NN
+      Station 03366 · 48,279° N 12,502° E · 406 m ü. NN
     </div>
     <div class="stand nur-station">
-      Letzte Messung: <b id="st-letzteMessung" style="display:inline">–</b><br>
-      Letzte Aktualisierung: <b id="st-letzteAktualisierung" style="display:inline">–</b>
+      Letzte Messung: <b id="st-letzteMessung">–</b><br>
+      Letzte Aktualisierung: <b id="st-letzteAktualisierung">–</b>
     </div>
   </header>
   <div class="kopfzone" id="kopfzone">
-  <p class="unterzeile nur-haupt">
-    Ensemble-Meteogramm und Modellvergleich für die DWD-Station Mühldorf am Inn. Verglichen werden
-    <strong>GFS</strong> und <strong>ECMWF-IFS</strong> — jeweils als volles Ensemble und als
-    deterministischer Hauptlauf — gegen die tatsächlich gemessenen Tagessummen.
+  <p class="unterzeile" data-fuer="vorhersage">
+    Ensemble-Meteogramme von <strong>GFS</strong> und <strong>ECMWF-IFS</strong> für die DWD-Station Mühldorf am Inn.
   </p>
-  <p class="unterzeile nur-station">
-    Messwerte der privaten Netatmo-Wetterstation in Stefanskirchen: Außentemperatur, Luftfeuchte und
-    Niederschlag, etwa alle 30 Minuten aktualisiert.
+  <p class="unterzeile" data-fuer="wetter48">
+    Temperatur, Niederschlag und Wetter der nächsten 48 Stunden aus dem aktuellen Lauf.
+  </p>
+  <p class="unterzeile" data-fuer="analyse">
+    Wie genau frühere Niederschlagsvorhersagen waren — gemessen an der DWD-Station Mühldorf am Inn.
+  </p>
+  <p class="unterzeile" data-fuer="station-heute station-verlauf">
+    Außenwerte der privaten Netatmo-Wetterstation in Stefanskirchen, etwa alle 30 Minuten aktualisiert.
   </p>
   </div>
   <nav class="hauptnav" id="hauptnav">
@@ -466,8 +484,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
     <section id="s-wetter48">
       <p class="dachzeile">Nächste 48 Stunden</p>
       <h2>Temperatur, Niederschlag und Wetter im Stundenschritt</h2>
-      <p class="kurzhinweis">Ein Diagramm für alles: Temperaturkurve mit Unsicherheitsband, stündlicher
-      Niederschlag als Balken und Wettersymbole. Umschaltbar zwischen den beiden Modellen.</p>
+      <p class="kurzhinweis">Ein Diagramm für alles — Einzelheiten in der Erklärung unter dem Diagramm.</p>
       <div class="bedienleiste" id="bedienleiste-wetter48">
         <div class="schaltergruppe" id="modellwahl-wetter48" role="group" aria-label="Modell"></div>
       </div>
@@ -760,33 +777,26 @@ const markPunkt = (farbe, offen) =>
 /* Misst alle Varianten des Einleitungstextes (Hauptseite und Wetterstation) unsichtbar
    aus und reserviert die groesste Hoehe. Ohne das wandert die Reiterleiste beim
    Wechsel zwischen Reitern mit unterschiedlich langem Text nach oben oder unten. */
-function variantenHoehe(elemente) {
-  // Misst jede Variante unsichtbar aus (auch die gerade ausgeblendete) und gibt die
-  // groesste Hoehe samt senkrechter Aussenabstaende zurueck.
-  let hoechste = 0;
-  elemente.forEach(e => {
-    const vorher = e.getAttribute("style") || "";
-    e.setAttribute("style", vorher + ";display:block!important;position:absolute;left:0;right:0;top:0;visibility:hidden");
-    const stil = getComputedStyle(e);
-    hoechste = Math.max(hoechste, e.getBoundingClientRect().height
-      + parseFloat(stil.marginTop || 0) + parseFloat(stil.marginBottom || 0));
-    e.setAttribute("style", vorher);
-  });
-  return Math.ceil(hoechste);
-}
 function kopfzoneMessen() {
-  const zone = $("#kopfzone");
-  if (!zone) return;
-  // Ueberschrift, Standangabe und Einleitungstext sind je Reiter unterschiedlich hoch.
-  // Fuer jede dieser drei Stellen wird die groesste Variante reserviert, damit die
-  // Reiterleiste beim Wechsel exakt an ihrem Platz bleibt.
-  const h1 = $(".kopf h1"), staende = [...document.querySelectorAll(".kopf .stand")];
-  const texte = [...zone.querySelectorAll(".unterzeile")];
-  [h1, ...staende, zone].forEach(e => { if (e) e.style.minHeight = "0px"; });
-  if (h1) h1.style.minHeight = variantenHoehe([...h1.querySelectorAll("span")]) + "px";
-  const standhoehe = variantenHoehe(staende);
-  staende.forEach(e => { e.style.minHeight = standhoehe + "px"; });
-  zone.style.minHeight = variantenHoehe(texte) + "px";
+  // Kopf (Ueberschrift und Standangabe) und Einleitungstext sind je Reiter unterschiedlich
+  // hoch. Gemessen wird exakt so, wie spaeter gezeichnet wird: Der Reiter wird kurz
+  // durchgeschaltet, die Hoehen werden gelesen, der alte Reiter wieder gesetzt -- alles
+  // innerhalb eines Bildaufbaus, also ohne sichtbares Flackern. Die groesste Hoehe bleibt
+  // reserviert, damit die Reiterleiste beim Wechsel nicht springt.
+  const kopf = document.querySelector(".kopf"), zone = $("#kopfzone");
+  if (!kopf || !zone) return;
+  const vorher = document.body.dataset.seite;
+  kopf.style.minHeight = "0px";
+  zone.style.minHeight = "0px";
+  let kopfMax = 0, zoneMax = 0;
+  SEITEN.forEach(s => {
+    document.body.dataset.seite = s;
+    kopfMax = Math.max(kopfMax, kopf.getBoundingClientRect().height);
+    zoneMax = Math.max(zoneMax, zone.getBoundingClientRect().height);
+  });
+  if (vorher === undefined) delete document.body.dataset.seite; else document.body.dataset.seite = vorher;
+  kopf.style.minHeight = Math.ceil(kopfMax) + "px";
+  zone.style.minHeight = Math.ceil(zoneMax) + "px";
 }
 
 /* ============================ Navigation zwischen den Seiten ============================ */
@@ -2145,6 +2155,9 @@ function standZeigen() {
   $("#st-letzteAktualisierung").textContent = akt ? datumUhr(akt) : "–";
   const alt = !H.letzte_messung || !akt || jetzt() - H.letzte_messung > VERALTET_S || jetzt() - akt > VERALTET_S;
   $("#st-veraltet").hidden = !alt;
+  // Die Standangabe wird erst jetzt mit echten Zeiten gefuellt und kann dadurch auf
+  // schmalen Bildschirmen anders umbrechen: Kopfhoehe neu vermessen.
+  if (typeof kopfzoneMessen === "function") kopfzoneMessen();
 }
 /* Stationsdaten erst laden, wenn ein Stationsreiter geoeffnet wird. Eigene Datei,
    eigener Fehlerhinweis: faellt sie aus, bleiben Vorhersage und Analyse unberuehrt. */

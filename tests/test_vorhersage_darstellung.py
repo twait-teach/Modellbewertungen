@@ -700,3 +700,26 @@ def test_reiterleiste_springt_beim_seitenwechsel_nicht(browser, reich):
     seite.close()
     assert not fehler, fehler
     assert max(oben.values()) - min(oben.values()) <= 1, oben
+
+
+def test_jeder_reiter_hat_eine_eigene_einzeilige_ueberschrift(browser, reich):
+    """Gleiche Ueberschrift auf mehreren Reitern war verwirrend; zwei Zeilen kosten Platz."""
+    titel = {}
+    for breite in (1366, 700, 390, 320):
+        seite = _oeffnen(browser, reich["datei"], breite)
+        for reiter in ("vorhersage", "wetter48", "station-heute", "station-verlauf", "analyse"):
+            seite.evaluate("h => location.hash = h", "#" + reiter)
+            seite.wait_for_timeout(120)
+            r = seite.evaluate("""() => {
+                const s = [...document.querySelectorAll('.kopf h1 span')].find(e => e.offsetParent);
+                const stil = getComputedStyle(s);
+                return { text: s.textContent.trim(),
+                         zeilen: Math.round(s.getBoundingClientRect().height / parseFloat(stil.lineHeight)) };
+            }""")
+            assert r["zeilen"] == 1, (breite, reiter, r)
+            titel.setdefault(reiter, r["text"])
+        fehler = seite.fehler
+        seite.close()
+        assert not fehler, fehler
+    assert titel["vorhersage"] != titel["wetter48"] != titel["analyse"] != titel["vorhersage"]
+    assert titel["station-heute"] == titel["station-verlauf"] == "Wetterstation Stefanskirchen"

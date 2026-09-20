@@ -218,10 +218,17 @@ dieselbe Achse: Sie endet 20 % über dem höchsten Wert des 90.-Perzentil-Bands 
 (mindestens 5 mm). Ohne das änderte sich beim Modellwechsel die Skala, und beide Modelle sähen gleich
 nass aus. Einzelne Mitglieder darüber laufen bewusst aus dem Bild.
 
-**Kein Sprung beim Reiterwechsel.** Überschrift, Standangabe und Einleitungstext sind je Reiter
-unterschiedlich hoch. `kopfzoneMessen()` misst alle Varianten unsichtbar aus und reserviert jeweils die
-größte Höhe; Hinweise (Datenfehler, veraltete Stationsdaten) stehen unter der Reiterleiste. Dadurch
-bleibt die Reiterleiste bei jedem Wechsel an derselben Stelle.
+**Kopf je Reiter.** Jeder Reiter hat eine eigene, stets einzeilige Überschrift („Vorhersage Mühldorf",
+„48 Stunden Mühldorf", „Niederschlagsanalyse", „Wetterstation Stefanskirchen") und eine eigene, kurze
+Einleitungszeile; gesteuert über `[data-fuer]` und `body[data-seite]`. Die Schriftgröße skaliert mit der
+Breite (`clamp`), die Zeilen sind auf `nowrap` gesetzt — auch bei 320 px bleibt es eine Zeile.
+
+**Kein Sprung beim Reiterwechsel.** `kopfzoneMessen()` schaltet die Reiter einmal unsichtbar durch, liest
+die Höhen von Kopf und Einleitungszeile und reserviert jeweils die größte; Hinweise (Datenfehler,
+veraltete Stationsdaten) stehen unter der Reiterleiste. Damit die Messung vor und nach dem Füllen der
+Zeitangaben gleich ausfällt, reservieren die Standangaben ihre Breite (`min-width` in `ch`), und die
+Wetterstation misst nach dem Laden noch einmal nach. Der Kopf ist bewusst knapp gehalten (Standangabe
+zweizeilig inklusive „406 m ü. NN", weniger Abstände), damit die Diagramme möglichst weit oben stehen.
 
 Die beiden Temperaturdiagramme verwenden je Bereich und ausgewähltem Laufindex dieselbe
 Y-Achse für GFS und ECMWF. Die Grenzen folgen den kleinsten und größten dargestellten Werten beider
