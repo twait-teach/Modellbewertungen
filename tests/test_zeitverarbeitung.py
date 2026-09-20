@@ -65,7 +65,10 @@ def test_winterzeitumstellung_niederschlagssumme_ist_korrekt():
     init = dt.datetime(2026, 10, 24, 12, tzinfo=UTC)
     alle = _stunden(init)
     # jede Stunde ein eigener Wert -> Verwechslungen der doppelten Ortsstunde faellt auf
-    serie = {u: round(0.01 * (i % 37) + 0.005, 3) for i, u in enumerate(alle)}
+    # Ganze Hundertstel: Summen liegen nie auf einer Rundungsgrenze, daher
+    # kommt es nicht auf die Summierreihenfolge oder die Python-Version an
+    # (sum() rechnet ab Python 3.12 genauer als davor).
+    serie = {u: round(0.01 * (i % 37 + 1), 2) for i, u in enumerate(alle)}
     zeiten, unix = sv.modell_zeitfenster(alle, init, 3, "ecmwf")
     kum = sv.niederschlag_kumulieren(serie, alle, unix, init)
     erwartet = [round(sum(v for u, v in serie.items() if int(init.timestamp()) < u <= ziel), 2) for ziel in unix]
