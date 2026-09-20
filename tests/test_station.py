@@ -11,6 +11,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skripte"))
 import bauen_station  # noqa: E402
+import klima_normalwerte  # noqa: E402
 import station_netatmo as sn  # noqa: E402
 
 WURZEL = Path(__file__).resolve().parent.parent
@@ -328,3 +329,47 @@ def test_workflow_regeln():
     netatmo = [p.name for p in (WURZEL / ".github" / "workflows").glob("*.yml")
                if "NETATMO_REFRESH_TOKEN" in p.read_text(encoding="utf-8")]
     assert netatmo == ["station.yml"]
+
+
+# ------------------------------------------------------------------ Langjaehriges Mittel
+
+STATIONSLISTE = ("Stations_id;Stationsname;geogr. Breite;geogr. Laenge;Stationshoehe;Bundesland;\n"
+                 "       3366;Mühldorf                                ;   48.278982;   12.502407;        405.6;Bayern;\n")
+TEMPERATUR = ("Stations_id;Bezugszeitraum;Datenquelle;Jan.;Feb.;März;Apr.;Mai;Jun.;Jul.;Aug.;Sept.;Okt.;Nov.;Dez.;Jahr;\n"
+              "       3366;1991-2020;        46;      -.7;       .3;      4.3;      8.9;     13.5;     17.1;"
+              "     18.6;     18.2;     13.3;      8.7;      3.6;       .3;      8.8;\n")
+NIEDERSCHLAG = ("Stations_id;Bezugszeitraum;Datenquelle;Jan.;Feb.;März;Apr.;Mai;Jun.;Jul.;Aug.;Sept.;Okt.;Nov.;Dez.;Jahr;\n"
+                "       3366;1991-2020;        46;     49.7;       42;     57.6;     46.4;     89.2;     96.9;"
+                "    101.4;     93.3;     68.1;       58;     51.8;     54.5;      809;\n")
+
+
+def test_normalwerte_werden_aus_den_dwd_dateien_gelesen(tmp_path):
+    dateien = {"Temperatur_1991-2020_Stationsliste.txt": STATIONSLISTE,
+               "Temperatur_1991-2020.txt": TEMPERATUR, "Niederschlag_1991-2020.txt": NIEDERSCHLAG}
+    ziel = tmp_path / "normalwerte.json"
+    assert klima_normalwerte.main(["--ziel", str(ziel)], laden=lambda d: dateien[d]) == 0
+    d = json.loads(ziel.read_text(encoding="utf-8"))
+    assert d["station"] == {"id": "3366", "name": "Mühldorf", "hoehe_m": 405.6}
+    assert d["zeitraum"] == "1991-2020" and "DWD" in d["quelle"]
+    assert d["temperatur_c"][:2] == [-0.7, 0.3] and d["niederschlag_mm"][6] == 101.4
+    assert d["jahr"] == {"temperatur_c": 8.8, "niederschlag_mm": 809.0}
+
+
+def test_normalwerte_landen_in_der_seite(gebaut):
+    heute = _js_objekt(gebaut / "station" / "heute.js", "STATION_HEUTE")
+    assert len(heute["normal"]["temperatur_c"]) == 12 and heute["normal"]["station"]["name"]
+
+
+def test_fehlende_normalwerte_sind_kein_fehler(tmp_path, monkeypatch, gebaut):
+    monkeypatch.setattr(bauen_station, "NORMALWERTE", tmp_path / "gibtsnicht.json")
+    bauen_station.main()
+    heute = _js_objekt(gebaut / "station" / "heute.js", "STATION_HEUTE")
+    assert heute["normal"] is None
+
+
+def test_jahresansicht_zeigt_das_langjaehrige_mittel():
+    seite = (WURZEL / "skripte" / "vorlage.html").read_text(encoding="utf-8")
+    assert "function jahreskurve(" in seite            # weiche Kurve aus zwoelf Monatsmitteln
+    assert "marken: normalBalken" in seite             # waagrechte Linie je Monat
+    assert 'V.art === "jahr" && N' in seite            # nur in der Jahresansicht
+    assert "Mittel ${N.zeitraum} (DWD ${N.station.name})" in seite

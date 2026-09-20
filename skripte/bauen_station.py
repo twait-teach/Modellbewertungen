@@ -28,6 +28,7 @@ from station_netatmo import laden, stand_laden  # noqa: E402
 
 WURZEL = Path(__file__).resolve().parent.parent
 DATEN = WURZEL / "daten" / "station"
+NORMALWERTE = WURZEL / "daten" / "klima" / "normalwerte.json"
 DOCS = WURZEL / "docs"
 ZONE = ZoneInfo("Europe/Berlin")
 HEUTE_STUNDEN = 48
@@ -83,8 +84,21 @@ def stundenwerte(reihen):
     return monate
 
 
+def normalwerte(pfad=None):
+    """Amtliche Klima-Normalwerte 1991-2020 (DWD) fuer die Vergleichslinien in der
+    Jahresansicht. Fehlt die Datei, bleibt der Vergleich einfach weg."""
+    pfad = Path(pfad or NORMALWERTE)
+    if not pfad.exists():
+        return None
+    d = json.loads(pfad.read_text(encoding="utf-8"))
+    if len(d.get("temperatur_c", [])) != 12 or len(d.get("niederschlag_mm", [])) != 12:
+        return None
+    return d
+
+
 def main():
     reihen = laden(DATEN)
+    normal = normalwerte()
     stand = stand_laden(DATEN / "stand.json")
     DOCS.mkdir(parents=True, exist_ok=True)
     # Die Oberflaeche steckt seit der Zusammenfuehrung in skripte/vorlage.html
@@ -95,7 +109,8 @@ def main():
     alle = [ts for w in reihen.values() for ts in w]
     if not alle:
         heute = {"ort": "Stefanskirchen", "letzte_aktualisierung": stand.get("letzte_aktualisierung"),
-                 "letzte_messung": None, "aussen": [], "regen": [], "monate": []}
+                 "letzte_messung": None, "aussen": [], "regen": [], "monate": [],
+                 "normal": normal}
         atomar_schreiben(DOCS / "station" / "heute.js", _js("STATION_HEUTE", None, heute))
         print("Wetterstation: noch keine Messwerte vorhanden.")
         return
@@ -112,6 +127,7 @@ def main():
         "erste_messung": min(alle),
         "erste_regen": min(reihen["regen"]) if reihen["regen"] else None,
         "rueckfuellung_fertig": all(stand.get("rueckfuellung_fertig", {}).values()),
+        "normal": normal,
     }
     atomar_schreiben(DOCS / "station" / "heute.js", _js("STATION_HEUTE", None, heute))
     for monat, zeilen in monate.items():

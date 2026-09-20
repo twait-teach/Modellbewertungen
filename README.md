@@ -329,6 +329,16 @@ Messwerte: `daten/station/station_JJJJ-MM.json` (Rohwerte etwa alle 5 Minuten, M
 `daten/station/stand.json`. Für die Seite erzeugt: `docs/station/heute.js` (letzte 48 Stunden),
 `docs/station/verlauf_JJJJ-MM.js` (Stundenwerte je Ortsmonat), `docs/station.html` (Weiterleitung).
 
+**Langjähriges Mittel.** In der Jahresansicht liegt über den Messwerten das amtliche Klimamittel
+1991–2020 des DWD (Station Mühldorf am Inn, 3366): bei der Temperatur eine weiche Jahreskurve aus den
+zwölf Monatsmitteln, beim Niederschlag eine waagrechte Marke je Monat. Die Werte stehen in
+`daten/klima/normalwerte.json` und kommen über `skripte/klima_normalwerte.py` von opendata.dwd.de.
+Das Skript läuft **nicht** im Workflow — die Normalwerte ändern sich erst mit der nächsten
+Normalperiode. Andere Station: `python3 skripte/klima_normalwerte.py --station 4261`. Fehlt die Datei,
+entfällt der Vergleich ohne Fehler. Einordnung: Die Normalwerte stammen von einer amtlichen Station in
+Mühldorf, nicht vom eigenen Garten; Höhenlage und Aufstellung des Netatmo-Sensors erklären einen Teil
+jeder Abweichung.
+
 **Unabhängigkeit.** Die Stationsdaten liegen in eigenen Dateien und werden erst geladen, wenn ein
 Stationsreiter geöffnet wird. Der Stationsteil der Oberfläche läuft in einer eigenen Funktionsklammer
 und wird von der Navigation nur über das Ereignis `seitewechsel` angestoßen. Fehlen die Stationsdaten,
