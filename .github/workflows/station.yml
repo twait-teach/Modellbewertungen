@@ -1,0 +1,81 @@
+name: Wetterstation Stephanskirchen
+
+# Einziger Workflow, der auf Netatmo zugreift. Halbstuendlich zu Minute 2 und
+# 32 (UTC), also versetzt zum Vorhersage-Workflow (17/47).
+#
+# Reihenfolge (verbindlich, siehe README "Wetterstation"):
+#   Selbsttests -> Vorabpruefung GitHub-Schluessel -> Netatmo-Token erneuern ->
+#   neuen Refresh Token SOFORT als Secret speichern -> erst dann Messwerte,
+#   Seite bauen, Commit. Jeder Fehler vorher bricht ab und laesst den letzten
+#   gueltigen Datenstand unveraendert.
+#
+# Nur Zeitplan und manueller Start -- nie pull_request, damit fremder Code nie
+# an die Secrets kommt.
+on:
+  schedule:
+    - cron: "2,32 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Dieselbe Gruppe wie der Vorhersage-Workflow ("daten"): Es laeuft immer nur
+# EIN Lauf beider Workflows zugleich. Damit erneuern nie zwei Laeufe
+# gleichzeitig den Netatmo-Token, und die Commits beider Workflows kommen sich
+# nicht in die Quere. cancel-in-progress: false -- ein laufender Lauf wird nie
+# abgebrochen. Ein nur WARTENDER Lauf kann von einem spaeteren ersetzt werden;
+# das ist harmlos, weil er dann noch nichts angefasst hat.
+concurrency:
+  group: daten
+  cancel-in-progress: false
+
+jobs:
+  station:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Abhängigkeiten
+        run: pip install --quiet requests pytest
+
+      - name: Selbsttests Wetterstation (vor jedem Zugriff auf Netatmo)
+        run: python3 -m pytest tests/test_station.py -q
+
+      - name: Netatmo-Zugang erneuern, Token sichern, Messwerte holen
+        # Das Skript prueft zuerst den GitHub-Schluessel, erneuert dann den
+        # Token, speichert den neuen Refresh Token sofort und holt erst danach
+        # die Messwerte. Scheitert ein Schritt, endet es mit Fehler und
+        # schreibt keine Datei.
+        env:
+          NETATMO_CLIENT_ID: ${{ secrets.NETATMO_CLIENT_ID }}
+          NETATMO_CLIENT_SECRET: ${{ secrets.NETATMO_CLIENT_SECRET }}
+          NETATMO_REFRESH_TOKEN: ${{ secrets.NETATMO_REFRESH_TOKEN }}
+          SECRETS_PAT: ${{ secrets.SECRETS_PAT }}
+        run: python3 skripte/station_netatmo.py
+
+      - name: Stationsseite bauen
+        run: python3 skripte/bauen_station.py
+
+      - name: Änderungen sichern
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A daten/station docs/station docs/station.html
+          if git diff --staged --quiet; then
+            echo "Nichts verändert."
+            exit 0
+          fi
+          git commit -m "Station ${{ github.event.schedule && 'automatisch' || 'manuell' }} $(date -u '+%Y-%m-%d %H:%MZ')"
+          # Wie beim Vorhersage-Workflow: kein Rebase, kein Force-Push. Wird der
+          # Push abgelehnt, holt der naechste Lauf die fehlenden Messwerte bei
+          # Netatmo nach (Luecken werden ab dem juengsten gespeicherten Wert
+          # geschlossen). Der Token ist zu diesem Zeitpunkt bereits gesichert.
+          if ! git push; then
+            echo "::error title=Push abgelehnt::Auf main liegen inzwischen neuere Commits. Diese Stationsdaten werden verworfen; der nächste Lauf holt sie bei Netatmo nach."
+            exit 1
+          fi

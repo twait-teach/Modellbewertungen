@@ -312,6 +312,92 @@ open-meteo.com (CC BY 4.0), Modelldaten von NOAA/NCEP und ECMWF.
 
 ---
 
+## Wetterstation Stephanskirchen (Testphase)
+
+Eigene Netatmo-Station, nur Außenwerte: Temperatur, Luftfeuchte, Niederschlag. Vorerst als
+**versteckte Testseite** `…/Modellbewertungen/station.html` (nicht verlinkt, `noindex`). Erst nach
+Freigabe werden daraus die Reiter „Station heute" und „Station Verlauf" der Hauptseite.
+
+**Dateien.** `skripte/station_netatmo.py` (Zugang und Abruf), `skripte/bauen_station.py` (Seitenbau),
+`skripte/station_vorlage.html` (Oberfläche), `.github/workflows/station.yml` (halbstündlich, Minute
+2 und 32 UTC), `tests/test_station.py`. Messwerte: `daten/station/station_JJJJ-MM.json` (Rohwerte
+etwa alle 5 Minuten, Monat nach UTC) und `daten/station/stand.json`. Für die Seite erzeugt:
+`docs/station.html`, `docs/station/heute.js` (letzte 48 Stunden), `docs/station/verlauf_JJJJ-MM.js`
+(Stundenwerte je Ortsmonat). Die Stationsdateien sind von „Vorhersage" und „Analyse" vollständig
+getrennt; ein Fehler hier berührt diese Seiten nicht.
+
+**Secrets** (*Settings → Secrets and variables → Actions*):
+
+| Secret | Inhalt | ändert |
+|---|---|---|
+| `NETATMO_CLIENT_ID` | Client ID der Netatmo-App | nur von Hand |
+| `NETATMO_CLIENT_SECRET` | Client Secret | nur von Hand |
+| `NETATMO_REFRESH_TOKEN` | aktueller Refresh Token | der Workflow bei jedem Lauf |
+| `SECRETS_PAT` | Fine-grained Token, nur dieses Repository, *Secrets: Read and write* | nur von Hand, vor Ablauf |
+
+**Ablauf eines Laufs (verbindliche Reihenfolge).**
+
+1. Selbsttests der Station (`tests/test_station.py`). Schlagen sie fehl, wird Netatmo nicht angefragt.
+2. Vorabprüfung von `SECRETS_PAT`. Ist er abgelaufen oder ohne Recht, endet der Lauf **vor** der
+   Token-Erneuerung; der Netatmo-Token bleibt gültig (Fall B unten).
+3. Token-Erneuerung bei Netatmo. Beide neuen Tokens werden sofort maskiert (`::add-mask::`).
+4. Der neue Refresh Token wird **sofort** per `gh secret set` gespeichert (Wert über die
+   Standardeingabe, nie als Befehlsteil). Schlägt das fehl, endet der Lauf mit Fehler, ohne
+   Datenabruf, Dateien oder Commit.
+5. Erst dann: Messwerte per `getmeasure` ab dem jüngsten gespeicherten Wert (Lücken werden dadurch
+   automatisch nachgeholt) und schrittweise Rückfüllung der Vergangenheit bis zur Einrichtung der
+   Module (höchstens vier Drei-Tages-Fenster je Reihe und Lauf). Alle Werte werden erst im Speicher
+   gesammelt und zuletzt atomar geschrieben; jeder Abruffehler lässt den bisherigen Stand unverändert.
+   Fällt nur der Regenmesser aus, werden die Außenwerte trotzdem gespeichert.
+6. Seitenbau und Commit. Kein Rebase, kein Force-Push; ein abgelehnter Push wird im nächsten Lauf
+   durch erneuten Abruf ausgeglichen.
+
+**Sperre.** `station.yml` und `aktualisieren.yml` teilen die Concurrency-Gruppe `daten` mit
+`cancel-in-progress: false`: Nie laufen zwei dieser Läufe gleichzeitig, also erneuern nie zwei Läufe
+zugleich den Token, und die Pushes beider Workflows kommen sich nicht in die Quere. Nur `station.yml`
+greift auf Netatmo zu. Einen **laufenden** Stationslauf nicht von Hand abbrechen.
+
+**Datenschutz.** Gespeichert und veröffentlicht werden nur Zeitpunkt, Außentemperatur,
+Außenluftfeuchte, Niederschlag und die Ortsangabe „Stephanskirchen". Nie gespeichert oder ausgegeben:
+Koordinaten, Adresse, Geräte- und Modulkennungen (MAC-Adressen), Seriennummern, Raum- und Modulnamen,
+Innen-, CO₂-, Lärm- und Luftdruckwerte, rohe API-Antworten, Zugangsdaten. Ein Test prüft das.
+
+**Anzeige.** Die Seite zeigt Zeitpunkt der letzten Messung und der letzten erfolgreichen
+Aktualisierung. Ist eines davon älter als 90 Minuten, erscheint „Wetterstationsdaten derzeit nicht
+aktuell".
+
+### Wiederherstellung im Fehlerfall
+
+GitHub meldet einen fehlgeschlagenen Lauf per E-Mail. Die Fehlermeldung im Protokoll des Schritts
+„Netatmo-Zugang erneuern …" sagt, welcher Fall vorliegt.
+
+**Fall A: Netatmo-Zugang verloren** (Meldung „invalid_grant" oder „konnte nicht gespeichert werden").
+
+1. dev.netatmo.com → *My Apps* → App „Wetterhomepage" → *Token generator* → nur `read_station`
+   anhaken → *Generate Token* → bestätigen.
+2. Den **Refresh Token** kopieren (nirgends sonst ablegen).
+3. GitHub → Repository → *Settings → Secrets and variables → Actions* → `NETATMO_REFRESH_TOKEN` →
+   Stift → neuen Wert einfügen → *Update secret*.
+4. *Actions → Wetterstation Stephanskirchen → Run workflow*.
+5. Kontrolle: Lauf grün, auf `station.html` zeigt „Letzte Aktualisierung" die neue Uhrzeit.
+
+**Fall B: GitHub-Schlüssel abgelaufen** (Meldung „Vorabprüfung fehlgeschlagen"). Der Netatmo-Token ist
+dabei **nicht** verloren.
+
+1. GitHub → Profilbild → *Settings → Developer settings → Personal access tokens → Fine-grained
+   tokens → Generate new token*: nur Repository `Modellbewertungen`, *Secrets: Read and write*,
+   Ablaufdatum so spät wie erlaubt. Alten Schlüssel löschen.
+2. Secret `SECRETS_PAT` mit dem neuen Schlüssel ersetzen.
+3. Workflow manuell starten und kontrollieren wie in Fall A, Schritte 4 und 5.
+
+Der aktuelle Schlüssel läuft am **20.06.2027** ab; Anfang Juni 2027 erneuern.
+
+**Noch zu prüfen beim ersten echten Lauf.** Die Messgröße `rain` für den Regenmesser bei
+`scale=max` und die Abrufgrenzen von Netatmo sind nicht offiziell bestätigt. Schlägt nur der
+Regenabruf fehl, erscheint eine Warnung, und die Außenwerte laufen weiter.
+
+---
+
 ## Rechtliches
 
 Wer eine Seite rein privat und ohne kommerziellen Zweck betreibt, braucht in Deutschland
