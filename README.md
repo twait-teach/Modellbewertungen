@@ -8,7 +8,9 @@ Bereiche:
   physikalische Modell, nicht die KI-Variante AIFS). Jeder Bereich hat eine eigene, voneinander
   unabhängige Bedienleiste: Modellumschaltung, Auswahl eines gespeicherten Laufs (mit echtem Datum
   und Uhrzeit, z. B. „aktuell · 18.09., 12 UTC"), eigener Schalter für die Einzelmitglieder, eigene
-  Legende, eigenes Diagramm und eigene Zahlentabelle.
+  Legende, eigenes Diagramm und eigene Zahlentabelle. Unter jeder Überschrift steht ein Satz Kurzhinweis;
+  die ausführliche Erklärung (Mitglieder, Mittel, Perzentilband, Kontroll-/Hauptlauf, Aufsummierung,
+  Skala und Bezugslinie) liegt einklappbar unter dem Diagramm („Erklärung und Darstellung").
   Wichtig zur Methodik: Der **Niederschlag** wird zuerst je Mitglied über die Zeit aufsummiert, erst
   danach werden Mittel und Perzentile aus den akkumulierten Kurven gebildet. **Temperaturen werden
   nicht akkumuliert** — dort werden die von der API gelieferten Zeitschritte vom tatsächlichen
@@ -40,7 +42,8 @@ Kein README, keine .gitignore ankreuzen — die sind hier schon dabei.
 **2. Dateien hochladen.** Im leeren Repo auf *uploading an existing file* klicken und den
 kompletten Inhalt dieses Ordners hineinziehen. Wichtig: Der Ordner `.github` muss mit —
 Browser blenden Ordner mit Punkt am Anfang manchmal aus. Falls er beim Ziehen fehlt, die Datei
-`.github/workflows/aktualisieren.yml` einzeln über *Create new file* anlegen und den Inhalt
+`.github/workflows/aktualisieren.yml` (und, für die Browsertests, `.github/workflows/tests.yml`)
+einzeln über *Create new file* anlegen und den Inhalt
 einfügen (der Pfad lässt sich im Dateinamen-Feld mit Schrägstrichen eintippen).
 
 **3. Actions schreiben lassen.** *Settings → Actions → General → Workflow permissions* →
@@ -153,15 +156,25 @@ skripte/
   historie.py                   lädt vergangene Hauptläufe nach (idempotent, siehe oben)
   bauen.py                      baut aus daten/ + vorlage.html die Seite
   vorlage.html                  Gestaltung und Auswertungslogik (beide Seiten)
-tests/                        automatisierte Tests (pytest; einige nutzen Playwright und
-                                 brauchen dafür `playwright install chromium`)
+tests/                        automatisierte Tests (pytest)
+  test_js_analyse.py            Browsertests: Auswertung, Seitenaufbau, Loader, Ladefehler
+  test_vorhersage_darstellung.py  Browsertests: Breite, Erklärungen, Achsen, Bezugslinie, Layoutsprung,
+                                 Tageslinien (beide brauchen Playwright + Chromium)
+  test_zeitverarbeitung.py      Sommerzeit-Tests der Zeitverarbeitung (ohne Browser)
+  die übrigen Dateien           schnelle Tests ohne Browser
+.github/workflows/
+  aktualisieren.yml             halbstündlicher Daten-Workflow (nur schnelle Tests, kein Chromium)
+  tests.yml                     vollständige Tests inkl. Browsertests bei Änderungen an
+                                 Programm, Vorlage, Tests oder Workflows
 ```
 
 Von Hand laufen lassen:
 
 ```bash
 pip install requests pytest
-python3 -m pytest tests/ -q --ignore=tests/test_js_analyse.py   # Selbsttests ohne Browser
+python3 -m pytest tests/ -q --ignore=tests/test_js_analyse.py --ignore=tests/test_vorhersage_darstellung.py   # schnelle Tests ohne Browser
+# Browsertests: pip install playwright && python3 -m playwright install chromium
+python3 -m pytest tests/test_js_analyse.py tests/test_vorhersage_darstellung.py -q
 python3 skripte/sammeln.py --alles              # tagesgenaue Daten + Messwerte
 python3 skripte/sammeln_vorhersage.py --modell beide  # Ensemble-Meteogrammdaten
 python3 skripte/historie.py                     # Vorgeschichte der Hauptläufe (nur ab 12 UTC und bei
@@ -185,9 +198,40 @@ könnte ein älterer Entwicklungsstand automatisch eingegangene, neuere Wetterda
 mit ihnen kollidieren. Wer lokal testet und `bauen.py` laufen lässt, verwirft die dabei veränderte
 `docs/daten.js` vor dem Commit (`git checkout docs/daten.js`).
 
+**Vorhersage-Ansicht.** Der Inhalt ist auf 1400 px Breite begrenzt und nutzt diese Breite voll aus; die
+Diagramme werden auf die tatsächliche Breite gezeichnet (Schrift und Linien bleiben unskaliert) und beim
+Ändern der Fenstergröße neu gezeichnet. Unter 640 px Diagrammbreite scrollt nur der Diagrammrahmen, nie
+die Seite. Die Analyse-Seite bleibt bei ihrer bisherigen Breite von 980 px.
+
 Die beiden Temperaturdiagramme verwenden je Bereich und ausgewähltem Laufindex dieselbe
-dynamische Y-Achse für GFS und ECMWF. Sie umfasst die Extremwerte beider Modelle mit zusätzlichem
-Rand; die ganzzahligen Teilstriche liegen je nach Spannweite 1, 2 oder höchstens 5 °C auseinander.
+Y-Achse für GFS und ECMWF. Die Grenzen folgen den kleinsten und größten dargestellten Werten beider
+Modelle (alle Mitglieder, Mittel, Perzentilband, Kontroll- und Hauptlauf) mit einem Rand von 5 % der
+Spannweite (mindestens 1, höchstens 1,5 °C) und sind ganzzahlig, aber keine Vielfachen von 5.
+Die Gitterlinien werden getrennt davon berechnet: alle 5 °C, bei einer Spannweite bis 9 °C alle 1 °C.
+Beispiel: Werte von 1,7 bis 28,8 °C ergeben die Achse 0 bis 31 °C mit Linien bei 0, 5, …, 30.
+
+**Bezugslinie.** Die früher feste 10-°C-/0-°C-Linie ist durch eine dynamische, bewusst neutral benannte
+Bezugslinie ersetzt. Das „Temperaturniveau" ist der zeitgewichtete Mittelwert (Trapezregel, dadurch 3-
+und 6-Stunden-Schritte richtig gewichtet) der beiden Ensemble-Mittelkurven über den gemeinsamen
+Zeitraum beider Modelle, GFS und ECMWF gleich gewichtet. Die „Bezugslinie" ist die nächstgelegene
+5-°C-Gitterlinie zu diesem Niveau (bei Gleichstand die höhere); enthält die Achse keine 5-°C-Linie,
+wird nur das Niveau genannt. Sie ist kein Grenzwert und enthält keine Bewertung wie „mild" oder „kalt".
+
+**Kein Layoutsprung.** Höhe von Bedienleiste, Laufinfo, Statusmeldung und Legende werden beim Start und bei
+jeder Breitenänderung für alle Varianten (beide Modelle, alle Läufe, Mitglieder ein/aus) unsichtbar
+gemessen; die größte Höhe wird reserviert. Die Diagrammhöhe hängt nur von der Breite ab. Dadurch bleibt
+die Oberkante des Diagramms beim Modell-, Lauf- und Schalterwechsel unverändert.
+
+**Zeitachse und Sommerzeit.** Intern zählen ausschließlich eindeutige Unixsekunden (UTC).
+`sammeln_vorhersage.py` fragt Open-Meteo mit `timezone=UTC` und `timeformat=unixtime` ab; lokale
+Zeitstrings (Europe/Berlin) entstehen nur zur Anzeige und dienen nie als Schlüssel. Deshalb stimmen
+Zeitraster (3/6 h), Horizont (`init + Tage · 24 h`) und Niederschlagssummen auch am 25.10.2026 (25-Stunden-Tag,
+doppelte Ortsstunde 02:00) und am 28.03.2027 (23-Stunden-Tag, fehlende Stunde). Liefert die Schnittstelle
+ein unerwartetes Zeitformat (etwa Zeitstrings mit Offset), wird nichts gespeichert und ein Hinweis
+„Zeitformat" ausgegeben — es wird nicht geraten. Tagessummen (Historie, Stationswerte) gelten als
+vollständig, wenn alle Stunden des Ortstags vorliegen (23, 24 oder 25). Im Diagramm liegen die senkrechten
+Tageslinien bei echter Ortsmitternacht (Europe/Berlin), Tooltips und Tabellen zeigen die Ortszeit aus der
+Unixzeit.
 
 ---
 
@@ -208,8 +252,8 @@ steht es im Tageseintrag.
 
 **Messwerte:** DWD-Klimastation Mühldorf am Inn (ID 03366, 48,279° N / 12,502° E, 406 m),
 stündliche Niederschlagswerte aus dem offenen Datenarchiv des Deutschen Wetterdienstes, zu
-Tagessummen von 0 bis 24 Uhr Ortszeit verdichtet. Nur Tage mit vollständigen 24 Stundenwerten
-zählen.
+Tagessummen von 0 bis 24 Uhr Ortszeit verdichtet. Nur Tage mit allen Stundenwerten des Ortstags
+zählen (24; am Umstelltag 23 bzw. 25).
 
 Bewusst **nicht** der fertige DWD-Tageswert (RSK): der läuft von 06 bis 06 UTC und ist gegen das
 Tagesraster der Vorhersagen um Stunden versetzt. Am 10./11. September 2026 hätte das 5,6 mm
@@ -232,10 +276,9 @@ Kontrolllauf schwarz gestrichelt. Beim **ECMWF** wird nur der operationelle Haup
 durchgezogen gezeigt; eine zweite Kontrolllinie wird bewusst nicht dargestellt. Die
 Ensemblekurven sind bei den Temperaturen rötlich (GFS) bzw. gelblich (ECMWF), beim Niederschlag
 dunkelblau (GFS) bzw. hellblau (ECMWF).
-Die Statuszeile reserviert immer dieselbe Höhe, damit die Diagramme beim Umschalten nicht nach
-oben oder unten springen. Temperaturachsen tragen nur ganzzahlige Werte. Zur Orientierung wird
-bei 2 m die 10-°C-Linie und bei 850 hPa die 0-°C-Linie kräftiger eingezeichnet; diese Referenz ist
-bei GFS und ECMWF jeweils identisch.
+Die Bereiche über dem Diagramm reservieren ihre Höhe (siehe „Kein Layoutsprung"), damit die Diagramme beim
+Umschalten nicht nach oben oder unten springen. Temperaturachsen tragen nur ganzzahlige Werte; die
+Bezugslinie (siehe oben) ist bei GFS und ECMWF identisch.
 Eine fertige Ensemble-Mittelwert-Reihe liefert die
 Schnittstelle nicht; Mittel, Perzentile und der Anteil der Läufe über 5 mm werden aus den
 Einzelläufen selbst gebildet — für das Meteogramm ausdrücklich **aus den bereits je Mitglied

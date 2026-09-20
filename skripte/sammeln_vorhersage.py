@@ -40,6 +40,15 @@ die Kette fuer die folgenden Zeitpunkte, da Temperatur nicht kumuliert wird).
 So entsteht ein echtes Ensemble-Meteogramm mit Tagesgang bei 2 m und zeitlich
 hoch aufgeloesten Luftmassenwechseln bei 850 hPa.
 
+Zeitverarbeitung: Intern zaehlen nur eindeutige Unixsekunden (UTC). Alle Abrufe
+verwenden ``timezone=UTC`` und ``timeformat=unixtime``; die lokale Zeit
+(Europe/Berlin) wird ausschliesslich fuer die Anzeigetexte aus der Unixzeit
+abgeleitet und nie als Schluessel benutzt. Das haelt Zeitraster, Horizont und
+Niederschlagssummen auch an den Zeitumstellungen korrekt (25.10.2026: doppelte
+Ortsstunde, 25-Stunden-Tag; 28.03.2027: fehlende Stunde, 23-Stunden-Tag).
+Ein unerwartetes Zeitformat der Antwort fuehrt zu "nichts gespeichert" plus
+Hinweis, nicht zu geratenen Werten.
+
 Pro erkanntem Lauf wird eine Datei daten/vorhersage/<modell>_<initISO>.json
 als fester Slot angelegt, sobald Laufweite und Mitgliederzahl des Ensembles
 vollstaendig vorliegen. Der deterministische Hauptlauf wird ueber seine exakte
@@ -52,6 +61,7 @@ Schreiben ueber AUFBEWAHREN hinaus geloescht.
 import argparse
 import datetime as dt
 import json
+import re
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -106,10 +116,47 @@ def tageswerte_je_serie(d, praefix):
     return out
 
 
+_UTC_TEXT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$")
+
+
+def zeitachse(d):
+    """Eindeutige Unixsekunden (UTC) der Stundenachse einer API-Antwort.
+
+    Angefordert wird ``timezone=UTC`` mit ``timeformat=unixtime``. Akzeptiert
+    werden ganze Unixsekunden oder -- als Rueckfall, falls eine Schnittstelle
+    ``timeformat`` ignoriert -- Zeitstrings ``JJJJ-MM-TTThh:mm`` ohne Offset,
+    die wegen ``timezone=UTC`` eindeutig UTC sind. Alles andere (lokale Zeiten
+    mit Offset, Fliesskommazahlen, Fehlwerte) ist ein unerwartetes Format und
+    fuehrt zu ``ValueError``: es wird bewusst nicht geraten.
+    """
+    zeiten = (d.get("hourly") or {}).get("time", [])
+    out = []
+    for z in zeiten:
+        if isinstance(z, bool):
+            raise ValueError(f"unerwartetes Zeitformat: {z!r}")
+        if isinstance(z, int):
+            out.append(z)
+        elif isinstance(z, str) and _UTC_TEXT.match(z):
+            out.append(int(dt.datetime.strptime(z, "%Y-%m-%dT%H:%M")
+                           .replace(tzinfo=dt.timezone.utc).timestamp()))
+        else:
+            raise ValueError(f"unerwartetes Zeitformat: {z!r}")
+    return out
+
+
+def lokal_text(unix):
+    """Lesbare Ortszeit (Europe/Berlin) -- nur zur Anzeige, nie als Schluessel."""
+    return dt.datetime.fromtimestamp(unix, ZoneInfo(TZ_NAME)).strftime("%Y-%m-%dT%H:%M")
+
+
 def stundenwerte_je_serie(d, praefix):
-    """{spaltenname: {'JJJJ-MM-TTTHH:MM': wert}} aus dem 'hourly'-Block."""
+    """{spaltenname: {unixsekunden: wert}} aus dem 'hourly'-Block.
+
+    Der Schluessel ist die eindeutige UTC-Unixzeit. Lokale Zeitstrings sind
+    zur Umstellung auf Winterzeit doppelt vorhanden und taugen nicht dazu.
+    """
     hourly = d.get("hourly") or {}
-    zeiten = hourly.get("time", [])
+    zeiten = zeitachse(d)
     out = {}
     for spalte, werte in hourly.items():
         if spalte == "time" or not spalte.startswith(praefix):
@@ -138,79 +185,64 @@ def kumulieren(tagesreihe, ziele):
     return out
 
 
-def stundenreihe(stundenserie, zeiten):
-    """Fuer Temperatur: die vollstaendige stuendliche Reihe in der Reihenfolge
-    der uebergebenen Zeitstempel -- KEINE Akkumulation und KEINE Verdichtung
-    auf einen Tageswert. Fehlt ein Zeitschritt, ist NUR dieser None."""
-    return [stundenserie.get(t) for t in zeiten]
+def stundenreihe(stundenserie, zeitpunkte_unix):
+    """Fuer Temperatur: die Werte an den uebergebenen Unixzeitpunkten --
+    KEINE Akkumulation und KEINE Verdichtung auf einen Tageswert. Fehlt ein
+    Zeitschritt, ist NUR dieser None."""
+    return [stundenserie.get(u) for u in zeitpunkte_unix]
 
 
-def modell_zeitfenster(verfuegbare_zeiten, init, horizont, modell):
+def modell_zeitfenster(verfuegbare_unix, init, horizont, modell):
     """Modellnahe Zeitpunkte vom Modellstart bis zum exakten Horizont.
 
-    Open-Meteo liefert bei ``timezone=Europe/Berlin`` lokale ISO-Zeiten ohne
-    Offset. Fuer Anzeige und Tabellen bleiben diese lesbaren Werte erhalten;
-    zusaetzlich speichern wir Unix-Zeitpunkte. Open-Meteo interpoliert die
-    Ensemble-Ausgabe auf Stundenwerte; angezeigt werden aber nur die
-    modellnahen Stuetzstellen: GFS 3-stuendlich bis einschliesslich +240 h,
-    danach 6-stuendlich; ECMWF durchgehend 3-stuendlich.
+    Gerechnet wird ausschliesslich mit eindeutigen Unixsekunden. Das Ergebnis
+    sind ``(lokale Anzeigetexte, Unixzeiten)``; die Anzeigetexte (Europe/Berlin)
+    werden aus der Unixzeit abgeleitet und nie umgekehrt. Der Horizont ist
+    ``init + horizont * 24 h`` -- unabhaengig davon, ob ein Ortstag wegen der
+    Zeitumstellung 23 oder 25 Stunden hat. Open-Meteo interpoliert die
+    Ensemble-Ausgabe auf Stundenwerte; angezeigt werden nur die modellnahen
+    Stuetzstellen: GFS 3-stuendlich bis einschliesslich +240 h, danach
+    6-stuendlich; ECMWF durchgehend 3-stuendlich.
     """
-    zone = ZoneInfo(TZ_NAME)
-    start = init.astimezone(zone)
-    ende = (init + dt.timedelta(days=horizont)).astimezone(zone)
-    auswahl = []
-    for text in sorted(verfuegbare_zeiten):
-        try:
-            lokal = dt.datetime.fromisoformat(text).replace(tzinfo=zone)
-        except (TypeError, ValueError):
+    start = int(init.timestamp())
+    ende = int((init + dt.timedelta(days=horizont)).timestamp())
+    unix = []
+    for u in sorted(set(verfuegbare_unix)):
+        if not start <= u <= ende or (u - start) % 3600:
             continue
-        if start <= lokal <= ende:
-            lead_stunden = round((lokal.timestamp() - init.timestamp()) / 3600)
-            schritt = 6 if modell == "gfs" and lead_stunden > 240 else 3
-            if lead_stunden % schritt:
-                continue
-            auswahl.append((text, int(lokal.timestamp())))
-    return [x[0] for x in auswahl], [x[1] for x in auswahl]
+        lead_stunden = (u - start) // 3600
+        schritt = 6 if modell == "gfs" and lead_stunden > 240 else 3
+        if lead_stunden % schritt == 0:
+            unix.append(u)
+    return [lokal_text(u) for u in unix], unix
 
 
-def niederschlag_kumulieren(stundenserie, alle_zeiten, ausgabe_zeiten, init):
+def niederschlag_kumulieren(stundenserie, alle_unix, ausgabe_unix, init):
     """Stuendliche Niederschlagsmengen zu Modellintervallen zusammenfassen.
 
-    Der Wert am Modellstart ist 0 mm. Fuer jeden folgenden modellnahen
-    Zeitpunkt werden alle Stundenmengen seit der vorherigen Stuetzstelle
-    addiert (GFS also 3 h, ab +240 h 6 h) und anschliessend fortlaufend
-    kumuliert. Fehlt ein Stundenwert, ist die Summenkette ab dort ``None``;
-    eine Datenluecke wird niemals als 0 mm interpretiert.
+    ``stundenserie`` ist ``{unixsekunden: mm}``. Der Wert am Modellstart ist
+    0 mm. Fuer jeden folgenden modellnahen Zeitpunkt werden alle Stundenmengen
+    seit der vorherigen Stuetzstelle addiert (GFS also 3 h, ab +240 h 6 h) und
+    anschliessend fortlaufend kumuliert. Fehlt ein Stundenwert, ist die
+    Summenkette ab dort ``None``; eine Datenluecke wird niemals als 0 mm
+    interpretiert.
     """
-    zone = ZoneInfo(TZ_NAME)
     start_unix = int(init.timestamp())
-    ziel_unix = {
-        int(dt.datetime.fromisoformat(text).replace(tzinfo=zone).timestamp()): text
-        for text in ausgabe_zeiten
-    }
-    if not ziel_unix:
+    ziele = sorted(set(ausgabe_unix))
+    if not ziele:
         return []
-    ende_unix = max(ziel_unix)
-    stunden = []
-    for text in alle_zeiten:
-        try:
-            unix = int(dt.datetime.fromisoformat(text).replace(tzinfo=zone).timestamp())
-        except (TypeError, ValueError):
-            continue
-        if start_unix < unix <= ende_unix:
-            stunden.append((unix, text))
-    stunden.sort()
+    stunden = sorted(u for u in set(alle_unix) if start_unix < u <= ziele[-1])
 
     out = []
     summe = 0.0
     abgebrochen = False
     index = 0
-    for unix in sorted(ziel_unix):
+    for unix in ziele:
         if unix == start_unix:
             out.append(0.0)
             continue
-        while index < len(stunden) and stunden[index][0] <= unix:
-            wert = stundenserie.get(stunden[index][1])
+        while index < len(stunden) and stunden[index] <= unix:
+            wert = stundenserie.get(stunden[index])
             if wert is None:
                 abgebrochen = True
             elif not abgebrochen:
@@ -278,26 +310,31 @@ def verarbeite_modell(kurz, cfg, fehler, heute, ens_info=None):
                 # Ein 18Z-Lauf wird oft erst nach Mitternacht vollstaendig.
                 # Ohne den Vortag fehlen dann seine ersten Modellstunden.
                 "past_days": 1, "forecast_days": horizont + 1,
-                "timezone": TZ_NAME, "models": cfg["ensemble_datensatz"]},
+                # Eindeutige Unixzeit in UTC; lokale Zeit entsteht nur zur Anzeige.
+                "timezone": "UTC", "timeformat": "unixtime",
+                "models": cfg["ensemble_datensatz"]},
                fehlerliste=fehler)
     if not ens:
         return None, [f"{kurz}: Ensemble-Daten nicht abrufbar"]
 
-    hourly_zeiten = (ens.get("hourly") or {}).get("time", [])
+    try:
+        hourly_zeiten = zeitachse(ens)
+        serien_regen = stundenwerte_je_serie(ens, "precipitation")
+    except ValueError as e:
+        return None, [f"{kurz}: unerwartetes Zeitformat der Ensemble-Antwort ({e}) -- nichts gespeichert"]
     zeiten, zeitpunkte_unix = modell_zeitfenster(hourly_zeiten, init, horizont, kurz)
     if not zeiten:
         return None, [f"{kurz}: keine modellnahen Zeitpunkte in der Antwort"]
 
     # --- Niederschlag: Stundenmengen erst zu 3-/6-h-Intervallen gruppieren,
     # dann je Mitglied akkumulieren, erst danach Ensemble-Kennzahlen bilden. ---
-    serien_regen = stundenwerte_je_serie(ens, "precipitation")
     if "precipitation" not in serien_regen:
         return None, [f"{kurz}: Ensemble-Basisserie (Niederschlag) fehlt in der Antwort"]
     basis_regen = niederschlag_kumulieren(
-        serien_regen["precipitation"], hourly_zeiten, zeiten, init)
+        serien_regen["precipitation"], hourly_zeiten, zeitpunkte_unix, init)
     mitglieder_keys = sorted(k for k in serien_regen if k != "precipitation")
     mitglieder_regen = [
-        niederschlag_kumulieren(serien_regen[k], hourly_zeiten, zeiten, init)
+        niederschlag_kumulieren(serien_regen[k], hourly_zeiten, zeitpunkte_unix, init)
         for k in mitglieder_keys
     ]
     kennzahlen_regen = aggregiere_alle_leads(mitglieder_regen, len(zeiten))
@@ -324,8 +361,8 @@ def verarbeite_modell(kurz, cfg, fehler, heute, ens_info=None):
             hinweise.append(f"{feld}: Spalte fehlt in der Antwort -- fuer diesen Lauf nicht gespeichert")
             continue
         temp_keys = sorted(k for k in serien_temp if k != praefix)
-        basis_t = stundenreihe(serien_temp[praefix], zeiten)
-        mitglieder_t = [stundenreihe(serien_temp[k], zeiten) for k in temp_keys]
+        basis_t = stundenreihe(serien_temp[praefix], zeitpunkte_unix)
+        mitglieder_t = [stundenreihe(serien_temp[k], zeitpunkte_unix) for k in temp_keys]
         kennzahlen_t = aggregiere_alle_leads(mitglieder_t, len(zeiten))
         temperaturen[feld] = {
             "zeiten": zeiten,
@@ -488,7 +525,7 @@ def ergaenze_hauptlauf(lauf, cfg, fehler):
     probe_fehler = []
     probe = hole(
         "https://single-runs-api.open-meteo.com/v1/forecast",
-        {**basis, "hourly": "temperature_2m", "forecast_hours": 1, "timezone": "UTC"},
+        {**basis, "hourly": "temperature_2m", "forecast_hours": 1, "timezone": "UTC", "timeformat": "unixtime"},
         versuche=1, timeout=30, fehlerliste=probe_fehler,
     )
     if not probe or not (probe.get("hourly") or {}).get("temperature_2m"):
@@ -500,23 +537,28 @@ def ergaenze_hauptlauf(lauf, cfg, fehler):
         {**basis,
          "hourly": "temperature_2m,temperature_850hPa,precipitation",
          # Einschliesslich Initialisierungszeit und Endpunkt bei +Horizont.
-         "forecast_hours": horizont * 24 + 1, "timezone": TZ_NAME},
+         "forecast_hours": horizont * 24 + 1,
+         "timezone": "UTC", "timeformat": "unixtime"},
         fehlerliste=fehler,
     )
     if not hl:
         return False, f"Hauptlauf {init:%d.%m. %HZ} noch nicht vollstaendig abrufbar"
 
-    hl_zeiten = (hl.get("hourly") or {}).get("time", [])
-    hl_regen = stundenwerte_je_serie(hl, "precipitation")
-    hl_t2 = stundenwerte_je_serie(hl, "temperature_2m")
-    hl_t850 = stundenwerte_je_serie(hl, "temperature_850hPa")
+    try:
+        hl_zeiten = zeitachse(hl)
+        hl_regen = stundenwerte_je_serie(hl, "precipitation")
+        hl_t2 = stundenwerte_je_serie(hl, "temperature_2m")
+        hl_t850 = stundenwerte_je_serie(hl, "temperature_850hPa")
+    except ValueError as e:
+        return False, (f"Hauptlauf {init:%d.%m. %HZ}: unerwartetes Zeitformat der Antwort ({e}) "
+                       "-- nichts gespeichert")
     if not all(("precipitation" in hl_regen, "temperature_2m" in hl_t2, "temperature_850hPa" in hl_t850)):
         return False, f"Hauptlauf {init:%d.%m. %HZ} enthaelt noch nicht alle drei Variablen"
 
     regen = niederschlag_kumulieren(
-        hl_regen["precipitation"], hl_zeiten, lauf["niederschlag"]["zeiten"], init)
-    t2 = stundenreihe(hl_t2["temperature_2m"], lauf["temperatur_2m"]["zeiten"])
-    t850 = stundenreihe(hl_t850["temperature_850hPa"], lauf["temperatur_850hpa"]["zeiten"])
+        hl_regen["precipitation"], hl_zeiten, lauf["niederschlag"]["zeitpunkte_unix"], init)
+    t2 = stundenreihe(hl_t2["temperature_2m"], lauf["temperatur_2m"]["zeitpunkte_unix"])
+    t850 = stundenreihe(hl_t850["temperature_850hPa"], lauf["temperatur_850hpa"]["zeitpunkte_unix"])
     # Einzelne Langfrist-Endpunkte duerfen fehlen; eine fast leere oder am
     # Anfang fehlende Reihe gilt dagegen noch nicht als eingetroffen.
     reihen = (regen, t2, t850)

@@ -29,7 +29,7 @@ import requests
 import argparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gemeinsam import atomar_schreiben_json, ohne_feld
+from gemeinsam import atomar_schreiben_json, ohne_feld, stunden_im_ortstag
 
 LAT, LON = 48.2456, 12.5228
 TZ_NAME = "Europe/Berlin"
@@ -163,8 +163,9 @@ def stationswerte():
         tag = ts.astimezone(TZ).date().isoformat()
         tage[tag] = round(tage.get(tag, 0.0) + wert, 1)
         stunden[tag] = stunden.get(tag, 0) + 1
-    # Nur vollstaendige Tage (24 Stundenwerte) gelten als belastbar
-    vollstaendig = {t: v for t, v in tage.items() if stunden[t] >= 24}
+    # Nur vollstaendige Ortstage gelten als belastbar: 24 Stundenwerte, am
+    # Umstelltag 23 (Maerz) bzw. 25 (Oktober). DWD-Zeiten sind UTC und damit eindeutig.
+    vollstaendig = {t: v for t, v in tage.items() if stunden[t] >= stunden_im_ortstag(t)}
     return vollstaendig, max(vollstaendig) if vollstaendig else None
 
 

@@ -162,6 +162,16 @@ def _meta(lauf: dt.datetime, verfuegbar: dt.datetime):
     }
 
 
+def _u(ortszeit):
+    """Unixsekunden zu einem lesbaren Ortszeit-Text der Testdaten (Europe/Berlin).
+
+    Nur eine Schreibhilfe fuer die Testdaten: Im September gilt 02:00 Ortszeit
+    als 00:00 UTC. Die Produktivlogik selbst arbeitet nur mit Unixzeit.
+    """
+    from zoneinfo import ZoneInfo
+    return int(dt.datetime.fromisoformat(ortszeit).replace(tzinfo=ZoneInfo("Europe/Berlin")).timestamp())
+
+
 def _ensemble_antwort(ziele, member_werte, kontrolle_werte, temp2m_stunden=None, temp850_stunden=None):
     """Baut eine Fake-Ensemble-Antwort. temp2m_stunden/temp850_stunden sind
     optional: {'JJJJ-MM-TTThh:mm': [kontrolle, member1, member2, ...]} je
@@ -173,9 +183,10 @@ def _ensemble_antwort(ziele, member_werte, kontrolle_werte, temp2m_stunden=None,
     alle_zeiten = set(regen_zeiten)
     alle_zeiten.update((temp2m_stunden or {}).keys())
     alle_zeiten.update((temp850_stunden or {}).keys())
-    zeiten = sorted(alle_zeiten)
+    zeiten = sorted(alle_zeiten, key=_u)
     regen_kontrolle = dict(zip(regen_zeiten, kontrolle_werte))
-    hourly = {"time": zeiten,
+    # Die API liefert (timeformat=unixtime) eindeutige Unixsekunden.
+    hourly = {"time": [_u(t) for t in zeiten],
               "precipitation": [regen_kontrolle.get(t, 0.0) for t in zeiten]}
     for i, werte in enumerate(member_werte, start=1):
         mapping = dict(zip(regen_zeiten, werte))
@@ -396,8 +407,9 @@ def test_stundenreihe_keine_kette():
     """Anders als beim Niederschlag darf eine fehlende Temperatur zu einem
     Zeitpunkt NICHT die folgenden Zeitpunkte mit-beeinflussen -- jeder
     Zeitschritt ist unabhaengig."""
-    serie = {"2026-01-01T00:00": 5.0, "2026-01-01T02:00": 7.0}  # 01:00 fehlt
-    zeiten = ["2026-01-01T00:00", "2026-01-01T01:00", "2026-01-01T02:00", "2026-01-01T03:00"]
+    start = 1767225600  # 2026-01-01T00:00Z
+    serie = {start: 5.0, start + 7200: 7.0}  # +1 h fehlt
+    zeiten = [start, start + 3600, start + 7200, start + 10800]
     out = sv.stundenreihe(serie, zeiten)
     assert out == [5.0, None, 7.0, None]  # 02:00 ist trotz Luecke bei 01:00 intakt
 
@@ -406,14 +418,14 @@ def test_modell_zeitfenster_beginnt_am_modellstart_und_nutzt_dreistundenschritte
     """Auch bei lokaler Zeitdarstellung muss das Meteogramm am echten
     UTC-Modellstart beginnen und exakt am Horizont enden."""
     init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)  # 02:00 MESZ
-    verfuegbar = [
+    verfuegbar = [_u(t) for t in (
         "2026-09-17T01:00",  # vor Initialisierung -> raus
         "2026-09-17T02:00",  # Initialisierung -> rein
         "2026-09-17T03:00",  # +1 h, interpoliert -> raus
         "2026-09-17T05:00",  # +3 h, modellnah -> rein
         "2026-09-19T02:00",  # exakt +48h -> rein
         "2026-09-19T03:00",  # nach Horizont -> raus
-    ]
+    )]
     zeiten, unix = sv.modell_zeitfenster(verfuegbar, init, 2, "ecmwf")
     assert zeiten == ["2026-09-17T02:00", "2026-09-17T05:00", "2026-09-19T02:00"]
     assert unix[0] == int(init.timestamp())
@@ -428,14 +440,14 @@ def test_gfs_modell_zeitfenster_wechselt_nach_240_stunden_auf_sechsstuendlich():
         "2026-01-15T04:00",  # +243 -> nach Grenze nicht mehr modellnah
         "2026-01-15T07:00",  # +246 -> rein
     ]
-    ausgewaehlt, unix = sv.modell_zeitfenster(zeiten, init, 11, "gfs")
+    ausgewaehlt, unix = sv.modell_zeitfenster([_u(t) for t in zeiten], init, 11, "gfs")
     assert ausgewaehlt == [zeiten[0], zeiten[1], zeiten[3]]
     assert unix[2] - unix[1] == 6 * 3600
 
 
 def test_niederschlag_wird_aus_stundenmengen_zu_intervallen_kumuliert():
     init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)  # 02 Uhr MESZ
-    alle = [f"2026-09-17T{h:02d}:00" for h in range(2, 9)]
+    alle = [_u(f"2026-09-17T{h:02d}:00") for h in range(2, 9)]
     ausgabe = [alle[0], alle[3], alle[6]]  # +0, +3, +6 h
     serie = {t: 1.0 for t in alle}
     assert sv.niederschlag_kumulieren(serie, alle, ausgabe, init) == [0.0, 3.0, 6.0]
@@ -443,10 +455,10 @@ def test_niederschlag_wird_aus_stundenmengen_zu_intervallen_kumuliert():
 
 def test_niederschlag_luecke_bricht_kumulationskette_ab():
     init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
-    alle = [f"2026-09-17T{h:02d}:00" for h in range(2, 9)]
+    alle = [_u(f"2026-09-17T{h:02d}:00") for h in range(2, 9)]
     ausgabe = [alle[0], alle[3], alle[6]]
     serie = {t: 1.0 for t in alle}
-    serie["2026-09-17T04:00"] = None
+    serie[_u("2026-09-17T04:00")] = None
     assert sv.niederschlag_kumulieren(serie, alle, ausgabe, init) == [0.0, None, None]
 
 

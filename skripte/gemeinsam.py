@@ -11,11 +11,13 @@ Buendelt drei Dinge, die an mehreren Stellen gebraucht werden:
   - lineare Perzentil-Interpolation, wie in der Meteorologie ueblich.
 """
 
+import datetime as dt
 import json
 import os
 import statistics
 import time
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -127,3 +129,18 @@ def ohne_feld(objekt: dict, feld: str) -> dict:
     """Flache Kopie ohne ein einzelnes Feld -- fuer fachliche Vergleiche, die
     einen reinen Zeitstempel ignorieren sollen."""
     return {k: v for k, v in objekt.items() if k != feld}
+
+
+def stunden_im_ortstag(datum, zone="Europe/Berlin"):
+    """Anzahl der Stunden des Ortstages ``JJJJ-MM-TT`` (23, 24 oder 25).
+
+    Ein Ortstag hat wegen der Zeitumstellung nicht immer 24 Stunden. Als
+    Vollstaendigkeitsgrenze fuer Tagessummen taugt daher nur diese Zahl, nicht
+    pauschal 24: sonst faellt der 23-Stunden-Tag im Maerz aus der Auswertung,
+    und am 25-Stunden-Tag im Oktober bliebe eine fehlende Stunde unbemerkt.
+    """
+    tag = dt.date.fromisoformat(str(datum)[:10])
+    z = ZoneInfo(zone)
+    anfang = dt.datetime.combine(tag, dt.time(0), tzinfo=z)
+    folgetag = dt.datetime.combine(tag + dt.timedelta(days=1), dt.time(0), tzinfo=z)
+    return round((folgetag.astimezone(dt.timezone.utc) - anfang.astimezone(dt.timezone.utc)).total_seconds() / 3600)

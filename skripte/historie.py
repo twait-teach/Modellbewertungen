@@ -26,11 +26,15 @@ ist:
 import argparse
 import datetime as dt
 import json
+import sys
 import time
 import zoneinfo
 from pathlib import Path
 
 import requests
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gemeinsam import stunden_im_ortstag  # noqa: E402
 
 LAT, LON = 48.2456, 12.5228
 TZ_NAME = "Europe/Berlin"
@@ -69,8 +73,9 @@ def tagessummen(zeiten, werte):
         tag = t[:10]
         summe[tag] = summe.get(tag, 0.0) + v
         zaehler[tag] = zaehler.get(tag, 0) + 1
-    # nur vollstaendige Tage; angebrochene Tage am Rand wuerden zu niedrig ausfallen
-    return {t: round(s, 1) for t, s in summe.items() if zaehler[t] >= 24}
+    # nur vollstaendige Tage; angebrochene Tage am Rand wuerden zu niedrig ausfallen.
+    # Vollstaendig heisst: alle Stunden des Ortstages (23, 24 oder 25 -- Zeitumstellung).
+    return {t: round(s, 1) for t, s in summe.items() if zaehler[t] >= stunden_im_ortstag(t)}
 
 
 def stand_der_datei(kurz):

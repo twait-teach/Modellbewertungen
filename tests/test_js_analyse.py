@@ -512,10 +512,13 @@ def test_fester_statusraum_verhindert_springen_beim_modellwechsel():
         page.locator('#modellwahl-temp2m button', has_text="GFS").click()
         page.wait_for_timeout(100)
         gfs_top = page.locator("#chart-temp2m").bounding_box()["y"]
+        gfs_statushoehe = page.locator("#laufwarnung-temp2m").bounding_box()["height"]
         meldung = page.locator("#laufwarnung-temp2m").inner_text()
         browser.close()
     testdatei.unlink()
-    assert statushoehe == 48
+    # Der Statusraum ist fuer die laengste Meldung beider Modelle reserviert
+    # (gemessen, nicht geraten) und bleibt beim Wechsel gleich hoch.
+    assert statushoehe == gfs_statushoehe and statushoehe > 0
     assert gfs_top == ecmwf_top
     assert "Hauptlauf wird automatisch nachgetragen" in meldung
 
@@ -935,7 +938,7 @@ def test_fehlende_oder_kaputte_daten_js_zeigt_sichtbare_meldung(gebaute_seite, a
     assert nach_klick == ["seite-analyse"]
 
 
-@pytest.mark.parametrize("breite", [390, 800, 1920])
+@pytest.mark.parametrize("breite", [390, 800, 1366, 1920])
 def test_gebaute_seite_hat_bei_typischen_breiten_kein_horizontales_seitenscrollen(gebaute_seite, breite):
     with sync_playwright() as p:
         browser = p.chromium.launch()

@@ -30,8 +30,13 @@ jobs:
       - name: Abhängigkeiten
         run: pip install --quiet requests pytest
 
-      - name: Selbsttests (vor jedem Datenabruf — kein Schreiben auf Basis kaputten Codes)
-        run: python3 -m pytest tests/ -q --ignore=tests/test_js_analyse.py
+      - name: Schnelle Selbsttests (vor jedem Datenabruf — kein Schreiben auf Basis kaputten Codes)
+        # Ohne Browser: Chromium wird hier bewusst nicht installiert. Die
+        # Browsertests laufen getrennt im Workflow "Tests" (tests.yml).
+        run: >
+          python3 -m pytest tests/ -q
+          --ignore=tests/test_js_analyse.py
+          --ignore=tests/test_vorhersage_darstellung.py
 
       - name: Meteogramm-Slots anlegen und Hauptläufe nachtragen
         run: python3 skripte/sammeln_vorhersage.py --modell beide

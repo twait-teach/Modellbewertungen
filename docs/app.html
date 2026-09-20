@@ -47,7 +47,9 @@ body{
   padding-inline:20px; padding-block:0;
   -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:980px; margin:0 auto; padding-block:24px 72px}
+.wrap{max-width:1400px; margin:0 auto; padding-block:24px 72px}
+/* Die Analyse-Diagramme sind fuer ca. 980 px Breite gezeichnet und bleiben so. */
+#seite-analyse{max-width:980px}
 
 /* ---------- Kopf ---------- */
 .kopf{display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px 28px; padding-bottom:16px}
@@ -90,9 +92,18 @@ section > h2{
 }
 .hinweis{color:var(--ink-2); font-size:13.5px; margin:0 0 20px; max-width:72ch}
 .hinweis strong{color:var(--ink); font-weight:600}
+.kurzhinweis{color:var(--ink-2); font-size:14px; margin:0 0 16px}
+
+/* ---------- Einklappbare Erklaerungen ---------- */
+details.erklaerung{margin-top:14px; border:1px solid var(--rule); border-radius:3px; background:var(--panel); padding:10px 16px}
+details.erklaerung > summary{color:var(--ink)}
+.erklaerungstext{max-width:1080px; margin-top:8px; font-size:13.5px; color:var(--ink-2)}
+.erklaerungstext p{margin:0 0 10px}
+.erklaerungstext p:last-child{margin-bottom:0}
+.erklaerungstext strong{color:var(--ink); font-weight:600}
 
 /* ---------- Bedienleiste (Modell-/Laufwahl) ---------- */
-.bedienleiste{display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; margin-bottom:16px}
+.bedienleiste{display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; align-content:flex-start; margin-bottom:16px}
 .schaltergruppe{display:inline-flex; border:1px solid var(--rule); border-radius:4px; overflow:hidden; background:var(--panel)}
 .schaltergruppe button{
   font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12.5px; font-weight:500;
@@ -104,7 +115,7 @@ section > h2{
 .schaltergruppe button[aria-pressed="true"]{background:var(--ink); color:var(--panel)}
 .schaltergruppe button:disabled{opacity:.35; cursor:default}
 .schaltergruppe button:disabled:hover{background:transparent; color:var(--ink-2)}
-.laufinfo{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; color:var(--ink-2); min-height:34px}
+.laufinfo{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; color:var(--ink-2); min-height:18px}
 .laufinfo b{color:var(--ink); font-weight:500}
 .mitgliederschalter{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-2); margin-left:auto}
 .mitgliederschalter input{accent-color:var(--ink)}
@@ -113,7 +124,10 @@ section > h2{
   border:1px solid color-mix(in srgb,var(--warn) 35%,transparent); border-radius:3px;
   padding:8px 12px; width:100%; box-sizing:border-box;
 }
-.laufstatus{height:48px; margin-bottom:14px; overflow:auto}
+/* Mindesthoehen von Bedienleiste, Laufinfo, Status und Legende werden per Skript
+   aus ALLEN Varianten (beide Modelle, alle Laeufe) gemessen -- so verschiebt sich
+   beim Wechsel nichts darunter. */
+.laufstatus{margin-bottom:14px}
 .datenfehler{
   margin:16px 0 0; padding:10px 14px; border-radius:3px; font-size:14px; color:var(--schlecht);
   background:color-mix(in srgb,var(--schlecht) 10%,transparent);
@@ -121,7 +135,7 @@ section > h2{
 }
 
 /* ---------- Legende ---------- */
-.legende{display:flex; flex-wrap:wrap; gap:8px 20px; margin:0 0 14px; align-items:center; min-height:20px}
+.legende{display:flex; flex-wrap:wrap; gap:8px 20px; margin:0 0 14px; align-content:flex-start; min-height:20px}
 .leg{display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-2)}
 .leg svg{display:block; flex:none}
 
@@ -130,8 +144,7 @@ section > h2{
   background:var(--panel); border:1px solid var(--rule); border-radius:3px;
   padding:16px 14px 10px; overflow-x:auto; box-shadow:var(--schatten);
 }
-.plot svg{display:block; min-width:520px; width:100%; height:auto}
-.plot.gross svg{min-width:640px}
+.plot svg{display:block; min-width:640px; width:100%; height:auto}
 text{font-family:"IBM Plex Mono",ui-monospace,monospace}
 .ax{fill:var(--ink-3); font-size:10.5px}
 .axl{fill:var(--ink-2); font-size:10.5px; font-weight:500}
@@ -241,16 +254,11 @@ footer a{color:var(--ink-2)}
     <section id="s-temp2m">
       <p class="dachzeile">Ensemble-Meteogramm</p>
       <h2>2-m-Temperatur über den Vorhersagezeitraum</h2>
-      <p class="hinweis">
-        Die bodennahe Lufttemperatur in rund zwei Metern Höhe — die im Alltag gemeinte „Temperatur draußen".
-        Jede dünne Linie ist ein einzelnes Ensemblemitglied, dargestellt an den modellnahen
-        3-Stunden-Zeitpunkten — der Tagesgang ist dadurch direkt ablesbar, ohne künstliche Stundeninterpolation.
-        Das dunkle Band zeigt das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel. Kontrolllauf und
-        deterministischer Hauptlauf sind gesondert hervorgehoben. Anders als beim Niederschlag wird hier
-        <strong>nicht</strong> aufsummiert — jeder Zeitpunkt steht für sich.
+      <p class="kurzhinweis">
+        Bodennahe Lufttemperatur (2 m) als Ensemble-Meteogramm, für GFS und ECMWF-IFS auf derselben Temperaturskala.
       </p>
 
-      <div class="bedienleiste">
+      <div class="bedienleiste" id="bedienleiste-temp2m">
         <div class="schaltergruppe" id="modellwahl-temp2m" role="group" aria-label="Modell"></div>
         <div class="schaltergruppe" id="laufwahl-temp2m" role="group" aria-label="Modelllauf"></div>
         <label class="mitgliederschalter">
@@ -263,6 +271,24 @@ footer a{color:var(--ink-2)}
 
       <div class="legende" id="leg-temp2m"></div>
       <div class="plot gross"><svg id="chart-temp2m" role="img" aria-label="Ensemble-Meteogramm der 2-Meter-Temperatur"></svg></div>
+      <details class="erklaerung" id="erklaerung-temp2m">
+        <summary>Erklärung und Darstellung</summary>
+        <div class="erklaerungstext">
+          <p>Die bodennahe Lufttemperatur in rund zwei Metern Höhe — die im Alltag gemeinte „Temperatur draußen".
+          Jede dünne Linie ist ein einzelnes Ensemblemitglied, dargestellt an den modellnahen
+          3-Stunden-Zeitpunkten — der Tagesgang ist dadurch direkt ablesbar, ohne künstliche Stundeninterpolation.
+          Das dunkle Band zeigt das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel. Kontrolllauf und
+          deterministischer Hauptlauf sind gesondert hervorgehoben. Anders als beim Niederschlag wird hier
+          <strong>nicht</strong> aufsummiert — jeder Zeitpunkt steht für sich.</p>
+          <p><strong>Skala und Bezugslinie:</strong> GFS und ECMWF-IFS verwenden dieselbe Temperaturskala. Sie reicht knapp über den
+          tiefsten und höchsten dargestellten Wert beider Modelle (alle Mitglieder, Mittel, Band, Kontroll- und Hauptlauf).
+          Die dicke waagerechte Bezugslinie ist kein Grenzwert: Sie liegt auf der nächstgelegenen 5-°C-Gitterlinie zum
+          angegebenen Temperaturniveau. Dieses Niveau ist der über die Zeit gewichtete Mittelwert der beiden
+          Ensemble-Mittelkurven, gemittelt über den Zeitraum, den beide Modelle gemeinsam abdecken; GFS und ECMWF-IFS
+          zählen gleich stark.</p>
+          <p>Zeitachse: Die senkrechten Linien markieren Mitternacht in Ortszeit (Europa/Berlin).</p>
+        </div>
+      </details>
       <details>
         <summary>Zahlen als Tabelle</summary>
         <div class="tabellenhuelle"><table id="tab-temp2m"></table></div>
@@ -272,14 +298,11 @@ footer a{color:var(--ink-2)}
     <section id="s-temp850">
       <p class="dachzeile">Ensemble-Meteogramm</p>
       <h2>850-hPa-Temperatur über den Vorhersagezeitraum</h2>
-      <p class="hinweis">
-        Die Temperatur der freien Atmosphäre in rund 1.500 Metern Höhe — gut geeignet, um die
-        großräumige Luftmasse einzuschätzen (mild/warm oder kalt), aber <strong>nicht identisch</strong>
-        mit der Temperatur am Boden. Darstellung wie bei der 2-m-Temperatur: modellnahe 3-Stunden-
-        Zeitpunkte ohne künstliche Stundeninterpolation; nicht aufsummiert.
+      <p class="kurzhinweis">
+        Temperatur in rund 1.500 m Höhe als Hinweis auf die Luftmasse — nicht identisch mit der Temperatur am Boden.
       </p>
 
-      <div class="bedienleiste">
+      <div class="bedienleiste" id="bedienleiste-temp850">
         <div class="schaltergruppe" id="modellwahl-temp850" role="group" aria-label="Modell"></div>
         <div class="schaltergruppe" id="laufwahl-temp850" role="group" aria-label="Modelllauf"></div>
         <label class="mitgliederschalter">
@@ -292,6 +315,22 @@ footer a{color:var(--ink-2)}
 
       <div class="legende" id="leg-temp850"></div>
       <div class="plot gross"><svg id="chart-temp850" role="img" aria-label="Ensemble-Meteogramm der 850-hPa-Temperatur"></svg></div>
+      <details class="erklaerung" id="erklaerung-temp850">
+        <summary>Erklärung und Darstellung</summary>
+        <div class="erklaerungstext">
+          <p>Die Temperatur der freien Atmosphäre in rund 1.500 Metern Höhe — gut geeignet, um die
+          großräumige Luftmasse einzuschätzen, aber <strong>nicht identisch</strong>
+          mit der Temperatur am Boden. Darstellung wie bei der 2-m-Temperatur: modellnahe 3-Stunden-
+          Zeitpunkte ohne künstliche Stundeninterpolation; nicht aufsummiert. Dünne Linien sind einzelne
+          Ensemblemitglieder, das dunkle Band das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel.</p>
+          <p><strong>Skala und Bezugslinie:</strong> Beide Modelle verwenden dieselbe Temperaturskala. Die dicke waagerechte
+          Bezugslinie ist kein Grenzwert, sondern die nächstgelegene 5-°C-Gitterlinie zum angegebenen Temperaturniveau
+          (zeitgewichteter Mittelwert der beiden Ensemble-Mittelkurven im gemeinsamen Zeitraum, GFS und ECMWF-IFS gleich gewichtet).</p>
+          <p><strong>Einordnung:</strong> 850-hPa-Temperaturen unter 0 °C deuten auf eine kalte Luftmasse hin und können unter
+          geeigneten Bedingungen ein erhöhtes Potenzial für Bodenfrost bedeuten. Werte um oder über 20 °C deuten auf ein
+          erhebliches Hitzepotenzial hin. Beides bedeutet nicht automatisch Bodenfrost beziehungsweise einen heißen Tag am Boden.</p>
+        </div>
+      </details>
       <details>
         <summary>Zahlen als Tabelle</summary>
         <div class="tabellenhuelle"><table id="tab-temp850"></table></div>
@@ -301,16 +340,11 @@ footer a{color:var(--ink-2)}
     <section id="s-niederschlag">
       <p class="dachzeile">Ensemble-Meteogramm</p>
       <h2>Aufsummierter Niederschlag über den Vorhersagezeitraum</h2>
-      <p class="hinweis">
-        Jede dünne Linie ist ein einzelnes Ensemblemitglied. Die stündlichen Niederschlagsmengen werden
-        zunächst zu den Modellintervallen zusammengefasst (GFS: 3 Stunden, ab +240 Stunden 6 Stunden;
-        ECMWF: 3 Stunden) und dann je Mitglied über die Zeit aufsummiert. Erst danach werden daraus
-        Mittelwert und Streuung gebildet. Das dunkle Band zeigt
-        das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel. Kontrolllauf und deterministischer
-        Hauptlauf sind gesondert hervorgehoben.
+      <p class="kurzhinweis">
+        Seit Laufbeginn aufsummierter Niederschlag je Ensemblemitglied, mit Ensemble-Mittel und 10.–90.-Perzentil-Band.
       </p>
 
-      <div class="bedienleiste">
+      <div class="bedienleiste" id="bedienleiste-niederschlag">
         <div class="schaltergruppe" id="modellwahl-niederschlag" role="group" aria-label="Modell"></div>
         <div class="schaltergruppe" id="laufwahl-niederschlag" role="group" aria-label="Modelllauf"></div>
         <label class="mitgliederschalter">
@@ -323,6 +357,18 @@ footer a{color:var(--ink-2)}
 
       <div class="legende" id="leg-niederschlag"></div>
       <div class="plot gross"><svg id="chart-niederschlag" role="img" aria-label="Ensemble-Meteogramm der Niederschlagssumme"></svg></div>
+      <details class="erklaerung" id="erklaerung-niederschlag">
+        <summary>Erklärung und Darstellung</summary>
+        <div class="erklaerungstext">
+          <p>Jede dünne Linie ist ein einzelnes Ensemblemitglied. Die stündlichen Niederschlagsmengen werden
+          zunächst zu den Modellintervallen zusammengefasst (GFS: 3 Stunden, ab +240 Stunden 6 Stunden;
+          ECMWF: 3 Stunden) und dann je Mitglied über die Zeit aufsummiert. Erst danach werden daraus
+          Mittelwert und Streuung gebildet. Das dunkle Band zeigt
+          das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel. Kontrolllauf und deterministischer
+          Hauptlauf sind gesondert hervorgehoben.</p>
+          <p>Zeitachse: Die senkrechten Linien markieren Mitternacht in Ortszeit (Europa/Berlin).</p>
+        </div>
+      </details>
       <details>
         <summary>Zahlen als Tabelle</summary>
         <div class="tabellenhuelle"><table id="tab-niederschlag"></table></div>
@@ -529,7 +575,12 @@ function seiteAnzeigen() {
   });
   tipAus();
 }
-addEventListener("hashchange", seiteAnzeigen);
+addEventListener("hashchange", () => {
+  seiteAnzeigen();
+  // Beim Einblenden neu messen: waehrend die Seite ausgeblendet war, hatte sie keine Breite.
+  if (typeof vorhersageLayouten === "function" && !$("#seite-vorhersage").hidden
+      && Math.abs($("#seite-vorhersage").getBoundingClientRect().width - vorhersageBreite) >= 1) vorhersageLayouten();
+});
 
 /* ============================ Datenzugriff (Analyse-Datenbestand) ============================ */
 const mess = () => DATEN.messungen || {};
@@ -647,41 +698,135 @@ function zeitachsenWerte(daten, punkte) {
   return Array.from({ length: punkte }, (_, i) => i);
 }
 
-/** Ganzzahlige, gut lesbare Temperaturskala. Die feste Referenz (10 °C bei
- * 2 m, 0 °C bei 850 hPa) wird immer eingeschlossen, damit GFS und ECMWF in
- * demselben Diagrammbereich dieselbe hervorgehobene Vergleichslinie haben. */
-function temperaturSkala(werte, referenz) {
-  const sauber = werte.filter(Number.isFinite);
-  let min = sauber.length ? Math.min(...sauber, referenz) : referenz - 1;
-  let max = sauber.length ? Math.max(...sauber, referenz) : referenz + 1;
-  // Mindestens 2 °C Abstand zum hoechsten/tiefsten Modellwert. So beruehrt
-  // auch ein einzelnes extremes Ensemblemitglied nie den Diagrammrand.
-  const puffer = Math.max(2, (max - min) * .08);
-  const roh = Math.max(1, (max - min + 2 * puffer) / 6);
-  // Temperatur-Gitter nie grober als 5 °C; bei engem Wertebereich 1/2 °C.
-  const schritt = roh <= 1 ? 1 : roh <= 2 ? 2 : 5;
-  let unten = Math.floor((min - puffer) / schritt) * schritt;
-  let oben = Math.ceil((max + puffer) / schritt) * schritt;
-  if (oben === unten) oben += schritt;
-  return { unten, oben, schritt, referenz };
+/* ---------- Ortszeit (Europe/Berlin) aus eindeutiger Unixzeit ----------
+   Intern zaehlen nur Unixsekunden (UTC). Lokale Datums- und Uhrzeitangaben
+   entstehen ausschliesslich hier, fuer Anzeige, Tooltip und Tageslinien. Das
+   ist an den Umstelltagen eindeutig (25.10.2026: 25 Stunden, 28.03.2027: 23). */
+const ORTSZEIT = "Europe/Berlin";
+const ortsFormat = new Intl.DateTimeFormat("en-GB", {
+  timeZone: ORTSZEIT, year: "numeric", month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+});
+const zweistellig = n => String(n).padStart(2, "0");
+const ortsCache = new Map();
+function ortsTeile(unix) {
+  let t = ortsCache.get(unix);
+  if (!t) {
+    const p = {};
+    for (const x of ortsFormat.formatToParts(new Date(unix * 1000))) if (x.type !== "literal") p[x.type] = +x.value;
+    const lokalAlsUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) / 1000;
+    t = { jahr: p.year, monat: p.month, tag: p.day, stunde: p.hour, minute: p.minute,
+          iso: `${p.year}-${zweistellig(p.month)}-${zweistellig(p.day)}`, versatz: lokalAlsUtc - unix };
+    ortsCache.set(unix, t);
+  }
+  return t;
+}
+/** Unixzeit von 00:00 Ortszeit an einem Kalendertag. Mitternacht existiert in
+ * Europa/Berlin immer genau einmal (Umstellung erfolgt nachts um 02/03 Uhr). */
+function ortsMitternacht(jahr, monat, tag) {
+  const g = Date.UTC(jahr, monat - 1, tag) / 1000;
+  const u1 = g - ortsTeile(g).versatz;
+  return g - ortsTeile(u1).versatz;
+}
+/** Alle Ortsmitternaechte im geschlossenen Bereich [von, bis] (Unixsekunden). */
+function ortsMitternaechte(von, bis) {
+  const t = ortsTeile(von), out = [];
+  for (let k = 0; k < 400; k++) {
+    const d = new Date(Date.UTC(t.jahr, t.monat - 1, t.tag + k));
+    const u = ortsMitternacht(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+    if (u > bis) break;
+    if (u >= von) out.push({ unix: u, iso: `${d.getUTCFullYear()}-${zweistellig(d.getUTCMonth() + 1)}-${zweistellig(d.getUTCDate())}` });
+  }
+  return out;
+}
+const ortsUhrzeit = unix => { const t = ortsTeile(unix); return `${zweistellig(t.stunde)}:${zweistellig(t.minute)}`; };
+const ortsDatumUhr = unix => { const t = ortsTeile(unix); return `${zweistellig(t.tag)}.${zweistellig(t.monat)}., ${ortsUhrzeit(unix)} Uhr`; };
+
+/** Gemeinsame Temperaturskala. Grenzen und Gitterlinien werden getrennt berechnet:
+ *  - Grenzen: ganzzahlig, knapp ausserhalb des kleinsten/groessten Werts aller
+ *    dargestellten Reihen; Rand = 5 % der Spannweite, mindestens 1 und hoechstens 1,5 °C.
+ *    Die Grenzen muessen keine Vielfachen von 5 sein.
+ *  - Gitterlinien: ganzzahlig, Schritt 5 °C (nie groeber), bei schmalem Bereich
+ *    (Spannweite bis 9 °C) Schritt 1 °C. Jede 5-°C-Marke ist damit immer auch eine
+ *    Gitterlinie -- Voraussetzung fuer die Bezugslinie. */
+function temperaturSkala(werte) {
+  let min = Infinity, max = -Infinity;
+  for (const v of werte) if (Number.isFinite(v)) { if (v < min) min = v; if (v > max) max = v; }
+  if (min === Infinity) { min = 0; max = 10; }
+  const rand = Math.min(1.5, Math.max(1, (max - min) * .05));
+  const unten = Math.floor(min - rand), oben = Math.ceil(max + rand);
+  const schritt = oben - unten <= 9 ? 1 : 5;
+  const ticks = [];
+  for (let t = Math.ceil(unten / schritt) * schritt; t <= oben; t += schritt) ticks.push(t);
+  return { unten, oben, schritt, ticks };
 }
 
-/** Werte beider Modelle fuer EINE gemeinsame Temperaturachse. Verglichen
- * werden die an derselben Laufposition gewaehlten Laeufe; fehlt diese
- * Position bei einem Modell, wird dessen aktuellster Lauf herangezogen. */
+/** Der je Modell fuer die gemeinsame Achse herangezogene Lauf: derselbe
+ * Laufindex bei beiden Modellen; fehlt er, der aktuellste Lauf des Modells. */
+function laufFuerAchse(modellId, bereich) {
+  const laeufe = laeufeFuer(modellId);
+  return laeufe[ZUSTAND[bereich.id].laufIndex] || laeufe[0] || null;
+}
+
+/** Werte beider Modelle fuer EINE gemeinsame Temperaturachse: Mitglieder,
+ * Perzentilband, Kontroll- und Hauptlauf (Mittel liegt im Mitgliederbereich). */
 function gemeinsameTemperaturwerte(bereich) {
-  const laufIndex = ZUSTAND[bereich.id].laufIndex;
   const werte = [];
   MODELLE.forEach(modell => {
-    const laeufe = laeufeFuer(modell.id);
-    const lauf = laeufe[laufIndex] || laeufe[0];
+    const lauf = laufFuerAchse(modell.id, bereich);
     if (!lauf) return;
     const daten = datenAusLauf(bereich, lauf);
     if (!daten.verfuegbar) return;
-    werte.push(...daten.mitglieder.flat(), ...(daten.kontrolllauf || []),
-      ...(daten.hauptlauf || []), ...daten.p90, ...daten.p10);
+    daten.mitglieder.forEach(r => r.forEach(v => werte.push(v)));
+    [daten.kontrolllauf, daten.hauptlauf, daten.mittel, daten.p90, daten.p10].forEach(r => (r || []).forEach(v => werte.push(v)));
   });
   return werte.filter(Number.isFinite);
+}
+
+/** Zeitgewichteter Mittelwert einer Kurve (stueckweise linear zwischen den
+ * Stuetzstellen, Trapezregel) ueber [von, bis]. Teilstuecke mit fehlendem Wert
+ * an einem Ende zaehlen nicht mit. 3-h- und 6-h-Schritte gehen so richtig
+ * gewichtet ein. */
+function zeitgewichteterMittelwert(unix, werte, von, bis) {
+  let flaeche = 0, dauer = 0;
+  for (let i = 0; i + 1 < unix.length; i++) {
+    const a = unix[i], b = unix[i + 1], va = werte[i], vb = werte[i + 1];
+    if (!Number.isFinite(va) || !Number.isFinite(vb) || b <= a) continue;
+    const lo = Math.max(a, von), hi = Math.min(b, bis);
+    if (hi <= lo) continue;
+    const f = t => va + (vb - va) * (t - a) / (b - a);
+    flaeche += (f(lo) + f(hi)) / 2 * (hi - lo);
+    dauer += hi - lo;
+  }
+  return dauer > 0 ? flaeche / dauer : null;
+}
+
+/** Temperaturniveau: Mittel der beiden Ensemble-Mittelkurven (GFS und ECMWF
+ * gleich gewichtet) ueber den gemeinsamen Zeitraum beider Kurven. Liegt nur
+ * ein Modell vor, zaehlt dessen eigener Zeitraum. */
+function temperaturNiveau(bereich) {
+  const kurven = [];
+  MODELLE.forEach(modell => {
+    const lauf = laufFuerAchse(modell.id, bereich);
+    const daten = lauf ? datenAusLauf(bereich, lauf) : null;
+    if (daten && daten.verfuegbar) kurven.push({ unix: daten.zeitpunkte_unix, mittel: daten.mittel });
+  });
+  if (!kurven.length) return null;
+  let von = Math.max(...kurven.map(k => k.unix[0])), bis = Math.min(...kurven.map(k => k.unix[k.unix.length - 1]));
+  const gemeinsam = bis > von;
+  const mittel = kurven.map(k => zeitgewichteterMittelwert(k.unix, k.mittel,
+    gemeinsam ? von : k.unix[0], gemeinsam ? bis : k.unix[k.unix.length - 1])).filter(Number.isFinite);
+  if (!mittel.length) return null;
+  return { niveau: mittel.reduce((s, v) => s + v, 0) / mittel.length, modelle: mittel.length,
+           von: gemeinsam ? von : null, bis: gemeinsam ? bis : null };
+}
+
+/** Naechstgelegene vorhandene 5-°C-Gitterlinie zum Niveau (bei Gleichstand die
+ * hoehere); null, wenn die Skala keine solche Linie enthaelt. */
+function bezugslinieWert(niveau, ticks) {
+  const kandidaten = ticks.filter(t => t % 5 === 0);
+  if (niveau == null || !kandidaten.length) return null;
+  return kandidaten.slice().sort((p, q) => Math.abs(p - niveau) - Math.abs(q - niveau) || q - p)[0];
 }
 
 /** Beschriftung eines Laufwahl-Buttons: immer das tatsaechliche Datum und die
@@ -694,9 +839,7 @@ function laufLabel(lauf, i) {
   return (i === 0 ? "aktuell · " : "") + `${tagMonat}, ${stunde} UTC`;
 }
 
-function modellwahlZeichnen(bereich) {
-  const z = ZUSTAND[bereich.id];
-  const ziel = $(`#modellwahl-${bereich.id}`);
+function modellwahlBauen(ziel, bereich, z) {
   ziel.innerHTML = "";
   MODELLE.forEach(m => {
     const anzahl = laeufeFuer(m.id).length;
@@ -710,11 +853,10 @@ function modellwahlZeichnen(bereich) {
     ziel.appendChild(btn);
   });
 }
+const modellwahlZeichnen = bereich => modellwahlBauen($(`#modellwahl-${bereich.id}`), bereich, ZUSTAND[bereich.id]);
 
-function laufwahlZeichnen(bereich) {
-  const z = ZUSTAND[bereich.id];
+function laufwahlBauen(ziel, bereich, z) {
   const laeufe = laeufeFuer(z.modell);
-  const ziel = $(`#laufwahl-${bereich.id}`);
   ziel.innerHTML = "";
   laeufe.slice(0, Math.max(3, Math.min(laeufe.length, 6))).forEach((lauf, i) => {
     const btn = document.createElement("button");
@@ -725,11 +867,106 @@ function laufwahlZeichnen(bereich) {
     ziel.appendChild(btn);
   });
 }
+const laufwahlZeichnen = bereich => laufwahlBauen($(`#laufwahl-${bereich.id}`), bereich, ZUSTAND[bereich.id]);
 
 function aktuellerLauf(bereich) {
   const z = ZUSTAND[bereich.id];
   const laeufe = laeufeFuer(z.modell);
   return laeufe[z.laufIndex] || laeufe[0] || null;
+}
+
+/* ---------- Textbausteine ueber dem Diagramm (Laufinfo, Status, Legende) ----------
+   Als reine Funktionen, damit ihre Hoehe fuer ALLE moeglichen Zustaende vorab
+   gemessen werden kann. */
+function laufinfoHtml(lauf, modellInfo) {
+  const initDatum = lauf.init.slice(0, 10).split("-").reverse().join(".");
+  return `<b>${modellInfo.name}, Lauf vom ${initDatum}, ${lauf.init.slice(11, 13)} UTC</b> · `
+    + `${lauf.mitglieder_n} Ensemblemitglieder · Horizont ${lauf.horizont_tage} Tage · `
+    + `verfügbar seit ${lauf.verfuegbar_seit.slice(11, 16)} UTC · abgerufen ${lauf.abgerufen.slice(0, 16).replace("T", " ")} UTC`;
+}
+function statusHtml(lauf, daten) {
+  if (!daten.verfuegbar) {
+    // Aeltere Laufdatei ohne modellnahes Raster: verstaendliche Meldung statt
+    // eines JS-Fehlers oder einer irrefuehrenden interpolierten Kurve.
+    return `<div class="warnzeile">Für diesen älteren Lauf sind noch keine Daten im modellnahen 3-/6-Stunden-Raster gespeichert.</div>`;
+  }
+  const meldungen = [];
+  if (lauf.ensemble_vollstaendig !== false && !daten.hauptlauf) {
+    meldungen.push("Ensemble vollständig verfügbar — der passende Hauptlauf wird automatisch nachgetragen.");
+  } else if (!lauf.vollstaendig) {
+    meldungen.push("Daten werden noch vervollständigt — dieser Lauf ist noch nicht vollständig eingetroffen.");
+  }
+  (lauf.hinweise || []).forEach(h => meldungen.push(h));
+  return meldungen.length ? `<div class="warnzeile">${meldungen.join(" · ")}</div>` : "";
+}
+function legendeEintraege(modellInfo, modellFarbe, daten, mitglieder) {
+  return [
+    { mark: markLinie(modellFarbe, false, 3), text: modellInfo.name + " Ensemble-Mittel" },
+    { mark: markFlaeche(modellFarbe, .18), text: "10.–90. Perzentil" },
+    ...(daten.kontrolllauf ? [{ mark: markLinie("var(--ink)", true), text: "Kontrolllauf" }] : []),
+    ...(daten.hauptlauf ? [{ mark: markLinie("var(--ink)", false, 2.4), text: modellInfo.id === "ecmwf" ? "Operationeller Hauptlauf" : "Deterministischer Hauptlauf" }] : []),
+    ...(mitglieder ? [{ mark: markLinie(modellFarbe, false, .8), text: "Einzelne Ensemblemitglieder" }] : []),
+  ];
+}
+const legendeHtml = eintraege => eintraege.map(e => `<span class="leg">${e.mark}${e.text}</span>`).join("");
+
+/* ---------- Feste Mindesthoehen: kein Layoutsprung beim Umschalten ----------
+   Jede Variante (beide Modelle, alle Laeufe, Mitglieder ein/aus) wird in einer
+   unsichtbaren Kopie des Elements mit derselben Breite gesetzt und gemessen.
+   Die groesste Hoehe wird als Mindesthoehe festgelegt -- unabhaengig davon,
+   welcher Zustand gerade gezeigt wird. */
+function messeHoehe(ziel, varianten, fuelle) {
+  const probe = ziel.cloneNode(false);
+  probe.removeAttribute("id");
+  Object.assign(probe.style, { position: "absolute", visibility: "hidden", pointerEvents: "none",
+    left: "0", top: "0", minHeight: "0", width: ziel.getBoundingClientRect().width + "px" });
+  ziel.parentElement.appendChild(probe);
+  let max = 0;
+  varianten.forEach(v => { fuelle(probe, v); max = Math.max(max, probe.getBoundingClientRect().height); });
+  probe.remove();
+  return Math.ceil(max);
+}
+
+function reserviereHoehen(bereich) {
+  const leiste = $(`#bedienleiste-${bereich.id}`);
+  if (!leiste.getBoundingClientRect().width) return false;   // Seite gerade ausgeblendet
+  const modellInfoVon = id => MODELLE.find(m => m.id === id);
+  const alleLaeufe = MODELLE.flatMap(m => laeufeFuer(m.id).map(lauf => ({ m, lauf, daten: datenAusLauf(bereich, lauf) })));
+
+  leiste.style.minHeight = messeHoehe(leiste, MODELLE, (probe, m) => {
+    probe.innerHTML = "";
+    const zf = { modell: m.id, laufIndex: 0, mitglieder: true };
+    const g1 = document.createElement("div"), g2 = document.createElement("div");
+    g1.className = g2.className = "schaltergruppe";
+    modellwahlBauen(g1, bereich, zf);
+    laufwahlBauen(g2, bereich, zf);
+    const schalter = $(`#mitgliederEin-${bereich.id}`).closest("label").cloneNode(true);
+    schalter.querySelector("input").removeAttribute("id");
+    probe.append(g1, g2, schalter);
+  }) + "px";
+
+  const info = $(`#laufinfoZeile-${bereich.id}`);
+  info.style.minHeight = messeHoehe(info, alleLaeufe, (probe, v) => { probe.innerHTML = laufinfoHtml(v.lauf, v.m); }) + "px";
+
+  const status = $(`#laufwarnung-${bereich.id}`);
+  status.style.minHeight = messeHoehe(status, [{ lauf: null }, ...alleLaeufe],
+    (probe, v) => { probe.innerHTML = v.lauf ? statusHtml(v.lauf, v.daten) : ""; }) + "px";
+
+  const leg = $(`#leg-${bereich.id}`);
+  const legendenVarianten = alleLaeufe.filter(v => v.daten.verfuegbar).flatMap(v =>
+    [true, false].map(mit => legendeHtml(legendeEintraege(v.m, bereichsfarbe(v.m, bereich), v.daten, mit))));
+  leg.style.minHeight = messeHoehe(leg, [""].concat(legendenVarianten), (probe, h) => { probe.innerHTML = h; }) + "px";
+  return true;
+}
+
+/** Zeichenflaeche: volle Breite der Diagrammhuelle (mindestens 640 px, darunter
+ * scrollt nur die Huelle, nie die Seite); die Hoehe folgt der Breite. */
+function diagrammMasse(svg) {
+  const huelle = svg.parentElement, cs = getComputedStyle(huelle);
+  const innen = huelle.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const W = innen > 0 ? Math.max(640, Math.floor(innen)) : 900;
+  const H = Math.min(460, Math.max(300, Math.round(W * .34)));
+  return { W, H };
 }
 
 function zeichneBereich(bereich) {
@@ -740,6 +977,8 @@ function zeichneBereich(bereich) {
   const svg = $(`#chart-${bereich.id}`);
   const warnzeile = $(`#laufwarnung-${bereich.id}`);
   warnzeile.innerHTML = "";
+  const { W, H } = diagrammMasse(svg);
+  svg.parentElement.style.minHeight = (H + 28) + "px";   // Rahmen bleibt auch ohne Daten gleich hoch
 
   if (!lauf) {
     svg.innerHTML = "";
@@ -750,68 +989,64 @@ function zeichneBereich(bereich) {
   }
 
   const initDatum = lauf.init.slice(0, 10).split("-").reverse().join(".");
-  $(`#laufinfoZeile-${bereich.id}`).innerHTML =
-    `<b>${modellInfo.name}, Lauf vom ${initDatum}, ${lauf.init.slice(11, 13)} UTC</b> · `
-    + `${lauf.mitglieder_n} Ensemblemitglieder · Horizont ${lauf.horizont_tage} Tage · `
-    + `verfügbar seit ${lauf.verfuegbar_seit.slice(11, 16)} UTC · abgerufen ${lauf.abgerufen.slice(0, 16).replace("T", " ")} UTC`;
+  $(`#laufinfoZeile-${bereich.id}`).innerHTML = laufinfoHtml(lauf, modellInfo);
   if (bereich.id === "niederschlag") $("#standDatum").textContent = "Lauf vom " + initDatum;
 
   const daten = datenAusLauf(bereich, lauf);
+  warnzeile.innerHTML = statusHtml(lauf, daten);
   if (!daten.verfuegbar) {
-    // Aeltere Laufdatei ohne modellnahes Raster: verstaendliche Meldung statt
-    // eines JS-Fehlers oder einer irrefuehrenden interpolierten Kurve.
     svg.innerHTML = "";
     $(`#leg-${bereich.id}`).innerHTML = "";
     $(`#tab-${bereich.id}`).innerHTML = "";
-    warnzeile.innerHTML = `<div class="warnzeile">Für diesen älteren Lauf sind noch keine Daten im modellnahen 3-/6-Stunden-Raster gespeichert.</div>`;
     return;
   }
 
-  const meldungen = [];
-  if (lauf.ensemble_vollstaendig !== false && !daten.hauptlauf) {
-    meldungen.push("Ensemble vollständig verfügbar — der passende Hauptlauf wird automatisch nachgetragen.");
-  } else if (!lauf.vollstaendig) {
-    meldungen.push("Daten werden noch vervollständigt — dieser Lauf ist noch nicht vollständig eingetroffen.");
-  }
-  (lauf.hinweise || []).forEach(h => meldungen.push(h));
-  if (meldungen.length) warnzeile.innerHTML = `<div class="warnzeile">${meldungen.join(" · ")}</div>`;
-
   const horizont = lauf.horizont_tage;
   const punkte = daten.zeiten.length;
-  const W = 900, H = 340, L = 46, R = 18, O = 20, U = 40;
+  const L = 46, R = 18, O = 28, U = 40;
   const iw = W - L - R, ih = H - O - U;
 
   const alleWerte = [...daten.mitglieder.flat(), ...(daten.kontrolllauf || []), ...(daten.hauptlauf || []), ...daten.p90, ...daten.p10].filter(v => v != null);
-  let unten0, oben0, temperaturAchse = null;
+  let unten0, oben0, skala = null, niveau = null, bezug = null;
   if (bereich.nullbasiert) {
     unten0 = 0;
     oben0 = Math.ceil(Math.max(5, ...alleWerte) / 5) * 5;
   } else {
-    temperaturAchse = temperaturSkala(gemeinsameTemperaturwerte(bereich), bereich.referenz);
-    unten0 = temperaturAchse.unten;
-    oben0 = temperaturAchse.oben;
+    skala = temperaturSkala(gemeinsameTemperaturwerte(bereich));
+    unten0 = skala.unten;
+    oben0 = skala.oben;
+    niveau = temperaturNiveau(bereich);
+    bezug = niveau ? bezugslinieWert(niveau.niveau, skala.ticks) : null;
   }
-  // Temperatur wird nach echter Zeit positioniert. Das ist entscheidend,
-  // weil GFS in der Langfrist von stuendlichen auf groebere Schritte wechselt.
-  // Eine indexbasierte Achse wuerde die letzten Tage sonst zusammenstauchen.
+  // Positionierung nach echter Unixzeit: GFS wechselt in der Langfrist von
+  // 3 auf 6 Stunden; eine indexbasierte Achse wuerde die letzten Tage stauchen.
   const xWerte = zeitachsenWerte(daten, punkte);
   const xMin = xWerte[0] ?? 0, xMax = xWerte[punkte - 1] ?? xMin;
   const x = i => L + ((xWerte[i] - xMin) / Math.max(1, xMax - xMin)) * iw;
+  const xZeit = u => L + ((u - xMin) / Math.max(1, xMax - xMin)) * iw;
   const y = v => O + ih - ((v - unten0) / (oben0 - unten0)) * ih;
 
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = "";
+  // Skala und Bezugslinie auch als Attribute: fuer Tests und Barrierefreiheit nachvollziehbar.
+  svg.dataset.unten = unten0; svg.dataset.oben = oben0;
+  if (niveau) svg.dataset.niveau = niveau.niveau.toFixed(3); else delete svg.dataset.niveau;
+  if (bezug != null) svg.dataset.bezug = bezug; else delete svg.dataset.bezug;
 
-  const ySchritt = bereich.nullbasiert ? (oben0 - unten0) / 5 : temperaturAchse.schritt;
-  for (let t = unten0; t <= oben0 + ySchritt / 100; t += ySchritt) {
+  const gitterwerte = [];
+  if (bereich.nullbasiert) {
+    const schritt = (oben0 - unten0) / 5;
+    for (let t = unten0; t <= oben0 + schritt / 100; t += schritt) gitterwerte.push(t);
+  } else gitterwerte.push(...skala.ticks);
+  gitterwerte.forEach(t => {
     svg.appendChild(el("line", { x1: L, y1: y(t), x2: W - R, y2: y(t), class: "gitter" }));
     svg.appendChild(el("text", { x: L - 8, y: y(t) + 3.5, "text-anchor": "end", class: "ax" }, nf(t, 0)));
+  });
+  if (bezug != null) {
+    svg.appendChild(el("line", { x1: L, y1: y(bezug), x2: W - R, y2: y(bezug),
+      stroke: "var(--ink)", "stroke-width": 2.4, opacity: .72, "data-serie": "temperatur-referenz" }));
   }
-  if (!bereich.nullbasiert) {
-    svg.appendChild(el("line", { x1: L, y1: y(bereich.referenz), x2: W - R, y2: y(bereich.referenz),
-      stroke: "var(--ink)", "stroke-width": 2.2, opacity: .72, "data-serie": "temperatur-referenz" }));
-  }
-  svg.appendChild(el("text", { x: L - 8, y: O - 7, "text-anchor": "end", class: "axl" }, bereich.einheit));
+  svg.appendChild(el("text", { x: L - 8, y: O - 14, "text-anchor": "end", class: "axl" }, bereich.einheit));
 
   // Pfad ueber die Stuetzstellen. Luecken (null) unterbrechen die Linie sauber,
   // statt sie quer durch das Diagramm zu ziehen: nach einer Luecke beginnt ein
@@ -868,22 +1103,39 @@ function zeichneBereich(bereich) {
     if (dHl) svg.appendChild(el("path", { d: dHl, fill: "none", stroke: "var(--ink)", "stroke-width": 2.4, "stroke-linecap": "round", "data-serie": "hauptlauf" }));
   }
 
-  // Nulllinie: bei Niederschlag immer die Achse; bei Temperatur nur, wenn 0°C
-  // tatsaechlich im dargestellten Bereich liegt (sonst irrelevant/verwirrend).
-  if (bereich.nullbasiert || (bereich.referenz !== 0 && unten0 < 0 && oben0 > 0)) {
+  // Nulllinie: bei Niederschlag immer die Achse; bei Temperatur nur, wenn 0 °C
+  // im dargestellten Bereich liegt und nicht ohnehin die Bezugslinie ist.
+  if (bereich.nullbasiert || (bezug !== 0 && unten0 < 0 && oben0 > 0)) {
     svg.appendChild(el("line", { x1: L, y1: y(0), x2: W - R, y2: y(0), class: bereich.nullbasiert ? "achse" : undefined, stroke: bereich.nullbasiert ? undefined : "var(--ink-3)", "stroke-width": bereich.nullbasiert ? undefined : 1.3 }));
   }
 
-  // x-Achse + Tooltip-Spalten
-  // Grenzen der unsichtbaren Tooltip-Flaechen liegen jeweils in der Mitte
-  // zwischen zwei realen Zeitpunkten; so bleiben sie auch bei 3-/6-Stunden-
-  // Schritten lueckenlos und zeitlich korrekt.
+  // Beschriftung von Temperaturniveau und Bezugslinie (neutral, ohne Bewertung).
+  // Kleine Tafel am linken Ende der Linie, damit sie auch im scrollenden
+  // Mobil-Diagramm sichtbar ist; sie deckt nur wenige Pixel der Kurven ab.
+  if (niveau) {
+    const zeilen = bezug != null
+      ? [`Temperaturniveau: ${nf(niveau.niveau, 1)} °C`, `Bezugslinie: ${nf(bezug, 0)} °C`]
+      : [`Temperaturniveau: ${nf(niveau.niveau, 1)} °C`];
+    const hoehe = zeilen.length * 12 + 8, breite = Math.max(...zeilen.map(t => t.length)) * 6.6 + 14;
+    const yMitte = bezug != null ? y(bezug) : O + 6;
+    const oberhalb = bezug != null && yMitte - hoehe - 4 >= O;
+    const yOben = bezug == null ? O + 4 : oberhalb ? yMitte - hoehe - 3 : yMitte + 4;
+    svg.appendChild(el("rect", { x: L + 6, y: yOben, width: breite, height: hoehe, rx: 2, fill: "var(--panel)",
+      opacity: .92, stroke: "var(--rule)", "data-serie": "referenz-tafel" }));
+    zeilen.forEach((text, k) => {
+      svg.appendChild(el("text", { x: L + 13, y: yOben + 13 + k * 12, class: "axl",
+        "data-serie": k ? "referenz-linie" : "referenz-niveau" }, text));
+    });
+  }
+
+  // x-Achse: senkrechte Linien bei echter Ortsmitternacht (auch zwischen zwei
+  // Stuetzstellen); Datum an der Linie, an den Raendern so verschoben, dass
+  // nichts abgeschnitten wird.
   const trefferGrenzen = i => {
     const links = i === 0 ? L : (x(i - 1) + x(i)) / 2;
     const rechts = i === punkte - 1 ? W - R : (x(i) + x(i + 1)) / 2;
     return [links, Math.max(1, rechts - links)];
   };
-  // Zeilen fuer den Tooltip an Stuetzstelle i -- fuer beide Bereichsarten gleich
   const werteZeilen = i => [
     `Ensemble-Mittel: ${nf(daten.mittel[i])} ${bereich.einheit}`,
     `Band 10–90 %: ${nf(daten.p10[i])}–${nf(daten.p90[i])} ${bereich.einheit}`,
@@ -892,76 +1144,67 @@ function zeichneBereich(bereich) {
     `Mitglieder mit Daten: ${daten.n[i]}/${lauf.mitglieder_n}`,
   ].filter(Boolean);
 
-  if (daten.zeiten) {
-    // --- Gemeinsames modellnahes Zeitraster ---
-    // Datumsbeschriftung ungefaehr einmal pro Tag: am ersten Zeitpunkt jedes
-    // neuen Kalendertags (und, falls zu viele Tage, nur jeden n-ten davon).
-    const tagesIndizes = [];
-    let letzterTag = null;
-    daten.zeiten.forEach((t, i) => {
-      const tag = t.slice(0, 10);
-      if (tag !== letzterTag) { tagesIndizes.push({ i, tag }); letzterTag = tag; }
+  {
+    const mitternaechte = ortsMitternaechte(xMin, xMax);
+    const pxProTag = iw * 86400 / Math.max(1, xMax - xMin);
+    const abstand = 72;
+    const nte = Math.max(1, Math.ceil(abstand / pxProTag));
+    const marken = [];   // {x, iso, anker}
+    mitternaechte.forEach((m, k) => {
+      const xm = xZeit(m.unix);
+      svg.appendChild(el("line", { x1: xm, y1: O, x2: xm, y2: O + ih, class: "gitter", "data-serie": "tageslinie", "data-unix": m.unix }));
+      if (k % nte === 0) marken.push({ x: xm, iso: m.iso });
     });
-    const jederNte = Math.ceil(tagesIndizes.length / 10);
-    tagesIndizes.forEach((eintrag, k) => {
-      if (k % jederNte !== 0 && k !== tagesIndizes.length - 1) return;
-      svg.appendChild(el("line", { x1: x(eintrag.i), y1: O, x2: x(eintrag.i), y2: O + ih, class: "gitter" }));
-      svg.appendChild(el("text", { x: x(eintrag.i), y: H - U + 16, "text-anchor": "middle", class: "ax" }, datumKurz(eintrag.tag)));
+    const letzte = mitternaechte[mitternaechte.length - 1];
+    if (letzte && (mitternaechte.length - 1) % nte !== 0
+        && xZeit(letzte.unix) - marken[marken.length - 1].x >= abstand) marken.push({ x: xZeit(letzte.unix), iso: letzte.iso });
+    // Tag am Diagrammanfang, sofern kein Mitternachtsdatum in der Naehe steht
+    const startMitternacht = mitternaechte.length && mitternaechte[0].unix === xMin;
+    if (!startMitternacht && (!marken.length || marken[0].x - L >= 90))
+      marken.unshift({ x: L, iso: ortsTeile(xMin).iso, anker: "start" });
+    marken.forEach(m => {
+      const t = el("text", { x: m.x, y: H - U + 16, "text-anchor": m.anker || "middle", class: "ax", "data-serie": "tagesbeschriftung" }, datumKurz(m.iso));
+      svg.appendChild(t);
+      const breite = t.getComputedTextLength() || t.textContent.length * 6.3;
+      if (!m.anker && m.x + breite / 2 > W - 2) { t.setAttribute("x", W - 2); t.setAttribute("text-anchor", "end"); }
+      else if (!m.anker && m.x - breite / 2 < 2) { t.setAttribute("x", 2); t.setAttribute("text-anchor", "start"); }
     });
-    daten.zeiten.forEach((t, i) => {
-      // genauer oertlicher Zeitpunkt, z.B. "19.09., 20:00 Uhr"
-      const zeitpunkt = `${t.slice(8, 10)}.${t.slice(5, 7)}., ${t.slice(11, 16)} Uhr`;
+    xWerte.forEach((u, i) => {
       const [tx, tw] = trefferGrenzen(i);
       const zusatz = bereich.akkumuliert ? ", aufsummiert seit Laufbeginn" : "";
-      treffer(svg, tx, O, tw, ih, `${zeitpunkt} (Ortszeit${zusatz})\n` + werteZeilen(i).join("\n"));
+      treffer(svg, tx, O, tw, ih, `${ortsDatumUhr(u)} (Ortszeit${zusatz})\n` + werteZeilen(i).join("\n"));
     });
     svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" },
       bereich.akkumuliert
         ? "Zeitpunkt (Ortszeit, 3-/6-h-Mengen seit Initialisierung aufsummiert)"
         : "Zeitpunkt (Ortszeit, modellnahe 3-/6-h-Schritte)"));
-  } else {
-    // --- Taegliche Niederschlagsreihe (unveraendert) ---
-    for (let lead = 1; lead <= horizont; lead++) {
-      const i = lead - 1;
-      const ziel = lauf.ziele[i];
-      if (lead % Math.ceil(horizont / 10) === 0 || lead === 1 || lead === horizont) {
-        svg.appendChild(el("text", { x: x(i), y: H - U + 16, "text-anchor": "middle", class: "ax" }, datumKurz(ziel)));
-        svg.appendChild(el("text", { x: x(i), y: H - U + 29, "text-anchor": "middle", class: "ax" }, "+" + lead));
-      }
-      const [tx, tw] = trefferGrenzen(i);
-      treffer(svg, tx, O, tw, ih,
-        `${datumLang(ziel)} (+${lead} Tage, aufsummiert seit Laufbeginn)\n` + werteZeilen(i).join("\n"));
-    }
-    svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" }, "Vorhersagetag (aufsummiert seit Initialisierung)"));
   }
 
-  legende(`#leg-${bereich.id}`, [
-    { mark: markLinie(modellFarbe, false, 3), text: modellInfo.name + " Ensemble-Mittel" },
-    { mark: markFlaeche(modellFarbe, .18), text: "10.–90. Perzentil" },
-    ...(daten.kontrolllauf ? [{ mark: markLinie("var(--ink)", true), text: "Kontrolllauf" }] : []),
-    ...(daten.hauptlauf ? [{ mark: markLinie("var(--ink)", false, 2.4), text: modellInfo.id === "ecmwf" ? "Operationeller Hauptlauf" : "Deterministischer Hauptlauf" }] : []),
-    ...(z.mitglieder ? [{ mark: markLinie(modellFarbe, false, .8), text: "Einzelne Ensemblemitglieder" }] : []),
-  ]);
+  $(`#leg-${bereich.id}`).innerHTML = legendeHtml(legendeEintraege(modellInfo, modellFarbe, daten, z.mitglieder));
 
   const kontrolleKopf = daten.kontrolllauf ? "<th>Kontrolllauf</th>" : "";
-  const tabellenZeile = (beschriftung, zweite, i) =>
-    `<tr><td>${beschriftung}</td><td>${zweite}</td>
+  const tabellenZeile = (u, i) =>
+    `<tr><td>${datumKurz(ortsTeile(u).iso)}</td><td>${ortsUhrzeit(u)}</td>
       <td>${nf(daten.mittel[i])}</td><td>${nf(daten.p10[i])}–${nf(daten.p90[i])}</td>
       ${daten.kontrolllauf ? `<td>${nf(daten.kontrolllauf[i])}</td>` : ""}<td>${daten.hauptlauf ? nf(daten.hauptlauf[i]) : "–"}</td></tr>`;
-
-  $(`#tab-${bereich.id}`).innerHTML = daten.zeiten
-    ? `<thead><tr><th>Tag</th><th>Uhrzeit</th><th>Mittel</th><th>Band 10–90</th>${kontrolleKopf}<th>Hauptlauf</th></tr></thead><tbody>`
-      + daten.zeiten.map((t, i) => tabellenZeile(datumKurz(t.slice(0, 10)), t.slice(11, 16), i)).join("")
-      + `</tbody>`
-    : `<thead><tr><th>Tag</th><th>Vorlauf</th><th>Mittel</th><th>Band 10–90</th>${kontrolleKopf}<th>Hauptlauf</th></tr></thead><tbody>`
-      + lauf.ziele.map((ziel, i) => tabellenZeile(datumKurz(ziel), "+" + (i + 1), i)).join("")
-      + `</tbody>`;
+  $(`#tab-${bereich.id}`).innerHTML =
+    `<thead><tr><th>Tag</th><th>Uhrzeit</th><th>Mittel</th><th>Band 10–90</th>${kontrolleKopf}<th>Hauptlauf</th></tr></thead><tbody>`
+    + xWerte.map(tabellenZeile).join("") + `</tbody>`;
 }
 
 function bereichNeuZeichnen(bereich) {
   modellwahlZeichnen(bereich);
   laufwahlZeichnen(bereich);
   zeichneBereich(bereich);
+}
+
+/** Mindesthoehen neu messen und alle Vorhersage-Diagramme auf die aktuelle
+ * Breite zeichnen (Start, Groessenaenderung, Einblenden der Seite). */
+let vorhersageBreite = 0;
+function vorhersageLayouten() {
+  BEREICHE.forEach(bereich => { reserviereHoehen(bereich); });
+  BEREICHE.forEach(bereich => bereichNeuZeichnen(bereich));
+  vorhersageBreite = $("#seite-vorhersage").getBoundingClientRect().width;
 }
 
 BEREICHE.forEach(bereich => {
@@ -1410,14 +1653,36 @@ function analyseZeichnen() {
 
 BEREICHE.forEach(bereich => { ZUSTAND[bereich.id].modell = modellMitVerfuegbaremLauf(); });
 seiteAnzeigen();
-BEREICHE.forEach(bereich => bereichNeuZeichnen(bereich));
+vorhersageLayouten();
 analyseZeichnen();
-addEventListener("resize", () => { tipAus(); });
+// Aendert sich die Inhaltsbreite (Fenstergroesse, Drehen, Zoom, ein erscheinender
+// Seiten-Scrollbalken, nachgeladene Schriften), werden Mindesthoehen und Diagramme
+// neu gemessen bzw. gezeichnet. Ein ResizeObserver erfasst auch Aenderungen, bei
+// denen kein resize-Ereignis entsteht. Die Zaehlgrenze verhindert Endlosschleifen.
+let layoutVersuche = 0;
+function breiteGeaendert() {
+  const seite = $("#seite-vorhersage");
+  if (seite.hidden || Math.abs(seite.getBoundingClientRect().width - vorhersageBreite) < 1) return;
+  if (++layoutVersuche > 6) return;
+  vorhersageLayouten();
+}
+addEventListener("resize", tipAus);
+if (typeof ResizeObserver === "function") {
+  let beobachtet = null;
+  new ResizeObserver(() => { cancelAnimationFrame(beobachtet); beobachtet = requestAnimationFrame(breiteGeaendert); })
+    .observe($(".wrap"));
+  setInterval(() => { layoutVersuche = 0; }, 2000);
+} else {
+  let resizeTimer = null;
+  addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(breiteGeaendert, 100); });
+}
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!$("#seite-vorhersage").hidden) vorhersageLayouten(); });
 /* Reine statische Seite: alle Daten sind oben eingebettet, kein Nachladen nötig. */
 
 /* Test-Hook: reine Berechnungsfunktionen fuer automatisierte Tests freigeben.
    Aendert kein Verhalten der Seite selbst, wird von keiner UI-Funktion gelesen. */
-window.__TEST__ = { paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, formatAktuell, laufLabel, zeitachsenWerte, temperaturSkala, gemeinsameTemperaturwerte, bereichsfarbe };
+window.__TEST__ = { paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, formatAktuell, laufLabel, zeitachsenWerte, temperaturSkala, gemeinsameTemperaturwerte, bereichsfarbe,
+  ortsTeile, ortsMitternacht, ortsMitternaechte, zeitgewichteterMittelwert, temperaturNiveau, bezugslinieWert };
 
 
 </script>

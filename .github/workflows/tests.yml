@@ -1,0 +1,55 @@
+name: Tests
+
+# Vollstaendige Tests einschliesslich Browsertests (Playwright + Chromium).
+# Getrennt vom halbstuendlichen Daten-Workflow: Der installiert weder Chromium
+# noch fuehrt er die Browsertests aus und bleibt dadurch schnell.
+# Laeuft nur, wenn sich Programm, Vorlage, Tests oder Workflows aendern -- nicht
+# bei den automatischen Daten-Commits (daten/, docs/daten.js).
+on:
+  push:
+    paths:
+      - "skripte/**"
+      - "tests/**"
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - "skripte/**"
+      - "tests/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Abhängigkeiten
+        run: pip install --quiet requests pytest playwright
+
+      - name: Chromium für Playwright
+        run: python3 -m playwright install --with-deps chromium
+
+      - name: Schnelle Tests (ohne Browser)
+        run: >
+          python3 -m pytest tests/ -q
+          --ignore=tests/test_js_analyse.py
+          --ignore=tests/test_vorhersage_darstellung.py
+
+      - name: Syntax der Skripte
+        run: python3 -m py_compile skripte/*.py
+
+      - name: Browsertests
+        run: python3 -m pytest tests/test_js_analyse.py tests/test_vorhersage_darstellung.py -q
+
+      - name: Seite lässt sich bauen
+        run: python3 skripte/bauen.py
