@@ -163,6 +163,36 @@ def test_abruffehler_laesst_bisherigen_datenstand_unveraendert(tmp_path):
     assert vorher == nachher
 
 
+def test_voruebergehende_stoerung_wird_wiederholt(tmp_path):
+    welt = Welt()
+    echt, zaehler = welt.get, {"n": 0}
+
+    def wackelig(url, **kwargs):
+        if url.endswith("getstationsdata") and zaehler["n"] < 2:
+            zaehler["n"] += 1
+            return Antwort(503, {"error": {"code": 27, "message": "Service temporarily unavailable"}})
+        return echt(url, **kwargs)
+    welt.get = wackelig
+    assert starten(tmp_path, welt) == 0
+    assert zaehler["n"] == 2 and sn.laden(tmp_path / "station")["aussen"]
+
+
+def test_dauerhafte_stoerung_endet_mit_fehler_ohne_dateien(tmp_path, capsys):
+    welt = Welt()
+    welt.get = lambda url, **kw: Antwort(503, {"error": {"code": 27, "message": "Service temporarily unavailable"}})
+    assert starten(tmp_path, welt) == 1
+    assert "nach 4 Versuchen" in capsys.readouterr().out
+    assert not (tmp_path / "station").exists()
+
+
+def test_vorabpruefung_nennt_grund_von_github(tmp_path, capsys):
+    welt = Welt(vorab_ok=False)
+    echt = welt.run
+    welt.run = lambda befehl, **kw: subprocess.CompletedProcess(befehl, 1, "", "HTTP 401: Bad credentials (https://api.github.com/...)\n") if befehl[1] == "api" else echt(befehl, **kw)
+    assert starten(tmp_path, welt) == 1
+    assert "GitHub meldet: HTTP 401: Bad credentials" in capsys.readouterr().out
+
+
 def test_ausfall_des_regenmessers_verhindert_aussenwerte_nicht(tmp_path):
     assert starten(tmp_path, Welt(regen_status=400)) == 0
     reihen = sn.laden(tmp_path / "station")

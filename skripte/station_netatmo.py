@@ -129,9 +129,16 @@ def vorab_pruefen(repo, pat, run=subprocess.run):
     if erg.returncode != 0:
         raise SecretFehler(
             "Vorabpruefung fehlgeschlagen: Der GitHub-Schluessel SECRETS_PAT ist abgelaufen, "
-            "falsch oder hat nicht das Recht 'Secrets: Read and write'. Die Netatmo-Anmeldung "
-            "wurde NICHT angefasst; der bisherige Netatmo-Token bleibt gueltig. "
-            "Siehe README, Wiederherstellung Fall B.")
+            "falsch oder hat nicht das Recht 'Secrets: Read and write'"
+            f"{gh_grund(erg)}. Die Netatmo-Anmeldung wurde NICHT angefasst; der bisherige "
+            "Netatmo-Token bleibt gueltig. Siehe README, Wiederherstellung Fall B.")
+
+
+def gh_grund(erg):
+    """Erste Zeile der gh-Fehlermeldung (z. B. 'HTTP 401: Bad credentials'). Enthaelt
+    keine Schluesselwerte; zur Sicherheit auf 120 Zeichen gekuerzt."""
+    zeile = next((z.strip() for z in (erg.stderr or "").splitlines() if z.strip()), "")
+    return f" (GitHub meldet: {zeile[:120]})" if zeile else ""
 
 
 def secret_speichern(repo, pat, wert, run=subprocess.run):
@@ -141,7 +148,7 @@ def secret_speichern(repo, pat, wert, run=subprocess.run):
     if erg.returncode != 0:
         raise SecretFehler(
             f"Der neue Netatmo-Refresh-Token konnte nicht gespeichert werden "
-            f"(gh Rueckgabecode {erg.returncode}). Der alte Token ist bei Netatmo bereits "
+            f"(gh Rueckgabecode {erg.returncode}{gh_grund(erg)}). Der alte Token ist bei Netatmo bereits "
             f"ungueltig: Netatmo-Zugang neu herstellen, siehe README, Wiederherstellung Fall A.")
 
 
@@ -201,24 +208,37 @@ def zugang_herstellen(umgebung, post=requests.post, run=subprocess.run):
 
 # ------------------------------------------------------------- Netatmo-Daten
 
-def api_get(pfad, access, params=None, get=requests.get):
-    try:
-        r = get(f"{API}/api/{pfad}", headers={"Authorization": f"Bearer {access}"},
-                params=params or {}, timeout=60)
-    except requests.RequestException as e:
-        raise AbrufFehler(f"{pfad}: keine Verbindung ({type(e).__name__})") from None
-    code = fehlercode(r) if r.status_code != 200 else ""
-    if r.status_code == 429 or "Code 26" in code:
-        raise GrenzeErreicht(f"{pfad}: Netatmo-Abrufgrenze erreicht ({code or 'HTTP 429'})")
-    if r.status_code != 200:
-        raise AbrufFehler(f"{pfad}: HTTP {r.status_code} ({code})")
-    try:
-        d = r.json()
-    except ValueError:
-        raise AbrufFehler(f"{pfad}: Antwort ist kein JSON") from None
-    if not isinstance(d, dict) or "body" not in d:
-        raise AbrufFehler(f"{pfad}: Antwort ohne Datenteil")
-    return d["body"]
+def api_get(pfad, access, params=None, get=requests.get, versuche=4):
+    """GET an die Netatmo-API. Voruebergehende Stoerungen (keine Verbindung,
+    HTTP 5xx, z. B. Code 27 "Service temporarily unavailable") werden mit
+    wachsendem Abstand wiederholt; Abrufgrenze und inhaltliche Fehler nicht."""
+    letzter = None
+    for versuch in range(versuche):
+        if versuch:
+            time.sleep(PAUSE_S * 5 * 2 ** (versuch - 1))      # 5 s, 10 s, 20 s
+        try:
+            r = get(f"{API}/api/{pfad}", headers={"Authorization": f"Bearer {access}"},
+                    params=params or {}, timeout=60)
+        except requests.RequestException as e:
+            letzter = f"{pfad}: keine Verbindung ({type(e).__name__})"
+            continue
+        code = fehlercode(r) if r.status_code != 200 else ""
+        if r.status_code == 429 or "Code 26" in code:
+            raise GrenzeErreicht(f"{pfad}: Netatmo-Abrufgrenze erreicht ({code or 'HTTP 429'})")
+        if r.status_code >= 500:
+            letzter = f"{pfad}: HTTP {r.status_code} ({code})"
+            continue
+        if r.status_code != 200:
+            raise AbrufFehler(f"{pfad}: HTTP {r.status_code} ({code})")
+        try:
+            d = r.json()
+        except ValueError:
+            raise AbrufFehler(f"{pfad}: Antwort ist kein JSON") from None
+        if not isinstance(d, dict) or "body" not in d:
+            raise AbrufFehler(f"{pfad}: Antwort ohne Datenteil")
+        return d["body"]
+    raise AbrufFehler(f"{letzter}, auch nach {versuche} Versuchen. Netatmo ist voruebergehend "
+                      f"gestoert; der naechste Lauf versucht es erneut")
 
 
 def module_finden(body):
