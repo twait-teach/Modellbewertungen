@@ -749,3 +749,88 @@ def test_verarbeite_modell_nutzt_uebergebene_metadaten_statt_neuer_abfrage(monke
     lauf, hinweise = sv.verarbeite_modell("gfs", sv.MODELLE["gfs"], [], dt.date(2026, 9, 17),
                                           ens_info={"lauf": init, "verfuegbar": init})
     assert lauf is None and aufrufe == []   # keine zweite Metadatenabfrage innerhalb der Verarbeitung
+
+
+# ---------------------------------------------------------------- Nachladen des Langfristteils (Stufe 3)
+def _slot_mit_hauptlauf(init, wert=1.0, hauptlauf=15.0, abgerufen="2026-09-17T06:00Z"):
+    lauf = _vollstaendiger_lauf(init)
+    for feld in ("niederschlag", "temperatur_2m", "temperatur_850hpa"):
+        lauf[feld] = {**lauf[feld], "mitglieder": [[wert]], "hauptlauf": [hauptlauf]}
+    lauf["abgerufen"] = abgerufen
+    lauf["hauptlauf_abgerufen"] = "2026-09-17T08:00Z"
+    lauf["hauptlauf_vollstaendig"] = lauf["vollstaendig"] = True     # so, wie normalisiere_slot ihn ablegt
+    return lauf
+
+
+def _neu_abgerufen(init, wert):
+    lauf = _vollstaendiger_lauf(init)
+    for feld in ("niederschlag", "temperatur_2m", "temperatur_850hpa"):
+        lauf[feld] = {**lauf[feld], "mitglieder": [[wert]], "hauptlauf": None}
+    lauf["abgerufen"] = "2026-09-17T12:00Z"
+    return lauf
+
+
+def _durchlauf_mit_bestehendem_slot(monkeypatch, tmp_path, bestehend, neu, metadaten):
+    init = dt.datetime.strptime(bestehend["init"], "%Y-%m-%dT%H:%MZ").replace(tzinfo=dt.timezone.utc)
+    pfad = tmp_path / sv.dateiname("gfs", init)
+    sv.atomar_schreiben_json(pfad, bestehend, separators=(",", ":"))
+    vorher = pfad.read_text(encoding="utf-8")
+    _main_gfs(monkeypatch, tmp_path, metadaten, neu)
+    return pfad, vorher
+
+
+def test_geaenderter_langfristteil_ersetzt_das_ensemble_und_behaelt_den_hauptlauf(monkeypatch, tmp_path):
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    pfad, vorher = _durchlauf_mit_bestehendem_slot(
+        monkeypatch, tmp_path, _slot_mit_hauptlauf(init, wert=1.0), _neu_abgerufen(init, wert=7.5), [init, init])
+    nachher = json.loads(pfad.read_text(encoding="utf-8"))
+    assert nachher["temperatur_2m"]["mitglieder"] == [[7.5]]                   # neuer Stand des Ensembles
+    assert nachher["niederschlag"]["mitglieder"] == [[7.5]]
+    assert nachher["temperatur_2m"]["hauptlauf"] == [15.0]                      # Hauptlauf bleibt erhalten
+    assert nachher["hauptlauf_vollstaendig"] is True and nachher["vollstaendig"] is True
+    assert nachher["hauptlauf_abgerufen"] == "2026-09-17T08:00Z"
+    assert nachher["init"] == "2026-09-17T00:00Z"
+    assert nachher["abgerufen"] == "2026-09-17T12:00Z" and pfad.read_text(encoding="utf-8") != vorher
+
+
+def test_unveraendertes_ensemble_schreibt_nichts_neu(monkeypatch, tmp_path):
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    pfad, vorher = _durchlauf_mit_bestehendem_slot(
+        monkeypatch, tmp_path, _slot_mit_hauptlauf(init, wert=1.0), _neu_abgerufen(init, wert=1.0), [init, init])
+    # Nur die Abrufzeit ist anders -- das zaehlt nicht als Aenderung (kein Git-Commit im Workflow)
+    assert pfad.read_text(encoding="utf-8") == vorher
+
+
+def test_unvollstaendiger_neuabruf_ersetzt_nichts(monkeypatch, tmp_path):
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    neu = _neu_abgerufen(init, wert=7.5)
+    neu["ensemble_vollstaendig"] = False
+    pfad, vorher = _durchlauf_mit_bestehendem_slot(monkeypatch, tmp_path, _slot_mit_hauptlauf(init), neu, [init, init])
+    assert pfad.read_text(encoding="utf-8") == vorher
+
+
+def test_neuabruf_mit_weniger_mitgliedern_ersetzt_nichts(monkeypatch, tmp_path):
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    neu = _neu_abgerufen(init, wert=7.5)
+    neu["mitglieder_n"] = 12
+    pfad, vorher = _durchlauf_mit_bestehendem_slot(monkeypatch, tmp_path, _slot_mit_hauptlauf(init), neu, [init, init])
+    assert pfad.read_text(encoding="utf-8") == vorher
+
+
+def test_laufwechsel_waehrend_des_nachladens_ersetzt_nichts(monkeypatch, tmp_path):
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    inzwischen = dt.datetime(2026, 9, 17, 6, tzinfo=dt.timezone.utc)
+    pfad, vorher = _durchlauf_mit_bestehendem_slot(
+        monkeypatch, tmp_path, _slot_mit_hauptlauf(init), _neu_abgerufen(init, wert=7.5), [init, inzwischen])
+    assert pfad.read_text(encoding="utf-8") == vorher
+    assert not (tmp_path / sv.dateiname("gfs", inzwischen)).exists()
+
+
+def test_anderes_zeitraster_verwirft_den_alten_hauptlauf_zur_neuholung(monkeypatch, tmp_path):
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    neu = _neu_abgerufen(init, wert=7.5)
+    for feld in ("niederschlag", "temperatur_2m", "temperatur_850hpa"):
+        neu[feld]["zeitpunkte_unix"] = [1789603200 + 3 * 3600]
+    pfad, _ = _durchlauf_mit_bestehendem_slot(monkeypatch, tmp_path, _slot_mit_hauptlauf(init), neu, [init, init])
+    nachher = json.loads(pfad.read_text(encoding="utf-8"))
+    assert nachher["temperatur_2m"]["hauptlauf"] is None and nachher["hauptlauf_vollstaendig"] is False

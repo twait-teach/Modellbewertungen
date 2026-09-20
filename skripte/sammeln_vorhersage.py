@@ -54,7 +54,10 @@ als fester Slot angelegt, sobald Laufweite und Mitgliederzahl des Ensembles
 vollstaendig vorliegen. Der deterministische Hauptlauf wird ueber seine exakte
 Initialisierungszeit aus der Single-Runs-Schnittstelle nachgetragen, sobald er
 verfuegbar ist. So wird das Ensemble ohne Wartezeit gezeigt, ohne spaeter einen
-unpassenden neueren Hauptlauf einzubetten. Aeltere Laeufe werden nach dem
+unpassenden neueren Hauptlauf einzubetten. Solange die Schnittstelle noch diesen
+Lauf ausgibt, wird das Ensemble bei jedem Durchlauf erneut abgerufen und der Slot
+nur bei fachlich geaenderten Werten ersetzt (der Langfristteil eines GFS-Laufs ab
++240 h wird bei Open-Meteo spaeter fertig). Aeltere Laeufe werden nach dem
 Schreiben ueber AUFBEWAHREN hinaus geloescht.
 """
 
@@ -503,6 +506,53 @@ def normalisiere_slot(lauf):
     return vorher != json.dumps(lauf, sort_keys=True)
 
 
+def ensemble_inhalt(lauf):
+    """Der Ensembleteil eines Slots als Vergleichstext: ohne Hauptlauf und ohne
+    Abrufzeit, damit nur fachlich andere Werte als Aenderung zaehlen."""
+    teil = {"mitglieder_n": lauf.get("mitglieder_n")}
+    for feld in ("niederschlag", "temperatur_2m", "temperatur_850hpa"):
+        reihe = lauf.get(feld)
+        if isinstance(reihe, dict):
+            teil[feld] = {k: v for k, v in reihe.items() if k != "hauptlauf"}
+    return json.dumps(teil, sort_keys=True)
+
+
+def aktualisiere_ensemble(kurz, cfg, bereits, vorab_info, fehler, heute):
+    """Ruft das Ensemble des AKTUELLEN Laufs erneut ab und liefert einen
+    aktualisierten Slot -- oder None, wenn nichts zu tun ist.
+
+    Hintergrund: Open-Meteo liefert den Langfristteil eines Laufs (bei GFS ab
+    +240 h) nachweislich erst spaeter fertig als die ersten Tage; zwei Abrufe
+    desselben Laufs unterschieden sich ab +240 h in Kontrolllauf und fast allen
+    Mitgliedern. Ein sofort gespeicherter Slot wuerde diesen vorlaeufigen Teil
+    fuer immer behalten. Solange die Schnittstelle noch DIESEN Lauf ausgibt
+    (aeltere Laeufe lassen sich nicht mehr abrufen), wird der Slot deshalb bei
+    jedem Durchlauf mit dem neuesten Stand verglichen und nur bei echter
+    Aenderung ersetzt. Der bereits ergaenzte Hauptlauf bleibt dabei erhalten.
+
+    Nie ersetzt wird, wenn der neue Abruf unvollstaendig ist, weniger
+    Mitglieder hat oder der Lauf waehrend des Abrufs gewechselt hat.
+    """
+    lauf, _ = verarbeite_modell(kurz, cfg, fehler, heute, ens_info=vorab_info)
+    if not lauf or not lauf.get("ensemble_vollstaendig"):
+        return None
+    if lauf.get("init") != bereits.get("init") or (lauf.get("mitglieder_n") or 0) < (bereits.get("mitglieder_n") or 0):
+        return None
+    if ensemble_inhalt(lauf) == ensemble_inhalt(bereits):
+        return None
+    if not lauf_unveraendert(cfg, vorab_info["lauf"]):
+        return None
+    for feld in ("niederschlag", "temperatur_2m", "temperatur_850hpa"):
+        alt = bereits.get(feld) or {}
+        gleiches_raster = alt.get("zeitpunkte_unix") == lauf[feld]["zeitpunkte_unix"]
+        # Ein Hauptlauf passt nur auf dasselbe Zeitraster; sonst wird er neu geholt.
+        lauf[feld]["hauptlauf"] = alt.get("hauptlauf") if gleiches_raster else None
+    if bereits.get("hauptlauf_abgerufen"):
+        lauf["hauptlauf_abgerufen"] = bereits["hauptlauf_abgerufen"]
+    normalisiere_slot(lauf)
+    return lauf
+
+
 def ergaenze_hauptlauf(lauf, cfg, fehler):
     """Ergaenzt EINEN bestehenden Ensemble-Slot um seinen exakten Hauptlauf.
 
@@ -630,9 +680,14 @@ def main():
                           f"{lauf['mitglieder_n']} Mitglieder; Hauptlauf wird nachgereicht")
             else:
                 geaendert = normalisiere_slot(bereits)
+                aktualisiert = aktualisiere_ensemble(kurz, cfg, bereits, vorab_info, fehler, heute)
+                if aktualisiert is not None:
+                    bereits, geaendert = aktualisiert, True
                 if geaendert:
                     atomar_schreiben_json(erwarteter_pfad, bereits, separators=(",", ":"))
-                print(f"{kurz}: Ensemble-Slot {vorab_info['lauf']:%Y-%m-%dT%H:%MZ} bereits vorhanden")
+                print(f"{kurz}: Ensemble-Slot {vorab_info['lauf']:%Y-%m-%dT%H:%MZ} "
+                      + ("aktualisiert (Open-Meteo hat Werte nachgeliefert)" if aktualisiert is not None
+                         else "bereits vorhanden, unveraendert"))
 
         # Danach mehrere offene Slots pruefen. Der Hauptlauf wird ueber die
         # Initialisierungszeit fest angefordert; deshalb darf inzwischen schon

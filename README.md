@@ -66,7 +66,10 @@ kleine Metadaten- bzw. Verfügbarkeitsantworten. Sobald ein Ensemble vollständi
 sein Lauf-Slot gespeichert und die Seite sofort damit gebaut. Der exakt passende Hauptlauf wird
 später über seine feste Initialisierungszeit aus der Open-Meteo-Single-Runs-Schnittstelle in
 denselben Slot nachgetragen. Ein inzwischen neuerer Hauptlauf kann dadurch nicht versehentlich
-mit einem älteren Ensemble vermischt werden. Haben sich keine Daten geändert, entstehen weder
+mit einem älteren Ensemble vermischt werden. Solange Open-Meteo noch genau diesen Lauf ausgibt, wird sein
+Ensemble bei jedem Durchlauf erneut abgerufen und der Slot nur bei fachlich geänderten Werten ersetzt (der
+Langfristteil eines GFS-Laufs ab +240 h wird dort nachweislich später fertig; der Hauptlauf bleibt dabei
+erhalten). Haben sich keine Daten geändert, entstehen weder
 ein neuer Seitenbau noch ein unnötiger Commit:
 
 - `sammeln.py` schreibt `daten/forecasts_<Tag>.json` nur bei einer **fachlichen** Änderung. Der
