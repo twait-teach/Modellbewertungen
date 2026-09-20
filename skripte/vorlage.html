@@ -243,7 +243,24 @@ td.luecke{color:var(--ink-3)}
 .erklaerungstext p{margin:8px 0}
 [id^="seite-station"] .kacheln{margin-bottom:18px}
 [id^="seite-station"] details{border:1px solid var(--rule); border-radius:3px; background:var(--panel); padding:10px 16px}
-/* Vier Reiter: auf schmalen Bildschirmen seitlich wischen statt umbrechen */
+/* ---------- Reiter "48h Wetter" ---------- */
+.w-nacht{fill:color-mix(in srgb,var(--ink) 6%,transparent)}
+.w-band{fill:var(--band)}
+.w-linie{fill:none; stroke:var(--mess); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round}
+.w-regen{fill:var(--ecmwf); opacity:.55}
+.wsym{stroke-linecap:round}
+.w-wolke{fill:color-mix(in srgb,var(--ink-3) 55%,transparent)}
+.w-sonne{fill:var(--warn)}
+.w-sonne-strahl{stroke:var(--warn); stroke-width:1.4}
+.w-nass{fill:var(--ecmwf)}
+.w-schnee{stroke:var(--ecmwf); stroke-width:1.3}
+.w-nebel{stroke:var(--ink-3); stroke-width:1.3}
+.w-blitz{fill:var(--warn)}
+#plot-wetter48{background:var(--panel); border:1px solid var(--rule); border-radius:3px; padding:14px 12px 8px; box-shadow:var(--schatten)}
+#plot-wetter48 svg{display:block; width:100%; height:auto; min-width:0}
+#kacheln-wetter48{margin-bottom:16px}
+
+/* Reiter: auf schmalen Bildschirmen seitlich wischen statt umbrechen */
 nav.hauptnav{overflow-x:auto; scrollbar-width:none}
 nav.hauptnav::-webkit-scrollbar{display:none}
 nav.hauptnav a{white-space:nowrap; flex:none}
@@ -282,6 +299,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
   </div>
   <nav class="hauptnav" id="hauptnav">
     <a href="#vorhersage" data-seite="vorhersage">Vorhersage Mühldorf</a>
+    <a href="#wetter48" data-seite="wetter48">48h Wetter</a>
     <a href="#station-heute" data-seite="station-heute">Station heute</a>
     <a href="#station-verlauf" data-seite="station-verlauf">Station Verlauf</a>
     <a href="#analyse" data-seite="analyse">Niederschlagsanalyse</a>
@@ -426,6 +444,44 @@ nav.hauptnav a{white-space:nowrap; flex:none}
       <details>
         <summary>Zahlen als Tabelle</summary>
         <div class="tabellenhuelle"><table id="tab-niederschlag"></table></div>
+      </details>
+    </section>
+
+  </main>
+
+  <!-- ======================================================= SEITE: 48 STUNDEN ======================================================= -->
+  <main id="seite-wetter48" hidden>
+
+    <section id="s-wetter48">
+      <p class="dachzeile">Nächste 48 Stunden</p>
+      <h2>Temperatur, Niederschlag und Wetter im Stundenschritt</h2>
+      <p class="kurzhinweis">Ein Diagramm für alles: Temperaturkurve mit Unsicherheitsband, stündlicher
+      Niederschlag als Balken und Wettersymbole. Umschaltbar zwischen den beiden Modellen.</p>
+      <div class="bedienleiste" id="bedienleiste-wetter48">
+        <div class="schaltergruppe" id="modellwahl-wetter48" role="group" aria-label="Modell"></div>
+      </div>
+      <div class="laufinfo" id="laufinfoZeile-wetter48"></div>
+      <div class="laufstatus" id="laufwarnung-wetter48"></div>
+      <div class="kacheln" id="kacheln-wetter48"></div>
+      <div class="legende" id="leg-wetter48"></div>
+      <div class="plot" id="plot-wetter48"></div>
+      <details class="erklaerung" id="erklaerung-wetter48">
+        <summary>Erklärung und Darstellung</summary>
+        <div class="erklaerungstext">
+          <p><strong>Temperaturkurve:</strong> der Mittelwert aus dem <strong>Hauptlauf</strong> (deterministischer
+          Lauf, Stundenwerte) und dem <strong>Ensemble-Mittel</strong> desselben Modells. Das Ensemble liefert
+          3-Stunden-Schritte; die Zwischenwerte werden linear ergänzt, anschließend wird die Kurve leicht geglättet.
+          Das Band zeigt das <strong>10.–90.-Perzentil</strong> des Ensembles: In diesem Bereich liegen 80 % der
+          Mitglieder. Ein breites Band heißt unsichere Lage.</p>
+          <p><strong>Niederschlag:</strong> die stündliche Menge des Hauptlaufs als Balken, mit eigener Skala rechts
+          in Millimetern. Zwei Größen in einem Diagramm sind ein bewusster Kompromiss für den schnellen Überblick —
+          die Balken sind deshalb zurückhaltend gezeichnet und liegen immer unten. Wer Mengen genau vergleichen will,
+          nimmt den Reiter „Vorhersage Mühldorf“ mit dem aufsummierten Niederschlag.</p>
+          <p><strong>Wettersymbole:</strong> aus dem WMO-Wettercode desselben Modelllaufs (open-meteo), im
+          3-Stunden-Abstand, auf schmalen Bildschirmen alle 6 Stunden. Die Symbole unterscheiden Tag und Nacht.
+          Sie fassen den Zustand der jeweiligen Stunde zusammen und ersetzen keinen Blick auf die Mengen.</p>
+          <p><strong>Nacht:</strong> grau hinterlegt. Alle Zeiten in Ortszeit.</p>
+        </div>
       </details>
     </section>
 
@@ -723,7 +779,7 @@ function kopfzoneMessen() {
 }
 
 /* ============================ Navigation zwischen den Seiten ============================ */
-const SEITEN = ["vorhersage", "station-heute", "station-verlauf", "analyse"];
+const SEITEN = ["vorhersage", "wetter48", "station-heute", "station-verlauf", "analyse"];
 const TITEL = { haupt: "Vorhersage und Analyse Mühldorf", station: "Wetterstation Stefanskirchen" };
 function seiteAnzeigen() {
   const hash = (location.hash || "#vorhersage").slice(1);
@@ -2345,5 +2401,330 @@ addEventListener("resize", () => { const b = document.body.clientWidth; if (b !=
 setInterval(() => { if (H) standZeigen(); }, 60 * 1000);
 seiteGewechselt();
 
+})();
+</script>
+<script>
+/* ============================ REITER "48H WETTER" ============================
+   Eigener, abgeschlossener Block: Ein Fehler hier stoppt weder Vorhersage noch
+   Analyse noch die Wetterstation. Datenquellen:
+     - Stundenwerte des Hauptlaufs (Temperatur, Niederschlag, WMO-Wettercode,
+       Tag/Nacht) aus DATEN.wetter48 (skripte/sammeln_48h.py)
+     - Ensemble-Mittel und 10./90. Perzentil aus dem juengsten gespeicherten
+       Ensemble-Lauf desselben Modells (DATEN.vorhersage), 3-stuendlich */
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+const el = (n, a = {}, t) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; return e; };
+const nf = (v, d = 1) => v == null || Number.isNaN(v) ? "–" : v.toFixed(d).replace(".", ",").replace("-", "−");
+// Das Hauptskript legt DATEN als Skript-globale Konstante an (nicht an window).
+// Beides beruecksichtigen, damit der Block auch in Testseiten funktioniert.
+const D = () => (typeof DATEN !== "undefined" && DATEN) || window.DATEN || {};
+const MOD = [{ id: "ecmwf", name: "ECMWF-IFS" }, { id: "gfs", name: "GFS" }];
+let modell = "ecmwf";
+
+/* ---------- Zeit in Ortszeit ---------- */
+const teileFmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit",
+  day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", weekday: "short" });
+const WT = { Mon: "Mo", Tue: "Di", Wed: "Mi", Thu: "Do", Fri: "Fr", Sat: "Sa", Sun: "So" };
+function ort(ts) {
+  const p = {}; for (const x of teileFmt.formatToParts(new Date(ts * 1000))) p[x.type] = x.value;
+  return { j: +p.year, m: +p.month, t: +p.day, h: +p.hour, min: +p.minute, wt: WT[p.weekday] };
+}
+const uhr = ts => String(ort(ts).h).padStart(2, "0");
+const tagText = ts => { const o = ort(ts); return `${o.wt} ${o.t}.${o.m}.`; };
+
+/* ---------- WMO-Wettercodes: Text und Symbol ---------- */
+const WETTER = [
+  [[0], "klar", "klar"], [[1], "überwiegend klar", "klar"], [[2], "teils bewölkt", "wolkig"],
+  [[3], "bedeckt", "bedeckt"], [[45, 48], "Nebel", "nebel"],
+  [[51, 53, 55], "Niesel", "niesel"], [[56, 57], "gefrierender Niesel", "niesel"],
+  [[61, 63, 65], "Regen", "regen"], [[66, 67], "gefrierender Regen", "regen"],
+  [[71, 73, 75, 77], "Schnee", "schnee"], [[80, 81, 82], "Regenschauer", "schauer"],
+  [[85, 86], "Schneeschauer", "schnee"], [[95], "Gewitter", "gewitter"], [[96, 99], "Gewitter mit Hagel", "gewitter"],
+];
+function wetterArt(code) {
+  const treffer = WETTER.find(w => w[0].includes(code));
+  return treffer ? { text: treffer[1], art: treffer[2] } : { text: "unbekannt", art: "bedeckt" };
+}
+/* Symbole als kleine SVG-Gruppen (keine externen Bilder, keine Schriftzeichen). */
+function symbol(art, tag) {
+  const g = el("g", { class: "wsym" });
+  const wolke = (x, y, s, klasse) => {
+    g.appendChild(el("path", { class: klasse || "w-wolke", transform: `translate(${x},${y}) scale(${s})`,
+      d: "M-8,4 a5,5 0 0,1 1,-9.9 a7,7 0 0,1 13,-1.6 a5,5 0 0,1 2.4,9.6 Z" }));
+  };
+  const sonne = (x, y, r) => {
+    g.appendChild(el("circle", { cx: x, cy: y, r, class: "w-sonne" }));
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4;
+      g.appendChild(el("line", { x1: x + Math.cos(a) * (r + 2), y1: y + Math.sin(a) * (r + 2),
+        x2: x + Math.cos(a) * (r + 4.5), y2: y + Math.sin(a) * (r + 4.5), class: "w-sonne-strahl" }));
+    }
+  };
+  const mond = (x, y, r) => g.appendChild(el("path", { class: "w-sonne",
+    d: `M${x + r * 0.5},${y - r} a${r},${r} 0 1,0 ${r * 0.75},${r * 1.7} a${r * 0.85},${r * 0.85} 0 1,1 ${-r * 0.75},${-r * 1.7} Z` }));
+  const tropfen = (x, y) => g.appendChild(el("path", { class: "w-nass", d: `M${x},${y} l2,4 a2.4,2.4 0 1,1 -4,0 Z` }));
+  const flocke = (x, y) => { for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3;
+    g.appendChild(el("line", { x1: x - Math.cos(a) * 3, y1: y - Math.sin(a) * 3, x2: x + Math.cos(a) * 3, y2: y + Math.sin(a) * 3, class: "w-schnee" })); } };
+  if (art === "klar") { tag ? sonne(0, 0, 5) : mond(0, 0, 6); return g; }
+  if (art === "nebel") {
+    wolke(0, -3, 0.9);
+    for (let i = 0; i < 3; i++) g.appendChild(el("line", { x1: -8, y1: 5 + i * 3.5, x2: 8, y2: 5 + i * 3.5, class: "w-nebel" }));
+    return g;
+  }
+  if (art === "wolkig") { tag ? sonne(-5, -5, 3.6) : mond(-5, -5, 4.2); wolke(2, 1, 0.85); return g; }
+  wolke(0, art === "bedeckt" ? 0 : -2, 1);
+  if (art === "niesel") { tropfen(-3, 6); tropfen(3, 6); }
+  if (art === "regen") { tropfen(-5, 6); tropfen(0, 8); tropfen(5, 6); }
+  if (art === "schauer") { if (tag) sonne(-8, -8, 2.8); tropfen(-2, 6); tropfen(4, 6); }
+  if (art === "schnee") { flocke(-4, 8); flocke(4, 8); }
+  if (art === "gewitter") { g.appendChild(el("path", { class: "w-blitz", d: "M1,3 l-6,7 h4 l-2,6 l7,-8 h-4 Z" })); }
+  return g;
+}
+
+/* ---------- Daten aufbereiten ---------- */
+function ensembleReihe(id) {
+  const laeufe = (D().vorhersage || {})[id] || [];
+  const lauf = laeufe[0];
+  const r = lauf && lauf.temperatur_2m;
+  if (!r || !r.zeitpunkte_unix) return null;
+  return { unix: r.zeitpunkte_unix, mittel: r.mittel, p10: r.p10, p90: r.p90, init: lauf.init };
+}
+/** Linear auf das Stundenraster bringen; ausserhalb des Ensemble-Zeitraums null. */
+function aufStunden(reihe, feld, stunden) {
+  if (!reihe) return stunden.map(() => null);
+  const u = reihe.unix, w = reihe[feld] || [];
+  return stunden.map(ts => {
+    if (ts < u[0] || ts > u[u.length - 1]) return null;
+    let i = 0; while (i + 1 < u.length && u[i + 1] < ts) i++;
+    const a = w[i], b = w[i + 1];
+    if (a == null) return null;
+    if (b == null || u[i + 1] === u[i]) return a;
+    return a + (b - a) * (ts - u[i]) / (u[i + 1] - u[i]);
+  });
+}
+/** Leichte Glaettung (gewichtetes Mittel 1-2-1) ueber Stundenwerte; Luecken bleiben Luecken. */
+function glaetten(werte) {
+  return werte.map((v, i) => {
+    if (v == null) return null;
+    const a = werte[i - 1], b = werte[i + 1];
+    if (a == null && b == null) return v;
+    if (a == null) return (v * 3 + b) / 4;
+    if (b == null) return (a + v * 3) / 4;
+    return (a + 2 * v + b) / 4;
+  });
+}
+function aufbereiten(id) {
+  const roh = (D().wetter48 || {})[id];
+  if (!roh || !roh.zeitpunkte_unix || !roh.zeitpunkte_unix.length) return null;
+  const stunden = roh.zeitpunkte_unix;
+  const ens = ensembleReihe(id);
+  const mittel = aufStunden(ens, "mittel", stunden);
+  const linie = glaetten(stunden.map((_, i) => {
+    const h = roh.temperatur_2m[i], m = mittel[i];
+    if (h == null && m == null) return null;
+    if (h == null) return m;
+    if (m == null) return h;
+    return (h + m) / 2;                      // Mittelwert aus Hauptlauf und Ensemble-Mittel
+  }));
+  return {
+    modell: id, stunden, abgerufen: roh.abgerufen, ensembleInit: ens && ens.init,
+    hauptlauf: roh.temperatur_2m, ensembleMittel: mittel, linie,
+    p10: glaetten(aufStunden(ens, "p10", stunden)), p90: glaetten(aufStunden(ens, "p90", stunden)),
+    niederschlag: roh.niederschlag, wettercode: roh.wettercode, tag: roh.tag,
+  };
+}
+
+/* ---------- Diagramm ---------- */
+function zeichnen() {
+  const box = $("#plot-wetter48");
+  if (!box) return;
+  const d = aufbereiten(modell);
+  box.innerHTML = "";
+  $("#laufinfoZeile-wetter48").innerHTML = "";
+  $("#laufwarnung-wetter48").innerHTML = "";
+  $("#kacheln-wetter48").innerHTML = "";
+  $("#leg-wetter48").innerHTML = "";
+  if (!d) {
+    box.innerHTML = '<p class="kurzhinweis" style="margin:8px 4px">Für dieses Modell liegen noch keine Stundenwerte vor. '
+      + 'Sie entstehen beim nächsten automatischen Lauf.</p>';
+    return;
+  }
+  const W = Math.max(340, Math.round(box.clientWidth - 28)), Hh = W < 620 ? 320 : 380;
+  const L = 44, R = 46, T = 46, B = 46, iw = W - L - R, ih = Hh - T - B;
+  const x0 = d.stunden[0], x1 = d.stunden[d.stunden.length - 1];
+  const x = ts => L + (ts - x0) / (x1 - x0) * iw;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${Hh}`, role: "img",
+    "aria-label": `Wetter der nächsten 48 Stunden, ${MOD.find(m => m.id === modell).name}` });
+  box.appendChild(svg);
+  const g = el("g"); svg.appendChild(g);
+
+  // Temperaturskala
+  const tWerte = [...d.linie, ...d.p10, ...d.p90, ...d.hauptlauf].filter(Number.isFinite);
+  let lo = Math.min(...tWerte), hi = Math.max(...tWerte);
+  const spanne = Math.max(4, hi - lo);
+  lo -= spanne * 0.12; hi += spanne * 0.12;
+  const schritt = spanne > 22 ? 5 : spanne > 9 ? 2 : 1;
+  lo = Math.floor(lo / schritt) * schritt; hi = Math.ceil(hi / schritt) * schritt;
+  const y = v => T + ih - (v - lo) / (hi - lo) * ih;
+  // Niederschlagsskala (eigene, bewusst untergeordnete Achse rechts)
+  const rMax = Math.max(1, ...d.niederschlag.filter(Number.isFinite));
+  const rOben = rMax <= 1 ? 1 : rMax <= 2 ? 2 : rMax <= 5 ? 5 : Math.ceil(rMax / 5) * 5;
+  const rHoehe = ih * 0.42;                   // Balken nehmen hoechstens 42 % der Hoehe ein
+  const yr = v => T + ih - (v / rOben) * rHoehe;
+
+  // Nachtflaechen
+  let start = null;
+  d.stunden.forEach((ts, i) => {
+    const nacht = d.tag[i] === 0;
+    if (nacht && start == null) start = ts;
+    if ((!nacht || i === d.stunden.length - 1) && start != null) {
+      g.appendChild(el("rect", { x: x(start), y: T, width: Math.max(1, x(ts) - x(start)), height: ih, class: "w-nacht" }));
+      start = null;
+    }
+  });
+  // Gitter und Achsen
+  for (let v = lo; v <= hi + 1e-6; v += schritt) {
+    g.appendChild(el("line", { x1: L, x2: L + iw, y1: y(v), y2: y(v), class: v === 0 ? "achse" : "gitter" }));
+    g.appendChild(el("text", { x: L - 6, y: y(v) + 3.5, "text-anchor": "end", class: "ax" }, nf(v, 0)));
+  }
+  g.appendChild(el("text", { x: L - 6, y: T - 8, "text-anchor": "end", class: "ax" }, "°C"));
+  [0, rOben / 2, rOben].forEach(v => {
+    g.appendChild(el("text", { x: L + iw + 6, y: yr(v) + 3.5, class: "ax" }, nf(v, v % 1 ? 1 : 0)));
+  });
+  g.appendChild(el("text", { x: L + iw + 6, y: T - 8, class: "ax" }, "mm/h"));
+  // Tagesgrenzen und Stundenbeschriftung
+  const schrittStunden = W < 620 ? 6 : 3;
+  d.stunden.forEach((ts, i) => {
+    const o = ort(ts);
+    if (o.h === 0) {
+      g.appendChild(el("line", { x1: x(ts), x2: x(ts), y1: T, y2: T + ih, class: "achse" }));
+      g.appendChild(el("text", { x: x(ts) + 4, y: T + 12, class: "axl" }, tagText(ts)));
+    }
+    if (o.h % schrittStunden === 0) {
+      g.appendChild(el("line", { x1: x(ts), x2: x(ts), y1: T + ih, y2: T + ih + 4, class: "achse" }));
+      g.appendChild(el("text", { x: x(ts), y: Hh - B + 18, "text-anchor": "middle", class: "ax" }, uhr(ts)));
+    }
+  });
+  g.appendChild(el("text", { x: L, y: Hh - 8, class: "ax" }, "Uhrzeit (Ortszeit)"));
+
+  // Niederschlagsbalken (unten, zurueckhaltend)
+  const breite = Math.max(2, iw / d.stunden.length - 1.5);
+  d.stunden.forEach((ts, i) => {
+    const v = d.niederschlag[i];
+    if (!Number.isFinite(v) || v <= 0) return;
+    const hoehe = Math.min(rHoehe, T + ih - yr(v));
+    g.appendChild(el("rect", { x: x(ts) - breite / 2, y: T + ih - hoehe, width: breite, height: hoehe,
+      rx: Math.min(2, breite / 2), class: "w-regen" }));
+  });
+  // Perzentilband
+  const stuecke = [];
+  d.stunden.forEach((ts, i) => {
+    if (Number.isFinite(d.p10[i]) && Number.isFinite(d.p90[i])) stuecke.push({ ts, u: d.p10[i], o: d.p90[i] });
+  });
+  if (stuecke.length > 1) {
+    g.appendChild(el("path", { class: "w-band",
+      d: stuecke.map((p, i) => `${i ? "L" : "M"}${x(p.ts).toFixed(1)},${y(p.o).toFixed(1)}`).join("")
+        + stuecke.slice().reverse().map(p => `L${x(p.ts).toFixed(1)},${y(p.u).toFixed(1)}`).join("") + "Z" }));
+  }
+  // Temperaturkurve
+  const punkte = d.stunden.map((ts, i) => ({ ts, v: d.linie[i] })).filter(p => Number.isFinite(p.v));
+  g.appendChild(el("path", { class: "w-linie",
+    d: punkte.map((p, i) => `${i ? "L" : "M"}${x(p.ts).toFixed(1)},${y(p.v).toFixed(1)}`).join("") }));
+  // Wettersymbole oben, im Abstand von 3 bzw. 6 Stunden
+  d.stunden.forEach((ts, i) => {
+    const o = ort(ts);
+    if (o.h % schrittStunden !== 0 || i === d.stunden.length - 1) return;
+    const art = wetterArt(d.wettercode[i]);
+    const sym = symbol(art.art, d.tag[i] !== 0);
+    sym.setAttribute("transform", `translate(${x(ts)},${T - 22})`);
+    g.appendChild(sym);
+  });
+
+  // Hover: senkrechte Linie und Tooltip
+  const tip = $("#tip");
+  const kreuz = el("line", { y1: T, y2: T + ih, class: "achse", opacity: 0 });
+  g.appendChild(kreuz);
+  const flaeche = el("rect", { x: L, y: T, width: iw, height: ih, fill: "transparent" });
+  g.appendChild(flaeche);
+  const zeigen = e => {
+    const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const lx = pt.matrixTransform(svg.getScreenCTM().inverse()).x;
+    const ziel = x0 + (lx - L) / iw * (x1 - x0);
+    let i = 0;
+    d.stunden.forEach((ts, k) => { if (Math.abs(ts - ziel) < Math.abs(d.stunden[i] - ziel)) i = k; });
+    const ts = d.stunden[i], art = wetterArt(d.wettercode[i]);
+    kreuz.setAttribute("x1", x(ts)); kreuz.setAttribute("x2", x(ts)); kreuz.setAttribute("opacity", 1);
+    const text = `${tagText(ts)} ${uhr(ts)}:00 Uhr\n${art.text}\n`
+      + `Temperatur: ${nf(d.linie[i])} °C\n`
+      + `  Hauptlauf ${nf(d.hauptlauf[i])} °C · Ensemble-Mittel ${nf(d.ensembleMittel[i])} °C\n`
+      + `Band 10–90 %: ${nf(d.p10[i])}–${nf(d.p90[i])} °C\n`
+      + `Niederschlag: ${nf(d.niederschlag[i], 1)} mm in dieser Stunde`;
+    if (tip) { tip.textContent = text; tip.style.opacity = "1";
+      const r = tip.getBoundingClientRect();
+      let px = e.clientX + 14, py = e.clientY - r.height - 10;
+      if (px + r.width > innerWidth - 8) px = e.clientX - r.width - 14;
+      if (py < 8) py = e.clientY + 18;
+      tip.style.left = px + "px"; tip.style.top = py + "px"; }
+  };
+  flaeche.addEventListener("pointermove", zeigen);
+  flaeche.addEventListener("pointerdown", zeigen);
+  flaeche.addEventListener("pointerleave", () => { kreuz.setAttribute("opacity", 0); if (tip) tip.style.opacity = "0"; });
+
+  // Legende, Laufinfo, Kennzahlen
+  $("#leg-wetter48").innerHTML =
+    `<span class="leg"><svg width="22" height="10" aria-hidden="true"><line x1="1" y1="5" x2="21" y2="5" stroke="var(--mess)" stroke-width="2.5" stroke-linecap="round"/></svg>Temperatur (Mittel aus Hauptlauf und Ensemble-Mittel)</span>`
+    + `<span class="leg"><svg width="22" height="10" aria-hidden="true"><rect x="1" y="1" width="20" height="8" rx="1.5" fill="var(--band)"/></svg>10.–90. Perzentil</span>`
+    + `<span class="leg"><svg width="14" height="10" aria-hidden="true"><rect x="1" y="1" width="12" height="8" rx="1.5" fill="var(--ecmwf)" opacity="0.55"/></svg>Niederschlag je Stunde (Skala rechts)</span>`;
+  const utcText = iso => {
+    // "2026-09-20T17:34Z" -> "20.09., 19:34 Uhr" (Ortszeit)
+    const ms = Date.parse(iso);
+    if (!Number.isFinite(ms)) return iso || "–";
+    const o = ort(ms / 1000);
+    return `${String(o.t).padStart(2, "0")}.${String(o.m).padStart(2, "0")}., ${String(o.h).padStart(2, "0")}:${String(o.min).padStart(2, "0")} Uhr`;
+  };
+  const ensembleText = d.ensembleInit ? `Ensemble vom ${d.ensembleInit.slice(8, 10)}.${d.ensembleInit.slice(5, 7)}., ${d.ensembleInit.slice(11, 16)} UTC`
+    : "ohne Ensemble (nur Hauptlauf)";
+  $("#laufinfoZeile-wetter48").innerHTML =
+    `<b>${MOD.find(m => m.id === modell).name}</b> · Hauptlauf stündlich · ${ensembleText} · abgerufen ${utcText(d.abgerufen)}`;
+  if (!d.ensembleInit) {
+    $("#laufwarnung-wetter48").innerHTML =
+      '<p class="warnzeile">Für dieses Modell liegt gerade kein gespeicherter Ensemble-Lauf vor. '
+      + 'Gezeigt wird nur der Hauptlauf, ohne Unsicherheitsband.</p>';
+  }
+  const erste24 = d.stunden.map((ts, i) => i).filter(i => d.stunden[i] <= x0 + 24 * 3600);
+  const temps24 = erste24.map(i => d.linie[i]).filter(Number.isFinite);
+  const regenSumme = d.niederschlag.filter(Number.isFinite).reduce((s, v) => s + v, 0);
+  const regenStunden = d.niederschlag.filter(v => Number.isFinite(v) && v >= 0.1).length;
+  $("#kacheln-wetter48").innerHTML = [
+    { l: "Jetzt", z: nf(d.linie[0]) + " °C", f: wetterArt(d.wettercode[0]).text },
+    { l: "Höchstwert 24 h", z: temps24.length ? nf(Math.max(...temps24)) + " °C" : "–", f: "nächste 24 Stunden" },
+    { l: "Tiefstwert 24 h", z: temps24.length ? nf(Math.min(...temps24)) + " °C" : "–", f: "nächste 24 Stunden" },
+    { l: "Niederschlag 48 h", z: nf(regenSumme, 1) + " mm", f: `${regenStunden} Stunden mit Niederschlag` },
+  ].map(k => `<div class="kachel"><div class="k-label">${k.l}</div><div class="k-zahl">${k.z}</div><div class="k-fuss">${k.f}</div></div>`).join("");
+}
+
+/* ---------- Bedienung ---------- */
+function modellwahlBauen() {
+  const ziel = $("#modellwahl-wetter48");
+  if (!ziel) return;
+  ziel.innerHTML = MOD.map(m => `<button type="button" data-modell="${m.id}" aria-pressed="${m.id === modell}">${m.name}</button>`).join("");
+  ziel.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    modell = b.dataset.modell;
+    ziel.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    zeichnen();
+  }));
+}
+const sichtbar = () => { const m = $("#seite-wetter48"); return m && !m.hidden; };
+modellwahlBauen();
+addEventListener("seitewechsel", () => { if (sichtbar()) zeichnen(); });
+let breite48 = 0;
+addEventListener("resize", () => {
+  const b = document.body.clientWidth;
+  if (b !== breite48 && sichtbar()) { breite48 = b; clearTimeout(window._w48); window._w48 = setTimeout(zeichnen, 120); }
+});
+if (sichtbar()) zeichnen();
+window.__TEST48__ = { aufbereiten, glaetten, aufStunden, wetterArt, zeichnen, setzeModell: m => { modell = m; zeichnen(); } };
 })();
 </script>

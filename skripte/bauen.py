@@ -132,11 +132,20 @@ def main():
     for modell in vorhersage:
         vorhersage[modell].sort(key=lambda d: d["init"], reverse=True)
 
+    # Stundenwerte der naechsten 48 Stunden (Reiter "48h Wetter"). Fehlt die Datei,
+    # bleibt der Reiter leer und meldet das; Vorhersage und Analyse sind unberuehrt.
+    wetter48 = {}
+    for pfad in sorted((DATEN / "48h").glob("*.json")) if (DATEN / "48h").exists() else []:
+        d = json.loads(pfad.read_text(encoding="utf-8"))
+        if d.get("modell") and d.get("zeitpunkte_unix"):
+            wetter48[d["modell"]] = d
+
     paket = {
         "messungen": dict(sorted(messungen.items())),
         "history": history,
         "forecasts": forecasts,
         "vorhersage": vorhersage,
+        "wetter48": wetter48,
         "datenstand": datenstand(forecasts, vorhersage, history),
     }
 
@@ -175,6 +184,7 @@ def main():
     print(f"  Läufe:       {len(forecasts)} ({min(forecasts)} bis {max(forecasts)})")
     print(f"  Historie:    " + ", ".join(f"{m} {len(history[m]['tage'])} Tage" for m in history))
     print(f"  Meteogramm:  " + ", ".join(f"{m} {len(vorhersage[m])} Lauf/Läufe" for m in vorhersage))
+    print(f"  48h-Wetter:  " + (", ".join(f"{m} {len(d['zeitpunkte_unix'])} Stunden" for m, d in wetter48.items()) or "keine Daten"))
     print(f"  Datenstand:  {paket['datenstand']}")
     if nicht_eingebettet:
         print(f"  Nicht eingebettet (kein aktuelles Format): {', '.join(nicht_eingebettet)}")

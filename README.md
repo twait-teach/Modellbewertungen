@@ -20,6 +20,10 @@ Stefanskirchen" beschrieben. Zu den beiden Mühldorf-Bereichen:
   Modellstart bis zum Vorhersagehorizont als durchgehendes Meteogramm gezeigt. Mittel und Perzentile
   werden für jeden einzelnen Zeitpunkt direkt aus den vorhandenen Mitgliedswerten berechnet;
   fehlende Mitgliedswerte werden ausgeschlossen, nie als 0 °C gewertet.
+- **48h Wetter** — ein Diagramm für die nächsten 48 Stunden: Temperaturkurve (Mittel aus Hauptlauf und
+  Ensemble-Mittel, leicht geglättet) mit dem 10.–90.-Perzentil-Band, stündlicher Niederschlag als Balken
+  mit eigener Skala rechts, Wettersymbole im 3-Stunden-Abstand (6 auf schmalen Bildschirmen) und grau
+  hinterlegte Nachtstunden. Umschaltbar zwischen GFS und ECMWF-IFS.
 - **Niederschlagsanalyse** (früher „Analyse") — wie genau frühere Vorhersagen waren: tagesgenaue Güte (Tag 1–5), Bias, 5-mm-Schwelle,
   Rückblick, Ensemble-Spannweite, und ein Witterungs-/Summenvergleich über die Zeitfenster Tag 1–3,
   4–7 und 8–14 gegen die tatsächlich gemessenen Tagessummen der DWD-Station.
@@ -322,6 +326,30 @@ der Seite.
 **Quellen:** Deutscher Wetterdienst, Climate Data Center (Datenlizenz Deutschland – Namensnennung,
 siehe [GeoNutzV](https://www.dwd.de/DE/service/copyright/copyright_node.html)) ·
 open-meteo.com (CC BY 4.0), Modelldaten von NOAA/NCEP und ECMWF.
+
+---
+
+## Reiter „48h Wetter"
+
+**Datenquelle.** `skripte/sammeln_48h.py` holt je Modell **einen** Abruf der Open-Meteo-Vorhersage
+(`api.open-meteo.com/v1/forecast`, Datensatz `gfs_seamless` bzw. `ecmwf_ifs025`) mit den Stundenwerten
+des Hauptlaufs: Temperatur, Niederschlag, **WMO-Wettercode** und Tag/Nacht-Kennzeichen. Der Wettercode
+ist die Quelle der Symbole und stammt damit immer aus demselben Modell wie die Kurve — eine zweite
+Wetterquelle braucht es nicht. Ergebnis: `daten/48h/<modell>.json`, eingebettet von `bauen.py` als
+`wetter48`. Geschrieben wird nur bei fachlicher Änderung.
+
+**Ensemble-Band.** Mittel, 10. und 90. Perzentil kommen **nicht** aus einem zusätzlichen Abruf, sondern
+aus dem jüngsten gespeicherten Ensemble-Lauf (`daten/vorhersage/*.json`, 3-stündlich). Die Werte werden
+linear auf das Stundenraster gebracht. Fehlt für ein Modell ein Ensemble-Lauf, zeigt der Reiter den
+Hauptlauf allein und weist darauf hin.
+
+**Kurve.** Angezeigt wird der Mittelwert aus Hauptlauf und Ensemble-Mittel, anschließend mit der
+Gewichtung 1-2-1 über benachbarte Stunden geglättet. Messlücken bleiben Lücken.
+
+**Zwei Skalen in einem Diagramm.** Temperatur links, Niederschlag rechts — bewusst gegen die sonstige
+Regel dieses Projekts, weil der Reiter den schnellen Gesamtüberblick liefern soll. Die Balken bleiben
+deshalb zurückhaltend gezeichnet, nehmen höchstens 42 % der Höhe ein und stehen immer unten. Für den
+genauen Mengenvergleich zwischen den Modellen ist der Reiter „Vorhersage Mühldorf" gedacht.
 
 ---
 

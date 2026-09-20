@@ -37,9 +37,15 @@ jobs:
           python3 -m pytest tests/ -q
           --ignore=tests/test_js_analyse.py
           --ignore=tests/test_vorhersage_darstellung.py
+          --ignore=tests/test_48h_browser.py
 
       - name: Meteogramm-Slots anlegen und Hauptläufe nachtragen
         run: python3 skripte/sammeln_vorhersage.py --modell beide
+
+      - name: Stundenwerte der nächsten 48 Stunden (Reiter „48h Wetter“)
+        # Ein Abruf je Modell, Hauptlauf in Stundenaufloesung samt WMO-Wettercode
+        # fuer die Symbole. Schreibt nur bei fachlicher Aenderung.
+        run: python3 skripte/sammeln_48h.py --modell beide
 
       - name: Tagesgenaue Vorhersage- und Messdaten (Analyse-Seite) — nur falls nötig
         run: python3 skripte/sammeln.py --alles
