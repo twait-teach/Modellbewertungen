@@ -580,3 +580,83 @@ def test_seite_startet_auch_bei_analyse_hash_und_zeichnet_die_vorhersage_beim_ei
     seite.close()
     assert r[0] > 1300 and r[0] == pytest.approx(r[1], abs=2)
     assert r[2] not in ("", "0px")            # Mindesthoehen wurden nach dem Einblenden gemessen
+
+
+# ------------------------------------------------------------------ Korrekturen (Rueckmeldung nach dem ersten Einsatz)
+def test_einleitungstext_nutzt_die_volle_breite(browser, reich):
+    seite = _oeffnen(browser, reich["datei"], 1366)
+    r = seite.evaluate("""() => ({ text: document.querySelector('.unterzeile').getBoundingClientRect().width,
+        kopf: document.querySelector('header.kopf').getBoundingClientRect().width })""")
+    seite.close()
+    assert r["text"] == pytest.approx(r["kopf"], abs=2) and r["text"] > 1000
+
+
+def _tafel(seite, bereich="temp2m"):
+    return seite.evaluate("""b => { const s = document.querySelector('#chart-' + b);
+        const r = s.querySelector('[data-serie=referenz-tafel]');
+        return { rechts: +r.getAttribute('x') + +r.getAttribute('width'), oben: +r.getAttribute('y'),
+                 unten: +r.getAttribute('y') + +r.getAttribute('height'), breite: s.viewBox.baseVal.width,
+                 text: [...s.querySelectorAll('[data-serie^=referenz-]:not([data-serie=referenz-tafel])')].map(t => t.textContent).join(' | ') }; }""", bereich)
+
+
+@pytest.mark.parametrize("breite", [900, 1366, 1920])
+def test_niveautafel_sitzt_fest_oben_rechts_ausserhalb_der_kurven(browser, reich, breite):
+    seite = _oeffnen(browser, reich["datei"], breite)
+    a = _tafel(seite)                                   # ECMWF
+    _modell(seite, "temp2m", "GFS")
+    b = _tafel(seite)
+    seite.locator("#laufwahl-temp2m button").nth(3).click()   # anderer Lauf -> anderes Niveau
+    seite.wait_for_timeout(60)
+    c = _tafel(seite)
+    seite.close()
+    for t in (a, b, c):
+        assert "Temperaturniveau:" in t["text"] and "Bezugslinie:" in t["text"]
+        assert t["rechts"] == pytest.approx(t["breite"] - 18, abs=0.01)     # rechtsbuendig am Diagrammrand
+        assert t["oben"] >= 0 and t["unten"] <= 28                           # im freien Rand, ueber der Zeichenflaeche
+    assert (a["rechts"], a["oben"], a["unten"]) == (b["rechts"], b["oben"], b["unten"]) == (c["rechts"], c["oben"], c["unten"])
+
+
+def _regenseite(browser, tmp_path, ausreisser_faktor):
+    """ECMWF-Lauf, bei dem ein einzelnes Mitglied viel mehr Niederschlag liefert als der Rest."""
+    lauf = _lauf("ecmwf", dt.datetime(2026, 10, 24, 12, tzinfo=UTC), 15, mitglieder=50, basis=9.0)
+    regen = lauf["niederschlag"]
+    regen["mitglieder"][0] = [round(v * ausreisser_faktor, 2) for v in regen["mitglieder"][0]]
+    regen.update(sv.aggregiere_alle_leads(regen["mitglieder"], len(regen["zeiten"])))
+    datei = _seite(tmp_path, _daten([], [lauf]), f"regen{ausreisser_faktor}.html")
+    return _oeffnen(browser, datei, 1366), regen
+
+
+@pytest.mark.parametrize("faktor", [1, 25])
+def test_regenachse_endet_20_prozent_ueber_dem_p90_und_ausreisser_werden_abgeschnitten(browser, tmp_path, faktor):
+    seite, regen = _regenseite(browser, tmp_path, faktor)
+    r = seite.evaluate("""() => { const s = document.querySelector('#chart-niederschlag');
+        const cp = s.querySelector('clipPath rect');
+        const m = [...s.querySelectorAll('[data-serie=mitglied]')];
+        const gitter = [...s.querySelectorAll('text.ax')].filter(t => t.getAttribute('text-anchor') === 'end').map(t => +t.textContent);
+        return { oben: +s.dataset.oben, unten: +s.dataset.unten, gitter,
+                 klemmeY: +cp.getAttribute('y'), klemmeH: +cp.getAttribute('height'),
+                 geklemmt: m.length ? m.every(p => p.getAttribute('clip-path') === 'url(#klemme-niederschlag)') : null,
+                 nMitglieder: m.length, gitterLinien: s.querySelectorAll('line.gitter').length }; }""")
+    seite.close()
+    p90max = max(v for v in regen["p90"] if v is not None)
+    erwartet = max(5.0, 1.2 * p90max)
+    assert r["oben"] == pytest.approx(erwartet, abs=1e-6) and r["unten"] == 0
+    assert r["nMitglieder"] == 50 and r["geklemmt"] is True
+    assert r["klemmeY"] == 28 and r["klemmeH"] > 100                       # Zeichenflaeche als Klemmrechteck
+    assert all(float(t).is_integer() for t in r["gitter"]) and max(r["gitter"]) <= r["oben"] and r["gitter"][0] == 0
+    assert 4 <= len(r["gitter"]) <= 9 and r["gitterLinien"] >= len(r["gitter"])
+    hoechstes = max(max(reihe) for reihe in regen["mitglieder"])
+    if faktor > 1:
+        assert hoechstes > 3 * r["oben"]                                   # das Mitglied bricht deutlich nach oben aus
+    else:
+        assert hoechstes <= r["oben"] + 1e-9                               # ohne Ausreisser bleibt alles im Bild
+
+
+def test_regenachse_ausreisser_stauchen_die_achse_nicht(browser, tmp_path):
+    mit, _ = _regenseite(browser, tmp_path, 25)
+    oben_mit = mit.evaluate("+document.querySelector('#chart-niederschlag').dataset.oben")
+    mit.close()
+    ohne, _ = _regenseite(browser, tmp_path, 1)
+    oben_ohne = ohne.evaluate("+document.querySelector('#chart-niederschlag').dataset.oben")
+    ohne.close()
+    assert oben_mit < 3 * oben_ohne and oben_mit < 60      # ein Mitglied mit 25-fachem Regen verschiebt die Achse kaum

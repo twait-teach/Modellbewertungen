@@ -52,7 +52,7 @@ body{
 }
 .kopf .stand{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; color:var(--ink-2); text-align:right; flex:0 1 auto}
 .kopf .stand b{display:block; color:var(--ink); font-weight:500; font-size:13px}
-.unterzeile{color:var(--ink-2); font-size:14px; margin:10px 0 0; max-width:66ch}
+.unterzeile{color:var(--ink-2); font-size:14px; margin:10px 0 0}
 
 /* ---------- Navigation ---------- */
 nav.hauptnav{
@@ -355,6 +355,9 @@ footer a{color:var(--ink-2)}
           Mittelwert und Streuung gebildet. Das dunkle Band zeigt
           das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel. Kontrolllauf und deterministischer
           Hauptlauf sind gesondert hervorgehoben.</p>
+          <p><strong>Achse:</strong> Die senkrechte Achse endet 20 % über dem höchsten Wert des
+          90.-Perzentil-Bands (mindestens 5 mm). Einzelne Mitglieder mit noch mehr Niederschlag laufen oben
+          oben aus dem Diagramm heraus.</p>
           <p>Zeitachse: Die senkrechten Linien markieren Mitternacht in Ortszeit (Europa/Berlin).</p>
         </div>
       </details>
@@ -998,8 +1001,12 @@ function zeichneBereich(bereich) {
   const alleWerte = [...daten.mitglieder.flat(), ...(daten.kontrolllauf || []), ...(daten.hauptlauf || []), ...daten.p90, ...daten.p10].filter(v => v != null);
   let unten0, oben0, skala = null, niveau = null, bezug = null;
   if (bereich.nullbasiert) {
+    // Achsenende: 20 % ueber dem hoechsten Wert des 90.-Perzentil-Bands (mindestens
+    // 5 mm). Einzelne Mitglieder darueber laufen oben aus dem Bild (siehe clip-path).
     unten0 = 0;
-    oben0 = Math.ceil(Math.max(5, ...alleWerte) / 5) * 5;
+    const p90Werte = daten.p90.filter(Number.isFinite);
+    const p90Max = p90Werte.length ? Math.max(...p90Werte) : Math.max(0, ...alleWerte);
+    oben0 = Math.max(5, p90Max * 1.2);
   } else {
     skala = temperaturSkala(gemeinsameTemperaturwerte(bereich));
     unten0 = skala.unten;
@@ -1017,6 +1024,15 @@ function zeichneBereich(bereich) {
 
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = "";
+  // Beim Niederschlag werden Kurven oberhalb der Achse am Diagrammrand abgeschnitten
+  // ("ausbrechende" Mitglieder), statt die Achse zu stauchen.
+  const klemme = {};
+  if (bereich.nullbasiert) {
+    const cp = el("clipPath", { id: `klemme-${bereich.id}` });
+    cp.appendChild(el("rect", { x: L, y: O, width: iw, height: ih }));
+    svg.appendChild(cp);
+    klemme["clip-path"] = `url(#klemme-${bereich.id})`;
+  }
   // Skala und Bezugslinie auch als Attribute: fuer Tests und Barrierefreiheit nachvollziehbar.
   svg.dataset.unten = unten0; svg.dataset.oben = oben0;
   if (niveau) svg.dataset.niveau = niveau.niveau.toFixed(3); else delete svg.dataset.niveau;
@@ -1024,8 +1040,10 @@ function zeichneBereich(bereich) {
 
   const gitterwerte = [];
   if (bereich.nullbasiert) {
-    const schritt = (oben0 - unten0) / 5;
-    for (let t = unten0; t <= oben0 + schritt / 100; t += schritt) gitterwerte.push(t);
+    // ganzzahlige Gitterschritte (1, 2, 5, 10, 20, ...), etwa sieben Linien
+    const grob = oben0 / 7, groesse = Math.pow(10, Math.floor(Math.log10(grob)));
+    const schritt = [1, 2, 5, 10].map(m => m * groesse).find(v => v >= grob);
+    for (let t = 0; t <= oben0 + 1e-9; t += schritt) gitterwerte.push(Math.round(t * 1000) / 1000);
   } else gitterwerte.push(...skala.ticks);
   gitterwerte.forEach(t => {
     svg.appendChild(el("line", { x1: L, y1: y(t), x2: W - R, y2: y(t), class: "gitter" }));
@@ -1059,7 +1077,7 @@ function zeichneBereich(bereich) {
     for (let i = bandStart; i <= ende; i++) bandPunkte.push([x(i), y(oben[i])]);
     for (let i = ende; i >= bandStart; i--) bandPunkte.push([x(i), y(unten[i])]);
     const d = bandPunkte.map((p, i) => (i ? "L" : "M") + p[0] + " " + p[1]).join(" ") + " Z";
-    svg.appendChild(el("path", { d, fill: modellFarbe, opacity: .16, stroke: "none", "data-serie": "perzentilband" }));
+    svg.appendChild(el("path", { d, fill: modellFarbe, opacity: .16, stroke: "none", "data-serie": "perzentilband", ...klemme }));
     bandStart = null;
   };
   for (let i = 0; i <= punkte; i++) {
@@ -1072,24 +1090,24 @@ function zeichneBereich(bereich) {
   if (z.mitglieder) {
     daten.mitglieder.forEach(serie => {
       const d = pfad(serie);
-      if (d) svg.appendChild(el("path", { d, fill: "none", stroke: modellFarbe, "stroke-width": .8, opacity: .22, "stroke-linejoin": "round", "data-serie": "mitglied" }));
+      if (d) svg.appendChild(el("path", { d, fill: "none", stroke: modellFarbe, "stroke-width": .8, opacity: .22, "stroke-linejoin": "round", "data-serie": "mitglied", ...klemme }));
     });
   }
 
   // Ensemble-Mittel
   const dMittel = pfad(daten.mittel);
-  if (dMittel) svg.appendChild(el("path", { d: dMittel, fill: "none", stroke: modellFarbe, "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round", "data-serie": "ensemble-mittel" }));
+  if (dMittel) svg.appendChild(el("path", { d: dMittel, fill: "none", stroke: modellFarbe, "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round", "data-serie": "ensemble-mittel", ...klemme }));
 
   // Kontrolllauf
   const dKontrolle = daten.kontrolllauf ? pfad(daten.kontrolllauf) : "";
-  if (dKontrolle) svg.appendChild(el("path", { d: dKontrolle, fill: "none", stroke: "var(--ink)", "stroke-width": 2, "stroke-dasharray": "7 3.5", "stroke-linecap": "round", "data-serie": "kontrolllauf" }));
+  if (dKontrolle) svg.appendChild(el("path", { d: dKontrolle, fill: "none", stroke: "var(--ink)", "stroke-width": 2, "stroke-dasharray": "7 3.5", "stroke-linecap": "round", "data-serie": "kontrolllauf", ...klemme }));
 
   // Deterministischer Hauptlauf -- nur eingebettet, wenn seine Initialisierung
   // exakt zum Ensemblelauf passt (das stellt schon sammeln_vorhersage.py sicher;
   // hier gilt nur noch: vorhanden -> zeichnen, sonst nicht).
   if (daten.hauptlauf) {
     const dHl = pfad(daten.hauptlauf);
-    if (dHl) svg.appendChild(el("path", { d: dHl, fill: "none", stroke: "var(--ink)", "stroke-width": 2.4, "stroke-linecap": "round", "data-serie": "hauptlauf" }));
+    if (dHl) svg.appendChild(el("path", { d: dHl, fill: "none", stroke: "var(--ink)", "stroke-width": 2.4, "stroke-linecap": "round", "data-serie": "hauptlauf", ...klemme }));
   }
 
   // Nulllinie: bei Niederschlag immer die Achse; bei Temperatur nur, wenn 0 °C
@@ -1099,22 +1117,19 @@ function zeichneBereich(bereich) {
   }
 
   // Beschriftung von Temperaturniveau und Bezugslinie (neutral, ohne Bewertung).
-  // Kleine Tafel am linken Ende der Linie, damit sie auch im scrollenden
-  // Mobil-Diagramm sichtbar ist; sie deckt nur wenige Pixel der Kurven ab.
+  // Feste Tafel ganz rechts oben im freien Rand ueber dem Diagramm: sie liegt nie
+  // auf den Kurven und wandert nicht, wenn sich Niveau oder Bezugslinie aendern.
   if (niveau) {
-    const zeilen = bezug != null
-      ? [`Temperaturniveau: ${nf(niveau.niveau, 1)} °C`, `Bezugslinie: ${nf(bezug, 0)} °C`]
-      : [`Temperaturniveau: ${nf(niveau.niveau, 1)} °C`];
-    const hoehe = zeilen.length * 12 + 8, breite = Math.max(...zeilen.map(t => t.length)) * 6.6 + 14;
-    const yMitte = bezug != null ? y(bezug) : O + 6;
-    const oberhalb = bezug != null && yMitte - hoehe - 4 >= O;
-    const yOben = bezug == null ? O + 4 : oberhalb ? yMitte - hoehe - 3 : yMitte + 4;
-    svg.appendChild(el("rect", { x: L + 6, y: yOben, width: breite, height: hoehe, rx: 2, fill: "var(--panel)",
-      opacity: .92, stroke: "var(--rule)", "data-serie": "referenz-tafel" }));
-    zeilen.forEach((text, k) => {
-      svg.appendChild(el("text", { x: L + 13, y: yOben + 13 + k * 12, class: "axl",
-        "data-serie": k ? "referenz-linie" : "referenz-niveau" }, text));
-    });
+    const t1 = `Temperaturniveau: ${nf(niveau.niveau, 1)} °C`;
+    const t2 = bezug != null ? `Bezugslinie: ${nf(bezug, 0)} °C` : "";
+    const zeichen = t1.length + (t2 ? t2.length + 3 : 0);
+    const breite = zeichen * 6.4 + 16, hoehe = 20, xRechts = W - R;
+    svg.appendChild(el("rect", { x: xRechts - breite, y: 4, width: breite, height: hoehe, rx: 2, fill: "var(--panel)",
+      stroke: "var(--rule)", "data-serie": "referenz-tafel" }));
+    const text = el("text", { x: xRechts - 8, y: 4 + 14, "text-anchor": "end", class: "axl" });
+    text.appendChild(el("tspan", { "data-serie": "referenz-niveau" }, t1));
+    if (t2) text.appendChild(el("tspan", { "data-serie": "referenz-linie", dx: 19 }, t2));
+    svg.appendChild(text);
   }
 
   // x-Achse: senkrechte Linien bei echter Ortsmitternacht (auch zwischen zwei
