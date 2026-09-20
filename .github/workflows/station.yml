@@ -1,4 +1,4 @@
-name: Wetterstation Stephanskirchen
+name: Wetterstation Stefanskirchen
 
 # Einziger Workflow, der auf Netatmo zugreift. Halbstuendlich zu Minute 2 und
 # 32 (UTC), also versetzt zum Vorhersage-Workflow (17/47).
@@ -34,9 +34,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 

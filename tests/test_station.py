@@ -40,7 +40,7 @@ class Antwort:
 def stationsdaten():
     return {"body": {"devices": [{
         "_id": GERAET, "station_name": "Haus Mustermann", "date_setup": T0 - 10 * 86400,
-        "place": {"location": [12.1234567, 47.8765432], "city": "Stephanskirchen", "altitude": 470},
+        "place": {"location": [12.1234567, 47.8765432], "city": "Stefanskirchen", "altitude": 470},
         "dashboard_data": {"Temperature": 21.5, "CO2": 800, "Noise": 40, "Pressure": 1015.2},
         "modules": [
             {"_id": AUSSEN, "type": "NAModule1", "module_name": "Garten Nord", "date_setup": T0 - 10 * 86400},
@@ -273,7 +273,7 @@ def test_seitenbau_monatsdateien_nach_ortszeit(gebaut):
     namen = sorted(p.name for p in (gebaut / "station").iterdir())
     assert namen == ["heute.js", "verlauf_2026-10.js", "verlauf_2026-11.js"]
     heute = _js_objekt(gebaut / "station" / "heute.js", "STATION_HEUTE")
-    assert heute["monate"] == ["2026-10", "2026-11"] and heute["ort"] == "Stephanskirchen"
+    assert heute["monate"] == ["2026-10", "2026-11"] and heute["ort"] == "Stefanskirchen"
     assert heute["letzte_messung"] == max(z[0] for z in heute["aussen"])
     nov = _js_objekt(gebaut / "station" / "verlauf_2026-11.js", "STATION_VERLAUF")
     # erste Novemberstunde Ortszeit (00:00 MEZ) = 31.10. 23:00 UTC
@@ -290,13 +290,27 @@ def test_seitenbau_ist_deterministisch(gebaut):
     assert vorher == {p: p.read_bytes() for p in gebaut.rglob("*") if p.is_file()}
 
 
-def test_stationsseite_ist_versteckt_und_laedt_ohne_fremde_daten():
-    seite = (WURZEL / "skripte" / "station_vorlage.html").read_text(encoding="utf-8")
-    assert '<meta name="robots" content="noindex,nofollow">' in seite
+def test_stationsreiter_sind_in_die_hauptseite_eingebaut():
+    import re
+    seite = (WURZEL / "skripte" / "vorlage.html").read_text(encoding="utf-8")
+    reiter = re.findall(r'<a href="#([a-z-]+)" data-seite="\1">([^<]+)</a>', seite)
+    assert reiter == [("vorhersage", "Vorhersage Mühldorf"), ("station-heute", "Station heute"),
+                      ("station-verlauf", "Station Verlauf"), ("analyse", "Niederschlagsanalyse")]
+    assert '<main id="seite-station-heute" hidden>' in seite and '<main id="seite-station-verlauf" hidden>' in seite
+    assert "<title>Vorhersage und Analyse Mühldorf</title>" in seite
+    assert "Wetterstation Stefanskirchen" in seite and "Stephanskirchen" not in seite
     assert "Wetterstationsdaten derzeit nicht aktuell" in seite
     assert "station/heute.js?v=" in seite
-    hauptseite = (WURZEL / "skripte" / "vorlage.html").read_text(encoding="utf-8")
-    assert "station.html" not in hauptseite, "Testseite noch nicht verlinken"
+
+
+def test_fruehere_testadresse_leitet_weiter(gebaut):
+    html = (gebaut / "station.html").read_text(encoding="utf-8")
+    assert "index.html#station-heute" in html and "noindex" in html
+
+
+def test_erster_regenwert_steht_in_heute_js(gebaut):
+    heute = _js_objekt(gebaut / "station" / "heute.js", "STATION_HEUTE")
+    assert heute["erste_regen"] == min(z[0] for z in heute["regen"])
 
 
 # ------------------------------------------------------------------ Workflow

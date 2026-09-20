@@ -27,7 +27,7 @@ STARTSEITE = """<!doctype html>
 <html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="index,follow">
-<title>Regenprognose Mühldorf</title></head><body>
+<title>Vorhersage und Analyse Mühldorf</title></head><body>
 <p>Aktuelle Seite wird geladen …</p>
 <script>location.replace('app.html?v=' + Date.now() + location.hash);</script>
 <noscript><p><a href="app.html">Zur Wetterseite</a></p></noscript>
@@ -151,8 +151,8 @@ def main():
     # Eine Seite fuers offene Netz braucht Kopf und Rahmen selbst.
     seite = ('<!doctype html>\n<html lang="de">\n<head>\n<meta charset="utf-8">\n'
              '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
-             '<meta name="description" content="Täglicher Vergleich der Niederschlagsvorhersagen von '
-             'ECMWF und GFS gegen die Messwerte der DWD-Station Mühldorf am Inn.">\n'
+             '<meta name="description" content="Ensemble-Vorhersage und Niederschlagsanalyse für Mühldorf am Inn '
+             '(ECMWF und GFS gegen die DWD-Station) sowie Messwerte der Wetterstation Stefanskirchen.">\n'
              '<meta name="robots" content="index,follow">\n'
              '<style>html{color-scheme:light dark}body{margin:0}img{max-width:100%}'
              '[hidden]{display:none!important}</style>\n'

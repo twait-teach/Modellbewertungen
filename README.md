@@ -1,7 +1,10 @@
-# Regenprognose Mühldorf
+# Vorhersage und Analyse Mühldorf
 
-Ensemble-Meteogramm und Modellvergleich für die DWD-Station Mühldorf am Inn. Die Seite hat zwei
-Bereiche:
+Ensemble-Meteogramm und Modellvergleich für die DWD-Station Mühldorf am Inn sowie die Messwerte der
+eigenen Wetterstation Stefanskirchen. Die Seite hat vier Reiter: **Vorhersage Mühldorf**, **Station
+heute**, **Station Verlauf** und **Niederschlagsanalyse** (Adressen `#vorhersage`, `#station-heute`,
+`#station-verlauf`, `#analyse`). Die beiden Stationsreiter sind unten unter „Wetterstation
+Stefanskirchen" beschrieben. Zu den beiden Mühldorf-Bereichen:
 
 - **Vorhersage** — drei Ensemble-Meteogramme untereinander: **2-m-Temperatur**,
   **850-hPa-Temperatur** und **aufsummierter Niederschlag**, jeweils für **GFS** und **ECMWF-IFS** (das klassische
@@ -17,7 +20,7 @@ Bereiche:
   Modellstart bis zum Vorhersagehorizont als durchgehendes Meteogramm gezeigt. Mittel und Perzentile
   werden für jeden einzelnen Zeitpunkt direkt aus den vorhandenen Mitgliedswerten berechnet;
   fehlende Mitgliedswerte werden ausgeschlossen, nie als 0 °C gewertet.
-- **Analyse** — wie genau frühere Vorhersagen waren: tagesgenaue Güte (Tag 1–5), Bias, 5-mm-Schwelle,
+- **Niederschlagsanalyse** (früher „Analyse") — wie genau frühere Vorhersagen waren: tagesgenaue Güte (Tag 1–5), Bias, 5-mm-Schwelle,
   Rückblick, Ensemble-Spannweite, und ein Witterungs-/Summenvergleich über die Zeitfenster Tag 1–3,
   4–7 und 8–14 gegen die tatsächlich gemessenen Tagessummen der DWD-Station.
 
@@ -312,19 +315,26 @@ open-meteo.com (CC BY 4.0), Modelldaten von NOAA/NCEP und ECMWF.
 
 ---
 
-## Wetterstation Stephanskirchen (Testphase)
+## Wetterstation Stefanskirchen
 
-Eigene Netatmo-Station, nur Außenwerte: Temperatur, Luftfeuchte, Niederschlag. Vorerst als
-**versteckte Testseite** `…/Modellbewertungen/station.html` (nicht verlinkt, `noindex`). Erst nach
-Freigabe werden daraus die Reiter „Station heute" und „Station Verlauf" der Hauptseite.
+Eigene Netatmo-Station, nur Außenwerte: Temperatur, Luftfeuchte, Niederschlag. Zu sehen in den Reitern
+**Station heute** (`#station-heute`) und **Station Verlauf** (`#station-verlauf`) der Hauptseite; dort
+wechselt die Überschrift auf „Wetterstation Stefanskirchen". Die frühere Testadresse
+`…/Modellbewertungen/station.html` leitet dorthin weiter.
 
-**Dateien.** `skripte/station_netatmo.py` (Zugang und Abruf), `skripte/bauen_station.py` (Seitenbau),
-`skripte/station_vorlage.html` (Oberfläche), `.github/workflows/station.yml` (halbstündlich, Minute
-2 und 32 UTC), `tests/test_station.py`. Messwerte: `daten/station/station_JJJJ-MM.json` (Rohwerte
-etwa alle 5 Minuten, Monat nach UTC) und `daten/station/stand.json`. Für die Seite erzeugt:
-`docs/station.html`, `docs/station/heute.js` (letzte 48 Stunden), `docs/station/verlauf_JJJJ-MM.js`
-(Stundenwerte je Ortsmonat). Die Stationsdateien sind von „Vorhersage" und „Analyse" vollständig
-getrennt; ein Fehler hier berührt diese Seiten nicht.
+**Dateien.** `skripte/station_netatmo.py` (Zugang und Abruf), `skripte/bauen_station.py` (Daten für die
+Seite), Oberfläche als eigener, abgeschlossener Skriptblock am Ende von `skripte/vorlage.html`,
+`.github/workflows/station.yml` (halbstündlich, Minute 2 und 32 UTC), `tests/test_station.py`.
+Messwerte: `daten/station/station_JJJJ-MM.json` (Rohwerte etwa alle 5 Minuten, Monat nach UTC) und
+`daten/station/stand.json`. Für die Seite erzeugt: `docs/station/heute.js` (letzte 48 Stunden),
+`docs/station/verlauf_JJJJ-MM.js` (Stundenwerte je Ortsmonat), `docs/station.html` (Weiterleitung).
+
+**Unabhängigkeit.** Die Stationsdaten liegen in eigenen Dateien und werden erst geladen, wenn ein
+Stationsreiter geöffnet wird. Der Stationsteil der Oberfläche läuft in einer eigenen Funktionsklammer
+und wird von der Navigation nur über das Ereignis `seitewechsel` angestoßen. Fehlen die Stationsdaten,
+erscheint nur in den Stationsreitern ein Hinweis; Vorhersage und Analyse bleiben unberührt, und
+umgekehrt. Der Regenmesser kann jünger sein als das Außenmodul: Deckt er einen Zeitraum nur teilweise
+ab, nennt die Kachel „Niederschlag" das Anfangsdatum („Summe ab …").
 
 **Secrets** (*Settings → Secrets and variables → Actions*):
 
@@ -358,7 +368,7 @@ zugleich den Token, und die Pushes beider Workflows kommen sich nicht in die Que
 greift auf Netatmo zu. Einen **laufenden** Stationslauf nicht von Hand abbrechen.
 
 **Datenschutz.** Gespeichert und veröffentlicht werden nur Zeitpunkt, Außentemperatur,
-Außenluftfeuchte, Niederschlag und die Ortsangabe „Stephanskirchen". Nie gespeichert oder ausgegeben:
+Außenluftfeuchte, Niederschlag und die Ortsangabe „Stefanskirchen". Nie gespeichert oder ausgegeben:
 Koordinaten, Adresse, Geräte- und Modulkennungen (MAC-Adressen), Seriennummern, Raum- und Modulnamen,
 Innen-, CO₂-, Lärm- und Luftdruckwerte, rohe API-Antworten, Zugangsdaten. Ein Test prüft das.
 
@@ -378,7 +388,7 @@ GitHub meldet einen fehlgeschlagenen Lauf per E-Mail. Die Fehlermeldung im Proto
 2. Den **Refresh Token** kopieren (nirgends sonst ablegen).
 3. GitHub → Repository → *Settings → Secrets and variables → Actions* → `NETATMO_REFRESH_TOKEN` →
    Stift → neuen Wert einfügen → *Update secret*.
-4. *Actions → Wetterstation Stephanskirchen → Run workflow*.
+4. *Actions → Wetterstation Stefanskirchen → Run workflow*.
 5. Kontrolle: Lauf grün, auf `station.html` zeigt „Letzte Aktualisierung" die neue Uhrzeit.
 
 **Fall B: GitHub-Schlüssel abgelaufen** (Meldung „Vorabprüfung fehlgeschlagen"). Der Netatmo-Token ist

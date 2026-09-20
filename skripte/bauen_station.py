@@ -3,7 +3,7 @@
 
 Erzeugt (alles unter docs/, damit GitHub Pages es ausliefert):
 
-  docs/station.html            Oberflaeche (vorerst versteckte Testseite, nicht verlinkt)
+  docs/station.html            nur noch Weiterleitung auf index.html#station-heute (fruehere Testseite)
   docs/station/heute.js        Rohwerte der letzten 48 Stunden + Stand + Monatsliste
   docs/station/verlauf_JJJJ-MM.js Stundenwerte eines Kalendermonats (Ortszeit Europe/Berlin)
 
@@ -28,10 +28,18 @@ from station_netatmo import laden, stand_laden  # noqa: E402
 
 WURZEL = Path(__file__).resolve().parent.parent
 DATEN = WURZEL / "daten" / "station"
-VORLAGE = WURZEL / "skripte" / "station_vorlage.html"
 DOCS = WURZEL / "docs"
 ZONE = ZoneInfo("Europe/Berlin")
 HEUTE_STUNDEN = 48
+WEITERLEITUNG = """<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>Wetterstation Stefanskirchen</title></head><body>
+<p>Weiter zur Wetterstation …</p>
+<script>location.replace('index.html#station-heute');</script>
+<noscript><p><a href="index.html#station-heute">Zur Wetterstation</a></p></noscript>
+</body></html>
+"""
 
 
 def _js(name, schluessel, objekt):
@@ -79,11 +87,14 @@ def main():
     reihen = laden(DATEN)
     stand = stand_laden(DATEN / "stand.json")
     DOCS.mkdir(parents=True, exist_ok=True)
-    atomar_schreiben(DOCS / "station.html", VORLAGE.read_text(encoding="utf-8"))
+    # Die Oberflaeche steckt seit der Zusammenfuehrung in skripte/vorlage.html
+    # (Reiter "Station heute" und "Station Verlauf"). Die fruehere Testadresse
+    # leitet dorthin weiter.
+    atomar_schreiben(DOCS / "station.html", WEITERLEITUNG)
 
     alle = [ts for w in reihen.values() for ts in w]
     if not alle:
-        heute = {"ort": "Stephanskirchen", "letzte_aktualisierung": stand.get("letzte_aktualisierung"),
+        heute = {"ort": "Stefanskirchen", "letzte_aktualisierung": stand.get("letzte_aktualisierung"),
                  "letzte_messung": None, "aussen": [], "regen": [], "monate": []}
         atomar_schreiben(DOCS / "station" / "heute.js", _js("STATION_HEUTE", None, heute))
         print("Wetterstation: noch keine Messwerte vorhanden.")
@@ -91,7 +102,7 @@ def main():
     grenze = max(alle) - HEUTE_STUNDEN * 3600
     monate = stundenwerte(reihen)
     heute = {
-        "ort": "Stephanskirchen",
+        "ort": "Stefanskirchen",
         "letzte_aktualisierung": stand.get("letzte_aktualisierung"),
         "letzte_messung": max(reihen["aussen"]) if reihen["aussen"] else None,
         "aussen": [[ts, *reihen["aussen"][ts]] for ts in sorted(reihen["aussen"]) if ts >= grenze],
@@ -99,6 +110,7 @@ def main():
         "regen_vorhanden": bool(reihen["regen"]),
         "monate": sorted(monate),
         "erste_messung": min(alle),
+        "erste_regen": min(reihen["regen"]) if reihen["regen"] else None,
         "rueckfuellung_fertig": all(stand.get("rueckfuellung_fertig", {}).values()),
     }
     atomar_schreiben(DOCS / "station" / "heute.js", _js("STATION_HEUTE", None, heute))

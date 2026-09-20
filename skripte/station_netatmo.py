@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Netatmo-Wetterstation Stephanskirchen: Zugang erneuern, Aussenwerte holen, speichern.
+Netatmo-Wetterstation Stefanskirchen: Zugang erneuern, Aussenwerte holen, speichern.
 
 Ablauf eines Laufs (Reihenfolge ist verbindlich, siehe README "Wetterstation"):
 
@@ -333,7 +333,7 @@ def speichern(reihen, stand, verzeichnis=None):
         for name in inhalt:
             inhalt[name].sort(key=lambda z: z[0])
         atomar_schreiben_json(verzeichnis / f"station_{monat}.json",
-                              {"monat": monat, "ort": "Stephanskirchen",
+                              {"monat": monat, "ort": "Stefanskirchen",
                                "felder": {"aussen": ["unix", "temperatur_c", "luftfeuchte_pct"],
                                           "regen": ["unix", "niederschlag_mm"]},
                                **inhalt},
