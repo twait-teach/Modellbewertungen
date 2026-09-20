@@ -660,3 +660,43 @@ def test_regenachse_ausreisser_stauchen_die_achse_nicht(browser, tmp_path):
     oben_ohne = ohne.evaluate("+document.querySelector('#chart-niederschlag').dataset.oben")
     ohne.close()
     assert oben_mit < 3 * oben_ohne and oben_mit < 60      # ein Mitglied mit 25-fachem Regen verschiebt die Achse kaum
+
+
+# ------------------------------------------------------------------ Nachbesserungen
+
+def _y_beschriftung(seite, bereich):
+    return seite.evaluate(
+        "id => [...document.querySelectorAll(`#chart-${id} text`)]"
+        ".filter(t => t.getAttribute('text-anchor') === 'end').map(t => t.textContent)", bereich)
+
+
+def test_niederschlagsachse_ist_fuer_beide_modelle_dieselbe(browser, reich):
+    """Ohne gemeinsame Achse sehen beide Modelle gleich nass aus, obwohl die Mengen
+    unterschiedlich sind. Die Achse richtet sich nach dem hoechsten 90.-Perzentil."""
+    seite = _oeffnen(browser, reich["datei"], 1366)
+    _modell(seite, "niederschlag", "GFS")
+    gfs = _y_beschriftung(seite, "niederschlag")
+    _modell(seite, "niederschlag", "ECMWF-IFS")
+    ecmwf = _y_beschriftung(seite, "niederschlag")
+    p90max = seite.evaluate(
+        "() => window.__TEST__.gemeinsamesP90Maximum(window.__TEST__.BEREICHE.find(b => b.id === 'niederschlag'))")
+    fehler = seite.fehler
+    seite.close()
+    assert not fehler, fehler
+    assert gfs and gfs == ecmwf, (gfs, ecmwf)
+    assert p90max and p90max > 0
+
+
+def test_reiterleiste_springt_beim_seitenwechsel_nicht(browser, reich):
+    """Der Einleitungstext ist je Reiter unterschiedlich lang. Die Kopfzone haelt
+    deshalb die groesste Hoehe frei; die Reiterleiste bleibt an ihrem Platz."""
+    seite = _oeffnen(browser, reich["datei"], 1000)
+    oben = {}
+    for reiter in ("vorhersage", "station-heute", "station-verlauf", "analyse"):
+        seite.evaluate("h => location.hash = h", "#" + reiter)
+        seite.wait_for_timeout(120)
+        oben[reiter] = seite.evaluate("() => document.querySelector('#hauptnav').getBoundingClientRect().top")
+    fehler = seite.fehler
+    seite.close()
+    assert not fehler, fehler
+    assert max(oben.values()) - min(oben.values()) <= 1, oben

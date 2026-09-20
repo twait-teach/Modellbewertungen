@@ -209,6 +209,16 @@ Diagramme werden auf die tatsächliche Breite gezeichnet (Schrift und Linien ble
 Ändern der Fenstergröße neu gezeichnet. Unter 640 px Diagrammbreite scrollt nur der Diagrammrahmen, nie
 die Seite. Die Analyse-Seite bleibt bei ihrer bisherigen Breite von 980 px.
 
+**Niederschlagsachse.** Auch die aufsummierte Niederschlagsmenge verwendet für GFS und ECMWF-IFS
+dieselbe Achse: Sie endet 20 % über dem höchsten Wert des 90.-Perzentil-Bands **beider** Modelle
+(mindestens 5 mm). Ohne das änderte sich beim Modellwechsel die Skala, und beide Modelle sähen gleich
+nass aus. Einzelne Mitglieder darüber laufen bewusst aus dem Bild.
+
+**Kein Sprung beim Reiterwechsel.** Überschrift, Standangabe und Einleitungstext sind je Reiter
+unterschiedlich hoch. `kopfzoneMessen()` misst alle Varianten unsichtbar aus und reserviert jeweils die
+größte Höhe; Hinweise (Datenfehler, veraltete Stationsdaten) stehen unter der Reiterleiste. Dadurch
+bleibt die Reiterleiste bei jedem Wechsel an derselben Stelle.
+
 Die beiden Temperaturdiagramme verwenden je Bereich und ausgewähltem Laufindex dieselbe
 Y-Achse für GFS und ECMWF. Die Grenzen folgen den kleinsten und größten dargestellten Werten beider
 Modelle (alle Mitglieder, Mittel, Perzentilband, Kontroll- und Hauptlauf) mit einem Rand von 5 % der

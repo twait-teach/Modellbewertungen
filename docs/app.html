@@ -228,6 +228,11 @@ footer a{color:var(--ink-2)}
 }
 :root[data-theme="dark"]{--temp:#e0775a; --temp-band:rgba(224,119,90,.20); --regen:#5aa2e0; --regen-summe:#e6ecf1; --normal:#e6ecf1}
 /* Kopfzeile, Unterzeile und Hinweise je nach Reiter (body[data-seite] setzt seiteAnzeigen) */
+/* Die Kopfzone (Einleitungstext und Hinweise) ist je Reiter unterschiedlich hoch.
+   Ihre Hoehe wird einmal aus allen Varianten gemessen und festgehalten, damit die
+   Reiterleiste beim Wechsel nicht springt (kopfzoneMessen im Skript unten). */
+.kopfzone{position:relative}
+.kopf h1,.kopf .stand{position:relative}
 .nur-station{display:none!important}
 body[data-seite^="station"] .nur-station{display:revert!important}
 body[data-seite^="station"] .nur-haupt{display:none!important}
@@ -275,21 +280,16 @@ nav.hauptnav a{white-space:nowrap; flex:none}
       Letzte Aktualisierung: <b id="st-letzteAktualisierung" style="display:inline">–</b>
     </div>
   </header>
+  <div class="kopfzone" id="kopfzone">
   <p class="unterzeile nur-haupt">
     Ensemble-Meteogramm und Modellvergleich für die DWD-Station Mühldorf am Inn. Verglichen werden
     <strong>GFS</strong> und <strong>ECMWF-IFS</strong> — jeweils als volles Ensemble und als
     deterministischer Hauptlauf — gegen die tatsächlich gemessenen Tagessummen.
   </p>
-  <div class="datenfehler nur-haupt" id="datenfehler" role="alert" hidden>
-    Die aktuellen Wetterdaten konnten nicht geladen werden. Bitte die Seite neu laden oder später erneut versuchen.
-  </div>
   <p class="unterzeile nur-station">
     Messwerte der privaten Netatmo-Wetterstation in Stefanskirchen: Außentemperatur, Luftfeuchte und
     Niederschlag, etwa alle 30 Minuten aktualisiert.
   </p>
-  <p class="veraltet nur-station" id="st-veraltet" role="status" hidden>Wetterstationsdaten derzeit nicht aktuell.</p>
-  <div class="datenfehler nur-station" id="st-datenfehler" role="alert" hidden>
-    Die Wetterstationsdaten konnten nicht geladen werden. Bitte die Seite neu laden oder später erneut versuchen.
   </div>
   <nav class="hauptnav" id="hauptnav">
     <a href="#vorhersage" data-seite="vorhersage">Vorhersage Mühldorf</a>
@@ -297,6 +297,15 @@ nav.hauptnav a{white-space:nowrap; flex:none}
     <a href="#station-verlauf" data-seite="station-verlauf">Station Verlauf</a>
     <a href="#analyse" data-seite="analyse">Niederschlagsanalyse</a>
   </nav>
+
+  <!-- Hinweise stehen unter der Reiterleiste, damit deren Position nie springt. -->
+  <div class="datenfehler nur-haupt" id="datenfehler" role="alert" hidden>
+    Die aktuellen Wetterdaten konnten nicht geladen werden. Bitte die Seite neu laden oder später erneut versuchen.
+  </div>
+  <p class="veraltet nur-station" id="st-veraltet" role="status" hidden>Wetterstationsdaten derzeit nicht aktuell.</p>
+  <div class="datenfehler nur-station" id="st-datenfehler" role="alert" hidden>
+    Die Wetterstationsdaten konnten nicht geladen werden. Bitte die Seite neu laden oder später erneut versuchen.
+  </div>
 
   <!-- ======================================================= SEITE: VORHERSAGE ======================================================= -->
   <main id="seite-vorhersage">
@@ -421,7 +430,10 @@ nav.hauptnav a{white-space:nowrap; flex:none}
           oben aus dem Diagramm heraus.</p>
           <p>Zeitachse: Die senkrechten Linien markieren Mitternacht in Ortszeit (Europa/Berlin).</p>
         </div>
-      </details>
+                <p><strong>Skala:</strong> GFS und ECMWF-IFS verwenden dieselbe Niederschlagsachse. Sie richtet sich nach dem
+          Modell mit dem höchsten 90.-Perzentil-Wert (plus 20 % Rand), damit ein Modellwechsel die Höhe der Kurven nicht
+          verzerrt. Einzelne Mitglieder oberhalb der Achse laufen bewusst aus dem Bild.</p>
+</details>
       <details>
         <summary>Zahlen als Tabelle</summary>
         <div class="tabellenhuelle"><table id="tab-niederschlag"></table></div>
@@ -688,6 +700,39 @@ const legendeAusSerien = serien => serien
 const markPunkt = (farbe, offen) =>
   `<svg width="14" height="12" aria-hidden="true"><circle cx="7" cy="6" r="4.5" fill="${offen ? 'var(--panel)' : farbe}" stroke="${farbe}" stroke-width="2"/></svg>`;
 
+/* ============================ Kopfzone: feste Hoehe ============================ */
+/* Misst alle Varianten des Einleitungstextes (Hauptseite und Wetterstation) unsichtbar
+   aus und reserviert die groesste Hoehe. Ohne das wandert die Reiterleiste beim
+   Wechsel zwischen Reitern mit unterschiedlich langem Text nach oben oder unten. */
+function variantenHoehe(elemente) {
+  // Misst jede Variante unsichtbar aus (auch die gerade ausgeblendete) und gibt die
+  // groesste Hoehe samt senkrechter Aussenabstaende zurueck.
+  let hoechste = 0;
+  elemente.forEach(e => {
+    const vorher = e.getAttribute("style") || "";
+    e.setAttribute("style", vorher + ";display:block!important;position:absolute;left:0;right:0;top:0;visibility:hidden");
+    const stil = getComputedStyle(e);
+    hoechste = Math.max(hoechste, e.getBoundingClientRect().height
+      + parseFloat(stil.marginTop || 0) + parseFloat(stil.marginBottom || 0));
+    e.setAttribute("style", vorher);
+  });
+  return Math.ceil(hoechste);
+}
+function kopfzoneMessen() {
+  const zone = $("#kopfzone");
+  if (!zone) return;
+  // Ueberschrift, Standangabe und Einleitungstext sind je Reiter unterschiedlich hoch.
+  // Fuer jede dieser drei Stellen wird die groesste Variante reserviert, damit die
+  // Reiterleiste beim Wechsel exakt an ihrem Platz bleibt.
+  const h1 = $(".kopf h1"), staende = [...document.querySelectorAll(".kopf .stand")];
+  const texte = [...zone.querySelectorAll(".unterzeile")];
+  [h1, ...staende, zone].forEach(e => { if (e) e.style.minHeight = "0px"; });
+  if (h1) h1.style.minHeight = variantenHoehe([...h1.querySelectorAll("span")]) + "px";
+  const standhoehe = variantenHoehe(staende);
+  staende.forEach(e => { e.style.minHeight = standhoehe + "px"; });
+  zone.style.minHeight = variantenHoehe(texte) + "px";
+}
+
 /* ============================ Navigation zwischen den Seiten ============================ */
 const SEITEN = ["vorhersage", "station-heute", "station-verlauf", "analyse"];
 const TITEL = { haupt: "Vorhersage und Analyse Mühldorf", station: "Wetterstation Stefanskirchen" };
@@ -703,6 +748,7 @@ function seiteAnzeigen() {
   });
   // Kopf (Ueberschrift, Stand, Unterzeile, Hinweise) folgt dem Reiter per CSS (.nur-haupt/.nur-station)
   document.body.dataset.seite = seite;
+  kopfzoneMessen();
   document.title = seite.startsWith("station") ? TITEL.station : TITEL.haupt;
   tipAus();
   // Die Stationsreiter zeichnen sich in ihrem eigenen Skriptblock (Ereignis statt Funktionsaufruf,
@@ -915,6 +961,25 @@ function gemeinsameTemperaturwerte(bereich) {
     [daten.kontrolllauf, daten.hauptlauf, daten.mittel, daten.p90, daten.p10].forEach(r => (r || []).forEach(v => werte.push(v)));
   });
   return werte.filter(Number.isFinite);
+}
+
+/** Hoechster Wert des 90.-Perzentil-Bands ueber BEIDE Modelle (gleicher Laufindex).
+ * Damit bekommt die aufsummierte Niederschlagsmenge fuer GFS und ECMWF-IFS dieselbe
+ * Achse; ohne das aendert sich beim Modellwechsel die Skala, und die Kurven sehen
+ * aehnlich hoch aus, obwohl die Mengen weit auseinanderliegen. */
+function gemeinsamesP90Maximum(bereich) {
+  let hoechste = null;
+  MODELLE.forEach(modell => {
+    const lauf = laufFuerAchse(modell.id, bereich);
+    if (!lauf) return;
+    const daten = datenAusLauf(bereich, lauf);
+    if (!daten.verfuegbar) return;
+    const werte = (daten.p90 || []).filter(Number.isFinite);
+    if (!werte.length) return;
+    const max = Math.max(...werte);
+    hoechste = hoechste == null ? max : Math.max(hoechste, max);
+  });
+  return hoechste;
 }
 
 /** Zeitgewichteter Mittelwert einer Kurve (stueckweise linear zwischen den
@@ -1147,7 +1212,10 @@ function zeichneBereich(bereich) {
     // 5 mm). Einzelne Mitglieder darueber laufen oben aus dem Bild (siehe clip-path).
     unten0 = 0;
     const p90Werte = daten.p90.filter(Number.isFinite);
-    const p90Max = p90Werte.length ? Math.max(...p90Werte) : Math.max(0, ...alleWerte);
+    const eigenes = p90Werte.length ? Math.max(...p90Werte) : Math.max(0, ...alleWerte);
+    // Gemeinsame Achse beider Modelle: Es zaehlt das Modell mit dem hoechsten
+    // 90.-Perzentil, damit sich GFS und ECMWF-IFS direkt vergleichen lassen.
+    const p90Max = Math.max(eigenes, gemeinsamesP90Maximum(bereich) ?? 0);
     oben0 = Math.max(5, p90Max * 1.2);
   } else {
     skala = temperaturSkala(gemeinsameTemperaturwerte(bereich));
@@ -1812,7 +1880,7 @@ function breiteGeaendert() {
   if (++layoutVersuche > 6) return;
   vorhersageLayouten();
 }
-addEventListener("resize", tipAus);
+addEventListener("resize", () => { tipAus(); kopfzoneMessen(); });
 if (typeof ResizeObserver === "function") {
   let beobachtet = null;
   new ResizeObserver(() => { cancelAnimationFrame(beobachtet); beobachtet = requestAnimationFrame(breiteGeaendert); })
@@ -1822,12 +1890,12 @@ if (typeof ResizeObserver === "function") {
   let resizeTimer = null;
   addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(breiteGeaendert, 100); });
 }
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!$("#seite-vorhersage").hidden) vorhersageLayouten(); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { kopfzoneMessen(); if (!$("#seite-vorhersage").hidden) vorhersageLayouten(); });
 /* Reine statische Seite: alle Daten sind oben eingebettet, kein Nachladen nötig. */
 
 /* Test-Hook: reine Berechnungsfunktionen fuer automatisierte Tests freigeben.
    Aendert kein Verhalten der Seite selbst, wird von keiner UI-Funktion gelesen. */
-window.__TEST__ = { paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, formatAktuell, laufLabel, zeitachsenWerte, temperaturSkala, gemeinsameTemperaturwerte, bereichsfarbe,
+window.__TEST__ = { gemeinsamesP90Maximum, kopfzoneMessen, paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, formatAktuell, laufLabel, zeitachsenWerte, temperaturSkala, gemeinsameTemperaturwerte, bereichsfarbe,
   ortsTeile, ortsMitternacht, ortsMitternaechte, zeitgewichteterMittelwert, temperaturNiveau, bezugslinieWert };
 
 
