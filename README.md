@@ -23,7 +23,11 @@ Die Seite läuft ohne eigenen Server und ohne Datenbank. `docs/index.html` ist e
 Loader, der bei jedem Aufruf die eigentliche Oberfläche aus `docs/app.html` und die aktuellen
 Wetterdaten aus `docs/daten.js` mit einem Cache-Buster lädt. Dadurch zeigt auch die normale
 Pages-Adresse zuverlässig den aktuellen Stand, ohne dass veraltete Wetterdaten aus dem
-Browser-Cache verwendet werden.
+Browser-Cache verwendet werden. Ein Hash in der Adresse bleibt dabei erhalten:
+`…/Modellbewertungen/#analyse` öffnet direkt die Analyse-Seite. Öffnet man `docs/app.html` lokal
+(`file://`), funktioniert die Seite ebenfalls, solange `docs/daten.js` daneben liegt. Fehlt diese
+Datei oder lässt sie sich nicht laden, zeigt die Seite eine ausdrückliche Fehlermeldung, statt so
+zu tun, als gäbe es nur noch keine Läufe.
 
 ---
 
@@ -60,7 +64,23 @@ sein Lauf-Slot gespeichert und die Seite sofort damit gebaut. Der exakt passende
 später über seine feste Initialisierungszeit aus der Open-Meteo-Single-Runs-Schnittstelle in
 denselben Slot nachgetragen. Ein inzwischen neuerer Hauptlauf kann dadurch nicht versehentlich
 mit einem älteren Ensemble vermischt werden. Haben sich keine Daten geändert, entstehen weder
-ein neuer Seitenbau noch ein unnötiger Commit.
+ein neuer Seitenbau noch ein unnötiger Commit:
+
+- `sammeln.py` schreibt `daten/forecasts_<Tag>.json` nur bei einer **fachlichen** Änderung. Der
+  Abrufzeitpunkt (`abgerufen`) zählt dafür nicht; bleibt sonst alles gleich, bleibt auch der
+  bisherige Abrufzeitpunkt stehen.
+- `bauen.py` leitet den angezeigten „Datenstand" aus den Quelldaten ab, nicht aus der Uhr. Gleiche
+  Wetterdaten ergeben deshalb bytegleich dieselbe `docs/daten.js`; `docs/index.html` und
+  `docs/app.html` bleiben bei reinen Datenläufen unverändert.
+- `historie.py` entscheidet selbst, ob etwas zu tun ist: erst ab 12:00 UTC und nur für Modelle, deren
+  Feld `stand` in `daten/history_*.json` älter als der heutige Tag ist. Das gilt auch beim manuellen
+  Start; `--erzwingen` hebt die Prüfung bewusst auf.
+- Beim Anlegen eines Ensemble-Slots werden die Metadaten vor dem Abruf gelesen und unmittelbar vor dem
+  Speichern noch einmal geprüft. Hat Open-Meteo währenddessen auf den nächsten Lauf umgeschaltet,
+  wird nichts gespeichert; der nächste halbstündliche Durchlauf versucht es erneut.
+- Wird der abschließende Push abgelehnt, weil inzwischen jemand anders nach `main` gepusht hat,
+  schlägt der Lauf sichtbar fehl. Es gibt bewusst weder ein automatisches Rebase noch einen
+  Force-Push; der nächste geplante Lauf beginnt auf dem neuen Stand.
 
 Erfasst werden:
 
@@ -117,17 +137,20 @@ daten/                       der Datenbestand, in git versioniert
   vorhersage/                   Ensemble-Meteogrammdaten, ein Dokument je erkanntem Modelllauf
     gfs_JJJJ-MM-TTThh.json         (nur die letzten 12 Läufe je Modell, siehe oben)
     ecmwf_JJJJ-MM-TTThh.json
-docs/index.html               kleiner, dauerhaft stabiler Loader für die normale Pages-Adresse
-docs/app.html                 Oberfläche und Auswertungslogik — wird gebaut
-docs/daten.js                 aktuelle Wetterdaten — wird bei Datenänderungen neu gebaut
+docs/index.html               kleiner, dauerhaft stabiler Loader für die normale Pages-Adresse;
+                                 leitet auf app.html?v=<Zeit> weiter und reicht einen Hash durch
+docs/app.html                 Oberfläche und Auswertungslogik — ändert sich nur bei Code-/Designänderungen
+docs/daten.js                 aktuelle Wetterdaten — ändert sich nur bei Datenänderungen
 skripte/
   gemeinsam.py                 geteilte Hilfsfunktionen: Abruf mit Wiederholung, atomares
-                                 Schreiben, Perzentil
+                                 Schreiben, Perzentil und die eine Formatprüfung für Laufdateien
+                                 (`ist_aktuelles_format`, gilt für Sammler, Builder und – als
+                                 Spiegel in JavaScript – die Seite)
   sammeln.py                    holt die tagesgenauen Hauptlauf-/Ensemble-Kennzahlen und die
                                  Stationsmesswerte (Analyse-Seite)
   sammeln_vorhersage.py         holt die vollen Ensemblemitglieder je Modelllauf (Meteogramm
                                  auf der Vorhersage-Seite)
-  historie.py                   lädt vergangene Hauptläufe nach
+  historie.py                   lädt vergangene Hauptläufe nach (idempotent, siehe oben)
   bauen.py                      baut aus daten/ + vorlage.html die Seite
   vorlage.html                  Gestaltung und Auswertungslogik (beide Seiten)
 tests/                        automatisierte Tests (pytest; einige nutzen Playwright und
@@ -141,7 +164,8 @@ pip install requests pytest
 python3 -m pytest tests/ -q --ignore=tests/test_js_analyse.py   # Selbsttests ohne Browser
 python3 skripte/sammeln.py --alles              # tagesgenaue Daten + Messwerte
 python3 skripte/sammeln_vorhersage.py --modell beide  # Ensemble-Meteogrammdaten
-python3 skripte/historie.py                     # Vorgeschichte der Hauptläufe
+python3 skripte/historie.py                     # Vorgeschichte der Hauptläufe (nur ab 12 UTC und bei
+                                                # veraltetem Stand; --erzwingen überspringt die Prüfung)
 python3 skripte/bauen.py                        # docs/index.html, app.html und daten.js neu bauen
 ```
 
@@ -149,6 +173,17 @@ python3 skripte/bauen.py                        # docs/index.html, app.html und 
 Bau-Skript erzeugt und nicht von Hand geändert. Bei reinen Datenaktualisierungen ändert sich nur
 `docs/daten.js`. Das vermeidet Konflikte zwischen automatisch aktualisierten Daten und manuellen
 Änderungen an der Oberfläche.
+
+**Aufgabenteilung der drei Veröffentlichungsdateien:** `index.html` ist der winzige, stabile Einstieg
+(fest, ändert sich praktisch nie), `app.html` ist die Oberfläche samt Auswertungslogik (ändert sich nur
+bei Code- oder Designänderungen), `daten.js` enthält ausschließlich die laufenden Wetterdaten (wird vom
+Workflow bei Datenänderungen neu erzeugt).
+
+**Entwicklungs-Bundles** (Git-Bundles oder Patches für Programmänderungen) enthalten deshalb weder
+`docs/daten.js` noch etwas unter `daten/` (Ausnahme: ausdrücklich freigegebene Aufräumarbeiten). Sonst
+könnte ein älterer Entwicklungsstand automatisch eingegangene, neuere Wetterdaten überschreiben oder
+mit ihnen kollidieren. Wer lokal testet und `bauen.py` laufen lässt, verwirft die dabei veränderte
+`docs/daten.js` vor dem Commit (`git checkout docs/daten.js`).
 
 Die beiden Temperaturdiagramme verwenden je Bereich und ausgewähltem Laufindex dieselbe
 dynamische Y-Achse für GFS und ECMWF. Sie umfasst die Extremwerte beider Modelle mit zusätzlichem

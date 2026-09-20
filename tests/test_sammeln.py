@@ -209,7 +209,7 @@ def test_bauen_zeigt_ensemble_slot_auch_ohne_hauptlauf():
         reihe = {"zeiten": ["2026-09-17T02:00"], "zeitpunkte_unix": [1],
                  "mitglieder": [[1.0]], "hauptlauf": hauptlauf, "kontrolllauf": kontrolllauf}
         return {
-            "modell": modell, "vollstaendig": True,
+            "modell": modell, "vollstaendig": True, "zeitauflosung": "modellnativ-v1",
             "temperatur_2m": dict(reihe),
             "temperatur_850hpa": dict(reihe),
             "niederschlag": dict(reihe),
@@ -253,3 +253,130 @@ def test_bauen_trennt_statische_seite_von_wechselnden_daten(tmp_path, monkeypatc
     assert (docs / "index.html").read_text(encoding="utf-8") == loader_vorher
     assert (docs / "app.html").read_text(encoding="utf-8") == app_vorher
     assert (docs / "daten.js").read_text(encoding="utf-8") != daten_vorher
+
+
+# ---------------------------------------------------------------- Tagesdatei: nur bei fachlicher Aenderung schreiben
+class _Antwort:
+    def __init__(self, daten):
+        self._daten = daten
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return self._daten
+
+
+def _api_simulieren(monkeypatch, hl_wert=1.0, ens_werte=(1.0, 3.0), hl_ok=True, ens_ok=True):
+    """Fester Open-Meteo-Ersatz: Metadaten leer (deterministische Laufwarnung),
+    Hauptlauf mit konstantem Tageswert, Ensemble mit zwei Mitgliedern."""
+    heute = dt.date.today()
+    tage = [(heute + dt.timedelta(days=i)).isoformat() for i in range(0, 16)]
+
+    def get(url, params=None, timeout=None):
+        if "meta.json" in url:
+            return _Antwort({})
+        if "ensemble-api" in url:
+            if not ens_ok:
+                raise sammeln.requests.exceptions.ConnectionError("Ensemble ausgefallen")
+            daily = {"time": tage}
+            for i, w in enumerate(ens_werte):
+                daily[f"precipitation_sum_member{i:02d}"] = [w] * 16
+            return _Antwort({"daily": daily})
+        if "api.open-meteo.com/v1/forecast" in url:
+            if not hl_ok:
+                raise sammeln.requests.exceptions.ConnectionError("Hauptlauf ausgefallen")
+            return _Antwort({"daily": {"time": tage, "precipitation_sum": [hl_wert] * 16}})
+        raise sammeln.requests.exceptions.ConnectionError("unerwartete URL " + url)
+
+    monkeypatch.setattr(sammeln.requests, "get", get)
+
+
+def _main(monkeypatch, modell):
+    monkeypatch.setattr(sammeln.sys, "argv", ["sammeln.py", "--modell", modell])
+    sammeln.main()
+
+
+def _tagesdatei(tmp_path):
+    return tmp_path / f"forecasts_{dt.date.today().isoformat()}.json"
+
+
+def _abrufzeit_auf_alt_setzen(pfad, alt="2020-01-01T00:00+01:00"):
+    d = json.loads(pfad.read_text(encoding="utf-8"))
+    d["abgerufen"] = alt
+    pfad.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+    return alt
+
+
+def test_nur_neuer_abrufzeitpunkt_schreibt_die_tagesdatei_nicht_neu(monkeypatch, tmp_path):
+    _api_simulieren(monkeypatch)
+    _main(monkeypatch, "gfs")
+    pfad = _tagesdatei(tmp_path)
+    alt = _abrufzeit_auf_alt_setzen(pfad)
+    bytes_vorher, mtime_vorher = pfad.read_bytes(), pfad.stat().st_mtime_ns
+
+    _main(monkeypatch, "gfs")  # identische Antworten, nur die Uhr ist weiter
+
+    assert pfad.read_bytes() == bytes_vorher
+    assert pfad.stat().st_mtime_ns == mtime_vorher
+    assert json.loads(pfad.read_text(encoding="utf-8"))["abgerufen"] == alt
+
+
+def test_geaenderter_modellwert_aktualisiert_die_tagesdatei(monkeypatch, tmp_path):
+    _api_simulieren(monkeypatch, hl_wert=1.0)
+    _main(monkeypatch, "gfs")
+    pfad = _tagesdatei(tmp_path)
+    alt = _abrufzeit_auf_alt_setzen(pfad)
+
+    _api_simulieren(monkeypatch, hl_wert=2.5)  # korrigierter Modellwert
+    _main(monkeypatch, "gfs")
+
+    nachher = json.loads(pfad.read_text(encoding="utf-8"))
+    assert nachher["leads"][0]["gfs"]["hl"] == 2.5
+    assert nachher["abgerufen"] != alt
+
+
+def test_neu_eingetroffener_modellbestandteil_aktualisiert_die_tagesdatei(monkeypatch, tmp_path):
+    _api_simulieren(monkeypatch)
+    _main(monkeypatch, "gfs")
+    pfad = _tagesdatei(tmp_path)
+    assert json.loads(pfad.read_text(encoding="utf-8"))["erfasste_modelle"] == ["gfs"]
+    alt = _abrufzeit_auf_alt_setzen(pfad)
+
+    _main(monkeypatch, "ecmwf")  # ECMWF trifft spaeter ein
+
+    nachher = json.loads(pfad.read_text(encoding="utf-8"))
+    assert nachher["erfasste_modelle"] == ["ecmwf", "gfs"]
+    assert nachher["leads"][0]["ecmwf"]["hl"] == 1.0
+    assert nachher["leads"][0]["gfs"]["hl"] == 1.0      # bisheriger Bestand bleibt
+    assert nachher["abgerufen"] != alt
+
+
+def test_ensemble_ergaenzung_in_bestehender_tagesdatei_wird_gespeichert(monkeypatch, tmp_path):
+    """Hauptlauf da, Ensemble faellt zunaechst aus; spaeter kommt es an."""
+    _api_simulieren(monkeypatch, ens_ok=False)
+    with pytest.raises(SystemExit):
+        _main(monkeypatch, "gfs")
+    pfad = _tagesdatei(tmp_path)
+    assert json.loads(pfad.read_text(encoding="utf-8"))["leads"][0]["gfs"]["ens"] is None
+    sammeln.fehler.clear()
+
+    _api_simulieren(monkeypatch, ens_ok=True)
+    _main(monkeypatch, "gfs")
+    nachher = json.loads(pfad.read_text(encoding="utf-8"))
+    assert nachher["leads"][0]["gfs"]["ens"] == 2.0
+    assert nachher["leads"][0]["gfs"]["hl"] == 1.0
+
+
+def test_fehlgeschlagener_teilabruf_behaelt_gueltige_werte(monkeypatch, tmp_path):
+    _api_simulieren(monkeypatch, hl_wert=4.0, ens_werte=(2.0, 4.0))
+    _main(monkeypatch, "gfs")
+    pfad = _tagesdatei(tmp_path)
+
+    _api_simulieren(monkeypatch, hl_ok=False, ens_werte=(6.0, 8.0))  # Hauptlauf scheitert, Ensemble kommt
+    with pytest.raises(SystemExit):
+        _main(monkeypatch, "gfs")
+
+    nachher = json.loads(pfad.read_text(encoding="utf-8"))
+    assert nachher["leads"][0]["gfs"]["hl"] == 4.0       # gueltiger Altwert bleibt
+    assert nachher["leads"][0]["gfs"]["ens"] == 7.0      # Neues aus dem geglueckten Abruf wird gespeichert

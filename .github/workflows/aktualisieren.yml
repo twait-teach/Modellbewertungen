@@ -3,7 +3,8 @@ name: Daten holen und Seite bauen
 # Prueft halbstuendlich zu versetzten Minuten (17/47, alle Zeiten UTC).
 # Ein vollstaendiges Ensemble wird sofort in seinem Lauf-Slot gespeichert;
 # der exakt passende Hauptlauf wird spaeter aus der Single-Runs-Schnittstelle
-# in denselben Slot nachgetragen. Ohne neue Daten wird weder gebaut noch committed.
+# in denselben Slot nachgetragen. Ohne fachlich neue Daten wird weder gebaut noch
+# committed (der Abrufzeitpunkt allein gilt nicht als Aenderung).
 on:
   schedule:
     - cron: "17,47 * * * *"
@@ -38,14 +39,12 @@ jobs:
       - name: Tagesgenaue Vorhersage- und Messdaten (Analyse-Seite) — nur falls nötig
         run: python3 skripte/sammeln.py --alles
 
-      - name: Historie der Hauptläufe auffrischen (einmal täglich, gegen 12 UTC)
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" || "$(date -u '+%H:%M')" == "12:17" ]]; then
-            python3 skripte/historie.py
-          else
-            echo "Historie ist nur beim 12:17-UTC-Lauf vorgesehen."
-          fi
+      - name: Historie der Hauptläufe auffrischen (idempotent, ab 12 UTC und nur bei veraltetem Stand)
+        # Die Entscheidung liegt in historie.py selbst: vor 12 UTC oder bei
+        # aktuellem Feld "stand" in beiden history_*.json passiert nichts.
+        # Das gilt auch beim manuellen Start; --erzwingen ist nur fuer
+        # bewussten Handbetrieb gedacht und wird hier nicht benutzt.
+        run: python3 skripte/historie.py
 
       - name: Prüfen, ob sich Daten geändert haben
         id: datenstand
@@ -74,5 +73,12 @@ jobs:
             echo "Nichts verändert."
           else
             git commit -m "Daten ${{ github.event.schedule && 'automatisch' || 'manuell' }} $(date -u '+%Y-%m-%d %H:%MZ')"
-            git push
+            # Bewusst kein Rebase, kein Force-Push und keine automatische
+            # Konfliktentscheidung: Wurde inzwischen von anderer Seite gepusht,
+            # wird der Push abgelehnt, dieser Lauf schlaegt sichtbar fehl, und
+            # der naechste halbstuendliche Lauf beginnt auf dem neuen Stand.
+            if ! git push; then
+              echo "::error title=Push abgelehnt::Auf main liegen inzwischen neuere Commits (vermutlich ein Entwickler-Push). Es wird weder rebased noch erzwungen. Diese Datenaktualisierung wird verworfen; der naechste geplante Lauf startet automatisch auf dem neuen Stand."
+              exit 1
+            fi
           fi

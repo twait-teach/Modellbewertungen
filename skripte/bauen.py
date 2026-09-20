@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gemeinsam import atomar_schreiben
+from gemeinsam import atomar_schreiben, ist_aktuelles_format
 
 WURZEL = Path(__file__).resolve().parent.parent
 DATEN = WURZEL / "daten"
@@ -29,7 +29,7 @@ STARTSEITE = """<!doctype html>
 <meta name="robots" content="index,follow">
 <title>Regenprognose Mühldorf</title></head><body>
 <p>Aktuelle Seite wird geladen …</p>
-<script>location.replace('app.html?v=' + Date.now());</script>
+<script>location.replace('app.html?v=' + Date.now() + location.hash);</script>
 <noscript><p><a href="app.html">Zur Wetterseite</a></p></noscript>
 </body></html>
 """
@@ -41,20 +41,43 @@ MONATE_RUECKWAERTS = 8
 
 
 def meteogrammlauf_anzeigbar(lauf):
-    """Jeden vollstaendigen Ensemble-Slot sofort in die Seite einbetten.
+    """Nur Laeufe im aktuellen Meteogrammformat werden eingebettet.
 
-    Der Hauptlauf darf noch fehlen und wird spaeter in denselben Slot
-    nachgetragen. Unbrauchbare Altformate bleiben draussen, sobald wenigstens
-    ein Slot im modellnahen Raster vorhanden ist.
+    Die Regeln (Marker ``modellnativ-v1``, Zeitstempel, Unixzeit, Mitglieder,
+    beim GFS der Kontrolllauf) liegen in ``gemeinsam.ist_aktuelles_format`` und
+    sind damit dieselben wie im Sammler. Ein Ensemble-Slot ohne Hauptlauf ist
+    ausdruecklich anzeigbar; der Hauptlauf wird spaeter in denselben Slot
+    nachgetragen.
     """
-    for feld in ("temperatur_2m", "temperatur_850hpa", "niederschlag"):
-        reihe = lauf.get(feld)
-        if (not isinstance(reihe, dict) or not reihe.get("zeiten")
-                or not reihe.get("zeitpunkte_unix") or not reihe.get("mitglieder")):
-            return False
-        if lauf.get("modell") == "gfs" and not reihe.get("kontrolllauf"):
-            return False
-    return True
+    return ist_aktuelles_format(lauf)
+
+
+def _utc_aus_iso(text):
+    """ISO-Zeitstempel (mit Offset oder 'Z') als UTC-Zeitpunkt; None bei Fehler."""
+    try:
+        t = dt.datetime.fromisoformat(str(text).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=dt.timezone.utc)
+    return t.astimezone(dt.timezone.utc)
+
+
+def datenstand(forecasts, vorhersage, history):
+    """Neuester Abrufzeitpunkt (UTC, Minutengenauigkeit) aller Quelldaten.
+
+    Wird ausschliesslich aus den Quelldaten abgeleitet -- nie aus der Uhr. Damit
+    erzeugen unveraenderte Wetterdaten bytegleich dieselbe ``daten.js`` und
+    keinen Git-Commit, auch bei einem manuell angestossenen Neubau.
+    """
+    zeiten = [_utc_aus_iso(d.get("abgerufen")) for d in forecasts.values()]
+    for laeufe in vorhersage.values():
+        for lauf in laeufe:
+            zeiten += [_utc_aus_iso(lauf.get("abgerufen")), _utc_aus_iso(lauf.get("hauptlauf_abgerufen"))]
+    for h in history.values():
+        zeiten.append(_utc_aus_iso(h.get("stand")))
+    zeiten = [z for z in zeiten if z]
+    return max(zeiten).strftime("%Y-%m-%dT%H:%MZ") if zeiten else None
 
 
 def monatsschluessel(versatz):
@@ -96,21 +119,17 @@ def main():
     # des Sammlers nie gespeichert wurden) bleiben einfach Luecken; es wird
     # nichts erfunden oder aufgefuellt.
     vorhersage = {"gfs": [], "ecmwf": []}
-    vorhersage_altbestand = {"gfs": [], "ecmwf": []}
+    nicht_eingebettet = []
     for pfad in sorted((DATEN / "vorhersage").glob("*.json")) if (DATEN / "vorhersage").exists() else []:
         d = json.loads(pfad.read_text(encoding="utf-8"))
         modell = d.get("modell")
-        if modell in vorhersage:
-            vorhersage_altbestand[modell].append(d)
-            if meteogrammlauf_anzeigbar(d):
-                vorhersage[modell].append(d)
+        if modell not in vorhersage:
+            continue
+        if meteogrammlauf_anzeigbar(d):
+            vorhersage[modell].append(d)
+        else:
+            nicht_eingebettet.append(pfad.name)
     for modell in vorhersage:
-        # Kein leerer Bildschirm waehrend der Umstellung: Solange noch gar
-        # kein Paket nach der strengeren Regel vorliegt, bleibt der bisherige
-        # Bestand sichtbar. Sobald der erste korrekte Lauf gespeichert wurde,
-        # werden die alten Teilpakete nicht mehr eingebettet.
-        if not vorhersage[modell]:
-            vorhersage[modell] = vorhersage_altbestand[modell]
         vorhersage[modell].sort(key=lambda d: d["init"], reverse=True)
 
     paket = {
@@ -118,7 +137,7 @@ def main():
         "history": history,
         "forecasts": forecasts,
         "vorhersage": vorhersage,
-        "gebaut": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"),
+        "datenstand": datenstand(forecasts, vorhersage, history),
     }
 
     vorlage = VORLAGE.read_text(encoding="utf-8")
@@ -156,6 +175,9 @@ def main():
     print(f"  Läufe:       {len(forecasts)} ({min(forecasts)} bis {max(forecasts)})")
     print(f"  Historie:    " + ", ".join(f"{m} {len(history[m]['tage'])} Tage" for m in history))
     print(f"  Meteogramm:  " + ", ".join(f"{m} {len(vorhersage[m])} Lauf/Läufe" for m in vorhersage))
+    print(f"  Datenstand:  {paket['datenstand']}")
+    if nicht_eingebettet:
+        print(f"  Nicht eingebettet (kein aktuelles Format): {', '.join(nicht_eingebettet)}")
 
 
 if __name__ == "__main__":

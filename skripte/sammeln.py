@@ -29,7 +29,7 @@ import requests
 import argparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gemeinsam import atomar_schreiben_json
+from gemeinsam import atomar_schreiben_json, ohne_feld
 
 LAT, LON = 48.2456, 12.5228
 TZ_NAME = "Europe/Berlin"
@@ -285,7 +285,17 @@ def main():
         "laufhinweise": laufwarnung,
         "leads": leads,
     }
-    atomar_schreiben_json(zieldatei, lauf)
+    # Nur bei fachlicher Aenderung schreiben. Der Abrufzeitpunkt zaehlt nicht
+    # als Aenderung: sonst wuerde jeder halbstuendliche Durchlauf die Datei
+    # neu schreiben, einen Seitenbau und einen Commit ausloesen, obwohl sich
+    # an den Wetterdaten nichts geaendert hat. Bleibt inhaltlich alles gleich,
+    # bleibt auch der bisherige Abrufzeitpunkt erhalten.
+    if vorhanden and "abgerufen" in vorhanden and ohne_feld(vorhanden, "abgerufen") == ohne_feld(lauf, "abgerufen"):
+        lauf["abgerufen"] = vorhanden["abgerufen"]
+        tagesdatei_geschrieben = False
+    else:
+        atomar_schreiben_json(zieldatei, lauf)
+        tagesdatei_geschrieben = True
 
     # --- Messwerte, nach Monat gebuendelt ---
     # Wichtig: DWD liefert im "akt"-Archiv nur ein rollierendes Zeitfenster von
@@ -319,6 +329,9 @@ def main():
             })
             aktualisierte_monate += 1
 
+    if not tagesdatei_geschrieben:
+        print(f"Lauf {heute}: fachlich unveraendert -- {zieldatei.name} nicht neu geschrieben "
+              f"(Abruf von {lauf['abgerufen']} bleibt erhalten)")
     print(f"Lauf {heute}: {len(leads)} Leads · erfasst: {', '.join(lauf['erfasste_modelle'])}"
           f" · Ensemble-Läufe " + " ".join(f"{m.upper()}={ens_n.get(m, '–')}" for m in ("gfs", "ecmwf")))
     for name, info in laeufe_meta.items():

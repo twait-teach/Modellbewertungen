@@ -6,10 +6,18 @@ um die echte Seite mit ausgetauschten DATEN zu laden und die ueber
 window.__TEST__ freigegebenen reinen Funktionen aufzurufen.
 """
 import datetime as dt
+import functools
+import http.server
 import json
+import sys
+import threading
 from pathlib import Path
 
+import pytest
 from playwright.sync_api import sync_playwright
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skripte"))
+from gemeinsam import ist_aktuelles_format  # noqa: E402
 
 SEITE = Path(__file__).resolve().parent.parent / "skripte" / "vorlage.html"
 
@@ -602,7 +610,9 @@ def test_temperatur_wird_nicht_akkumuliert_dargestellt():
                                  zeitpunkte_unix: [0, 3600, 25200],
                                  kontrolllauf: [-5, 0, 4], mitglieder: [[-5, 0, 4]], hauptlauf: null,
                                  mittel: [-5, 0, 4], p10: [-6, -1, 3], p90: [-4, 1, 5], n: [1, 1, 1] },
-                temperatur_850hpa: { kontrolllauf: [-5, 0, 4], mitglieder: [[-5, 0, 4]], hauptlauf: null,
+                temperatur_850hpa: { zeiten: ['2026-02-02T01:00', '2026-02-02T02:00', '2026-02-02T08:00'],
+                                     zeitpunkte_unix: [0, 3600, 25200],
+                                     kontrolllauf: [-5, 0, 4], mitglieder: [[-5, 0, 4]], hauptlauf: null,
                                      mittel: [-5, 0, 4], p10: [-6, -1, 3], p90: [-4, 1, 5], n: [1, 1, 1] },
                 niederschlag: { zeiten: ['2026-02-02T01:00', '2026-02-02T04:00', '2026-02-02T07:00'],
                                  zeitpunkte_unix: [0, 10800, 21600],
@@ -612,10 +622,15 @@ def test_temperatur_wird_nicht_akkumuliert_dargestellt():
             const bTemp = t.BEREICHE.find(b => b.id === 'temp2m');
             const bRegen = t.BEREICHE.find(b => b.id === 'niederschlag');
             const b850 = t.BEREICHE.find(b => b.id === 'temp850');
+            // Ein Lauf, dem in EINEM Bereich die Zeitachse fehlt, ist als Ganzes
+            // kein aktuelles Format (Builder und Frontend pruefen identisch).
+            const unvollstaendig = JSON.parse(JSON.stringify(lauf));
+            delete unvollstaendig.temperatur_850hpa.zeiten;
             return {
                 temp: t.datenAusLauf(bTemp, lauf),
                 regen: t.datenAusLauf(bRegen, lauf),
-                fehlend: t.datenAusLauf(b850, lauf),
+                fehlend: t.datenAusLauf(b850, unvollstaendig),
+                fehlend_auch_2m: t.datenAusLauf(bTemp, unvollstaendig),
                 zeitachse: t.zeitachsenWerte(t.datenAusLauf(bTemp, lauf), 3),
                 temp_akkumuliert_flag: bTemp.akkumuliert,
                 regen_akkumuliert_flag: bRegen.akkumuliert,
@@ -629,6 +644,7 @@ def test_temperatur_wird_nicht_akkumuliert_dargestellt():
     assert ergebnis["temp_akkumuliert_flag"] is False
     assert ergebnis["regen_akkumuliert_flag"] is True
     assert ergebnis["fehlend"]["verfuegbar"] is False      # altes Tagesformat ohne Zeitachse -> nicht verfuegbar
+    assert ergebnis["fehlend_auch_2m"]["verfuegbar"] is False  # Formatpruefung gilt je Lauf, nicht je Bereich
 
 
 def test_modellfarben_und_haupt_kontrolllauf_linien():
@@ -685,3 +701,247 @@ def test_modellfarben_und_haupt_kontrolllauf_linien():
     assert gfs_stand["kontrolleGestrichelt"] == "7 3.5"
     assert gfs_stand["hauptFarbe"] == "var(--ink)"
     assert gfs_stand["hauptGestrichelt"] is False
+
+
+# ---------------------------------------------------------------- Laufwahl: aria-pressed und getrennte Zustaende
+def _gedrueckt(page, bereich):
+    return page.evaluate("""(b) => [...document.querySelectorAll(`#laufwahl-${b} button`)]
+        .map(x => x.getAttribute('aria-pressed'))""", bereich)
+
+
+def test_laufwahl_markiert_genau_den_gewaehlten_lauf_und_laesst_andere_bereiche_unberuehrt():
+    testdatei = _seite_vorhersage("_test_aria_pressed.html")
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        fehler = []
+        page.on("pageerror", lambda exc: fehler.append(str(exc)))
+        page.goto(f"file://{testdatei}")
+        page.wait_for_timeout(250)
+
+        vorher = {b: _gedrueckt(page, b) for b in ("temp2m", "temp850", "niederschlag")}
+        info_vorher = {b: page.locator(f"#laufinfoZeile-{b}").inner_text() for b in ("temp850", "niederschlag")}
+
+        page.locator("#laufwahl-temp2m button").nth(1).click()
+        page.wait_for_timeout(150)
+        nach_klick = _gedrueckt(page, "temp2m")
+        info_2m = page.locator("#laufinfoZeile-temp2m").inner_text()
+        text_button = page.locator('#laufwahl-temp2m button[aria-pressed="true"]').inner_text()
+
+        page.locator("#laufwahl-temp2m button").nth(0).click()   # und wieder zurueck
+        page.wait_for_timeout(150)
+        zurueck = _gedrueckt(page, "temp2m")
+
+        andere_nachher = {b: _gedrueckt(page, b) for b in ("temp850", "niederschlag")}
+        info_nachher = {b: page.locator(f"#laufinfoZeile-{b}").inner_text() for b in ("temp850", "niederschlag")}
+        browser.close()
+        assert not fehler, f"JS-Laufzeitfehler: {fehler}"
+    testdatei.unlink()
+    assert vorher["temp2m"] == ["true", "false", "false"]
+    assert nach_klick == ["false", "true", "false"]          # genau EIN Button, und zwar der gewaehlte
+    assert "18 UTC" in info_2m and "18 UTC" in text_button    # Diagramm und Hervorhebung passen zusammen
+    assert zurueck == ["true", "false", "false"]
+    for b in ("temp850", "niederschlag"):                    # andere Bereiche unveraendert
+        assert andere_nachher[b] == vorher[b] == ["true", "false", "false"]
+        assert info_nachher[b] == info_vorher[b]
+
+
+# ---------------------------------------------------------------- Formatpruefung: Python und JavaScript identisch
+def test_formatpruefung_in_python_und_javascript_liefert_dieselben_ergebnisse():
+    def variante(aendern, modell="gfs"):
+        d = json.loads(json.dumps(_lauf("2026-02-02T00:00Z")))
+        d["modell"] = modell
+        aendern(d)
+        return d
+    faelle = [
+        variante(lambda d: None),
+        variante(lambda d: d.pop("zeitauflosung")),
+        variante(lambda d: d.update(zeitauflosung="modellnativ-v0")),
+        variante(lambda d: d["temperatur_2m"].pop("zeiten")),
+        variante(lambda d: d["temperatur_2m"].update(zeiten=[])),
+        variante(lambda d: d["niederschlag"].pop("zeitpunkte_unix")),
+        variante(lambda d: d["niederschlag"].update(zeitpunkte_unix=[1])),
+        variante(lambda d: d["temperatur_850hpa"].update(mitglieder=[])),
+        variante(lambda d: d["temperatur_850hpa"].pop("mitglieder")),
+        variante(lambda d: d["temperatur_850hpa"].update(kontrolllauf=None)),
+        variante(lambda d: d["temperatur_850hpa"].update(kontrolllauf=[])),
+        variante(lambda d: d.update(niederschlag=None)),
+        variante(lambda d: d.update(temperatur_2m=[1, 2])),
+        variante(lambda d: d["temperatur_2m"].update(kontrolllauf=None), modell="ecmwf"),  # ECMWF ohne Kontrolllauf gueltig
+        variante(lambda d: d["temperatur_2m"].update(kontrolllauf=None, mitglieder=[]), modell="ecmwf"),
+    ]
+    testdatei = _seite_vorhersage("_test_formatparitaet.html")
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.goto(f"file://{testdatei}")
+        page.wait_for_timeout(200)
+        js = page.evaluate("(faelle) => faelle.map(f => window.__TEST__.formatAktuell(f))", faelle)
+        browser.close()
+    testdatei.unlink()
+    assert js == [ist_aktuelles_format(f) for f in faelle]
+    assert js[0] is True and js[13] is True and sum(js) == 2
+
+
+def test_html_reihenfolge_der_vorhersagebereiche():
+    text = SEITE.read_text(encoding="utf-8")
+    positionen = [text.index(f'<section id="s-{b}">') for b in ("temp2m", "temp850", "niederschlag")]
+    assert positionen == sorted(positionen)
+
+
+# ---------------------------------------------------------------- Gebaute Seite: Loader, Hash, file://, Ladefehler
+@pytest.fixture(scope="module")
+def gebaute_seite(tmp_path_factory):
+    """Echte, von bauen.py erzeugte Dateien (index.html, app.html, daten.js) in
+    der Projektstruktur von GitHub Pages: <wurzel>/Modellbewertungen/. Kein
+    Test-HTML mit eingebetteten Daten -- daten.js wird wirklich nachgeladen."""
+    import bauen
+
+    wurzel = tmp_path_factory.mktemp("pages")
+    daten = wurzel / "quelle" / "daten"
+    (daten / "vorhersage").mkdir(parents=True)
+    (daten / "forecasts_2026-02-02.json").write_text(json.dumps(
+        {"lauf": "2026-02-02", "abgerufen": "2026-02-02T09:00+01:00", "leads": []}), encoding="utf-8")
+    (daten / "vorhersage" / "gfs_2026-02-02T00.json").write_text(
+        json.dumps(_lauf("2026-02-02T00:00Z")), encoding="utf-8")
+    docs = wurzel / "site" / "Modellbewertungen"
+    mp = pytest.MonkeyPatch()
+    mp.setattr(bauen, "DATEN", daten)
+    mp.setattr(bauen, "START_ZIEL", docs / "index.html")
+    mp.setattr(bauen, "ZIEL", docs / "app.html")
+    mp.setattr(bauen, "DATEN_ZIEL", docs / "daten.js")
+    bauen.main()
+    mp.undo()
+
+    class Leise(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+    server = http.server.ThreadingHTTPServer(
+        ("127.0.0.1", 0), functools.partial(Leise, directory=str(wurzel / "site")))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield {"basis": f"http://127.0.0.1:{server.server_port}/Modellbewertungen/", "ordner": docs}
+    server.shutdown()
+
+
+def _sichtbare_seite(page):
+    return page.evaluate("[...document.querySelectorAll('main[id^=seite-]')].filter(m => !m.hidden).map(m => m.id)")
+
+
+def _diagramm_gezeichnet(page):
+    return page.evaluate("document.querySelectorAll('#chart-temp2m path').length > 0")
+
+
+@pytest.mark.parametrize("pfad, seite, hash_", [
+    ("", "seite-vorhersage", ""),
+    ("index.html", "seite-vorhersage", ""),
+    ("#analyse", "seite-analyse", "#analyse"),
+    ("index.html#analyse", "seite-analyse", "#analyse"),
+    ("#vorhersage", "seite-vorhersage", "#vorhersage"),
+    ("app.html", "seite-vorhersage", ""),          # direkter Aufruf der Anwendung
+    ("app.html#analyse", "seite-analyse", "#analyse"),
+])
+def test_loader_leitet_hash_weiter_und_zeigt_die_normale_adresse(gebaute_seite, pfad, seite, hash_):
+    basis = gebaute_seite["basis"]
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        fehler = []
+        page.on("pageerror", lambda exc: fehler.append(str(exc)))
+        page.goto(basis + pfad)
+        page.wait_for_timeout(600)
+        url, sichtbar, gezeichnet = page.url, _sichtbare_seite(page), _diagramm_gezeichnet(page)
+        banner = page.locator("#datenfehler").is_visible()
+        browser.close()
+    assert not fehler, fehler
+    assert url == basis + hash_          # nie app.html?v=..., Hash bleibt erhalten
+    assert sichtbar == [seite]
+    assert gezeichnet and not banner     # daten.js wurde tatsaechlich geladen
+
+
+def test_loader_und_app_laden_mit_frischer_versionskennung(gebaute_seite):
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        anfragen = []
+        page.on("request", lambda r: anfragen.append(r.url))
+        page.goto(gebaute_seite["basis"])
+        page.wait_for_timeout(500)
+        browser.close()
+    assert any("/app.html?v=" in u for u in anfragen)
+    assert any("/daten.js?v=" in u for u in anfragen)
+
+
+def test_lokaler_aufruf_von_app_html_mit_daten_js_ueber_file(gebaute_seite):
+    app = gebaute_seite["ordner"] / "app.html"
+    assert (gebaute_seite["ordner"] / "daten.js").exists()
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        fehler = []
+        page.on("pageerror", lambda exc: fehler.append(str(exc)))
+        page.goto(f"file://{app}#analyse")
+        page.wait_for_timeout(500)
+        sichtbar, gezeichnet = _sichtbare_seite(page), _diagramm_gezeichnet(page)
+        daten_da = page.evaluate("typeof window.DATEN === 'object' && !!window.DATEN.vorhersage")
+        banner = page.locator("#datenfehler").is_visible()
+        browser.close()
+    assert not fehler, fehler            # replaceState-Fehler unter file:// ist abgefangen
+    assert daten_da and gezeichnet and not banner
+    assert sichtbar == ["seite-analyse"]
+
+
+def test_lokaler_aufruf_ueber_den_loader_index_html(gebaute_seite):
+    index = gebaute_seite["ordner"] / "index.html"
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        fehler = []
+        page.on("pageerror", lambda exc: fehler.append(str(exc)))
+        page.goto(f"file://{index}#analyse")
+        page.wait_for_timeout(700)
+        sichtbar, gezeichnet = _sichtbare_seite(page), _diagramm_gezeichnet(page)
+        browser.close()
+    assert not fehler, fehler
+    assert gezeichnet and sichtbar == ["seite-analyse"]
+
+
+@pytest.mark.parametrize("ausfall", ["fehlt", "blockiert", "ungueltig"])
+def test_fehlende_oder_kaputte_daten_js_zeigt_sichtbare_meldung(gebaute_seite, ausfall):
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        if ausfall == "fehlt":
+            page.route("**/daten.js*", lambda r: r.fulfill(status=404, body="nicht da"))
+        elif ausfall == "blockiert":
+            page.route("**/daten.js*", lambda r: r.abort())
+        else:
+            page.route("**/daten.js*", lambda r: r.fulfill(
+                status=200, content_type="application/javascript", body="window.DATEN = {;"))
+        page.goto(gebaute_seite["basis"])
+        page.wait_for_timeout(600)
+        banner = page.locator("#datenfehler")
+        sichtbar = banner.is_visible()
+        text = banner.inner_text() if sichtbar else ""
+        info = page.locator("#laufinfoZeile-temp2m").inner_text()
+        # Seitenrahmen und Navigation muessen weiter funktionieren
+        page.locator('#hauptnav a[data-seite="analyse"]').click()
+        page.wait_for_timeout(200)
+        nach_klick = _sichtbare_seite(page)
+        browser.close()
+    assert sichtbar
+    assert "konnten nicht geladen werden" in text and "neu laden" in text
+    assert "noch kein gespeicherter Lauf" not in info   # nicht als "es gibt nur noch keine Laeufe" tarnen
+    assert nach_klick == ["seite-analyse"]
+
+
+@pytest.mark.parametrize("breite", [390, 800, 1920])
+def test_gebaute_seite_hat_bei_typischen_breiten_kein_horizontales_seitenscrollen(gebaute_seite, breite):
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": breite, "height": 900})
+        page.goto(gebaute_seite["basis"])
+        page.wait_for_timeout(600)
+        breiten = page.evaluate("[document.documentElement.scrollWidth, window.innerWidth]")
+        browser.close()
+    assert breiten[0] <= breiten[1], breiten

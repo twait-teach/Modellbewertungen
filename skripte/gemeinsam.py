@@ -86,3 +86,44 @@ def perzentil(sortiert, q):
 def mittel(werte):
     werte = [w for w in werte if w is not None]
     return round(statistics.fmean(werte), 3) if werte else None
+
+
+# ---------------------------------------------------------------- Format der Laufdateien
+FORMAT_MODELLNAH = "modellnativ-v1"
+LAUF_FELDER = ("temperatur_2m", "temperatur_850hpa", "niederschlag")
+
+
+def ist_aktuelles_format(lauf):
+    """Einzige Formatpruefung fuer Ensemble-Laufdateien (Sammler UND Builder).
+
+    Ein Lauf gilt nur dann als aktuell und darstellbar, wenn er den Marker
+    ``zeitauflosung == "modellnativ-v1"`` traegt und in allen drei Bereichen
+    Zeitstempel, Unixzeiten gleicher Laenge und Ensemblemitglieder besitzt.
+    Beim GFS ist zusaetzlich der Kontrolllauf Pflicht; ECMWF hat keinen.
+    Die Frontend-Funktion ``formatAktuell`` in skripte/vorlage.html folgt exakt
+    denselben Regeln (durch einen Browsertest abgesichert).
+    """
+    if not isinstance(lauf, dict) or lauf.get("zeitauflosung") != FORMAT_MODELLNAH:
+        return False
+    for feld in LAUF_FELDER:
+        reihe = lauf.get(feld)
+        if not isinstance(reihe, dict):
+            return False
+        zeiten = reihe.get("zeiten")
+        unix = reihe.get("zeitpunkte_unix")
+        if (not isinstance(zeiten, list) or not zeiten
+                or not isinstance(unix, list) or len(unix) != len(zeiten)):
+            return False
+        mitglieder = reihe.get("mitglieder")
+        if not isinstance(mitglieder, list) or not mitglieder:
+            return False
+        if lauf.get("modell") == "gfs" and (
+                not isinstance(reihe.get("kontrolllauf"), list) or not reihe["kontrolllauf"]):
+            return False
+    return True
+
+
+def ohne_feld(objekt: dict, feld: str) -> dict:
+    """Flache Kopie ohne ein einzelnes Feld -- fuer fachliche Vergleiche, die
+    einen reinen Zeitstempel ignorieren sollen."""
+    return {k: v for k, v in objekt.items() if k != feld}

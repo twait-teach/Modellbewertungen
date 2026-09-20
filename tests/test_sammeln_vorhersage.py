@@ -557,7 +557,7 @@ def test_main_speichert_unvollstaendigen_lauf_nicht(monkeypatch, tmp_path):
         "hauptlauf_kumulativ": None, "temperatur_2m": None, "temperatur_850hpa": None,
         "horizont_tage": 16,
     }
-    monkeypatch.setattr(sv, "verarbeite_modell", lambda kurz, cfg, fehler, heute: (unvollstaendiger_lauf, ["zu wenige Mitglieder"]))
+    monkeypatch.setattr(sv, "verarbeite_modell", lambda kurz, cfg, fehler, heute, **kw: (unvollstaendiger_lauf, ["zu wenige Mitglieder"]))
     monkeypatch.setattr(sv, "laufinfo", lambda datensatz, fehler: None)  # Vorab-Check findet nichts -> faellt durch zu verarbeite_modell
 
     import sys as _sys
@@ -601,7 +601,7 @@ def test_main_speichert_vollstaendigen_ensemble_slot_ohne_hauptlauf(monkeypatch,
         "zeitauflosung": "modellnativ-v1", "niederschlag": dict(reihe),
         "temperatur_2m": dict(reihe), "temperatur_850hpa": dict(reihe), "horizont_tage": 16,
     }
-    monkeypatch.setattr(sv, "verarbeite_modell", lambda kurz, cfg, fehler, heute: (vollstaendiger_lauf, []))
+    monkeypatch.setattr(sv, "verarbeite_modell", lambda kurz, cfg, fehler, heute, **kw: (vollstaendiger_lauf, []))
     monkeypatch.setattr(sv, "laufinfo", lambda datensatz, fehler: {"lauf": init, "verfuegbar": init})
     monkeypatch.setattr(sv, "ergaenze_hauptlauf", lambda lauf, cfg, fehler: (False, "noch nicht da"))
 
@@ -647,3 +647,93 @@ def test_dateinamen_string_sortierung_entspricht_chronologischer_reihenfolge():
         sv.dateiname("gfs", dt.datetime(2026, 9, 18, 12, tzinfo=dt.timezone.utc)),
     ]
     assert sorted(namen) == namen  # aufsteigend sortiert == chronologisch aufsteigend
+
+
+# ---------------------------------------------------------------- Laufwechsel waehrend des Ensemble-Abrufs
+def _vollstaendiger_lauf(init):
+    reihe = {"zeiten": ["2026-09-17T02:00"], "zeitpunkte_unix": [1789603200],
+             "mitglieder": [[1.0]], "kontrolllauf": [0.8], "hauptlauf": None}
+    return {
+        "modell": "gfs", "modellname": "GFS", "init": init.strftime("%Y-%m-%dT%H:%MZ"),
+        "mitglieder_n": 30, "ensemble_vollstaendig": True,
+        "hauptlauf_vollstaendig": False, "vollstaendig": False, "hinweise": [],
+        "zeitauflosung": "modellnativ-v1", "niederschlag": dict(reihe),
+        "temperatur_2m": dict(reihe), "temperatur_850hpa": dict(reihe), "horizont_tage": 16,
+    }
+
+
+def _main_gfs(monkeypatch, tmp_path, metadaten, lauf):
+    """Startet main() fuer GFS. ``metadaten`` ist die Folge der nacheinander
+    gemeldeten Initialisierungszeiten (None = Metadaten nicht abrufbar)."""
+    monkeypatch.setattr(sv, "OUT", tmp_path)
+    folge = iter(metadaten)
+    aufrufe = []
+
+    def laufinfo(datensatz, fehler):
+        aufrufe.append(datensatz)
+        init = next(folge)
+        return None if init is None else {"lauf": init, "verfuegbar": init}
+
+    verarbeitet = []
+
+    def verarbeite(kurz, cfg, fehler, heute, **kw):
+        verarbeitet.append(kw)
+        return lauf, []
+
+    monkeypatch.setattr(sv, "laufinfo", laufinfo)
+    monkeypatch.setattr(sv, "verarbeite_modell", verarbeite)
+    monkeypatch.setattr(sv, "ergaenze_hauptlauf", lambda l, c, f: (False, "noch nicht da"))
+    import sys as _sys
+    monkeypatch.setattr(_sys, "argv", ["sammeln_vorhersage.py", "--modell", "gfs"])
+    sv.main()
+    return aufrufe, verarbeitet
+
+
+def test_laufwechsel_waehrend_des_abrufs_speichert_keinen_slot(monkeypatch, tmp_path):
+    init_a = dt.datetime(2026, 9, 17, 6, tzinfo=dt.timezone.utc)
+    init_b = dt.datetime(2026, 9, 17, 12, tzinfo=dt.timezone.utc)  # inzwischen erschienen
+    lauf = _vollstaendiger_lauf(init_a)
+
+    # bereits gespeicherter, gueltiger Slot eines aelteren Laufs -- darf sich nicht aendern
+    alt = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    alt_pfad = tmp_path / sv.dateiname("gfs", alt)
+    alt_inhalt = json.dumps(_vollstaendiger_lauf(alt), separators=(",", ":"))
+    alt_pfad.write_text(alt_inhalt, encoding="utf-8")
+
+    # 1. Aufruf: vor dem Abruf -> A; 2. Aufruf: unmittelbar vor dem Speichern -> B
+    _main_gfs(monkeypatch, tmp_path, [init_a, init_b], lauf)
+
+    assert not (tmp_path / sv.dateiname("gfs", init_a)).exists(), "Slot trotz Laufwechsel gespeichert"
+    assert not (tmp_path / sv.dateiname("gfs", init_b)).exists(), "Antwort wurde einem falschen Slot zugeordnet"
+    assert alt_pfad.read_text(encoding="utf-8") == alt_inhalt
+
+
+def test_nach_laufwechsel_gelingt_der_naechste_durchlauf(monkeypatch, tmp_path):
+    init_b = dt.datetime(2026, 9, 17, 12, tzinfo=dt.timezone.utc)
+    lauf = _vollstaendiger_lauf(init_b)
+    _main_gfs(monkeypatch, tmp_path, [init_b, init_b], lauf)
+    gespeichert = tmp_path / sv.dateiname("gfs", init_b)
+    assert gespeichert.exists()
+    assert json.loads(gespeichert.read_text(encoding="utf-8"))["init"] == "2026-09-17T12:00Z"
+
+
+def test_nicht_abrufbare_kontroll_metadaten_speichern_nicht(monkeypatch, tmp_path):
+    init_a = dt.datetime(2026, 9, 17, 6, tzinfo=dt.timezone.utc)
+    _main_gfs(monkeypatch, tmp_path, [init_a, None], _vollstaendiger_lauf(init_a))
+    assert not (tmp_path / sv.dateiname("gfs", init_a)).exists()
+
+
+def test_vorab_ermittelte_metadaten_werden_an_die_verarbeitung_durchgereicht(monkeypatch, tmp_path):
+    init_a = dt.datetime(2026, 9, 17, 6, tzinfo=dt.timezone.utc)
+    _, verarbeitet = _main_gfs(monkeypatch, tmp_path, [init_a, init_a], _vollstaendiger_lauf(init_a))
+    assert verarbeitet and verarbeitet[0]["ens_info"]["lauf"] == init_a
+
+
+def test_verarbeite_modell_nutzt_uebergebene_metadaten_statt_neuer_abfrage(monkeypatch):
+    init = dt.datetime(2026, 9, 17, 6, tzinfo=dt.timezone.utc)
+    aufrufe = []
+    monkeypatch.setattr(sv, "laufinfo", lambda d, f: aufrufe.append(d))
+    monkeypatch.setattr(sv, "hole", _fake_hole_baustein({}))  # Ensemble nicht abrufbar
+    lauf, hinweise = sv.verarbeite_modell("gfs", sv.MODELLE["gfs"], [], dt.date(2026, 9, 17),
+                                          ens_info={"lauf": init, "verfuegbar": init})
+    assert lauf is None and aufrufe == []   # keine zweite Metadatenabfrage innerhalb der Verarbeitung

@@ -114,6 +114,11 @@ section > h2{
   padding:8px 12px; width:100%; box-sizing:border-box;
 }
 .laufstatus{height:48px; margin-bottom:14px; overflow:auto}
+.datenfehler{
+  margin:16px 0 0; padding:10px 14px; border-radius:3px; font-size:14px; color:var(--schlecht);
+  background:color-mix(in srgb,var(--schlecht) 10%,transparent);
+  border:1px solid color-mix(in srgb,var(--schlecht) 40%,transparent);
+}
 
 /* ---------- Legende ---------- */
 .legende{display:flex; flex-wrap:wrap; gap:8px 20px; margin:0 0 14px; align-items:center; min-height:20px}
@@ -222,6 +227,9 @@ footer a{color:var(--ink-2)}
     <strong>GFS</strong> und <strong>ECMWF-IFS</strong> — jeweils als volles Ensemble und als
     deterministischer Hauptlauf — gegen die tatsächlich gemessenen Tagessummen.
   </p>
+  <div class="datenfehler" id="datenfehler" role="alert" hidden>
+    Die aktuellen Wetterdaten konnten nicht geladen werden. Bitte die Seite neu laden oder später erneut versuchen.
+  </div>
   <nav class="hauptnav" id="hauptnav">
     <a href="#vorhersage" data-seite="vorhersage">Vorhersage</a>
     <a href="#analyse" data-seite="analyse">Analyse</a>
@@ -261,6 +269,35 @@ footer a{color:var(--ink-2)}
       </details>
     </section>
 
+    <section id="s-temp850">
+      <p class="dachzeile">Ensemble-Meteogramm</p>
+      <h2>850-hPa-Temperatur über den Vorhersagezeitraum</h2>
+      <p class="hinweis">
+        Die Temperatur der freien Atmosphäre in rund 1.500 Metern Höhe — gut geeignet, um die
+        großräumige Luftmasse einzuschätzen (mild/warm oder kalt), aber <strong>nicht identisch</strong>
+        mit der Temperatur am Boden. Darstellung wie bei der 2-m-Temperatur: modellnahe 3-Stunden-
+        Zeitpunkte ohne künstliche Stundeninterpolation; nicht aufsummiert.
+      </p>
+
+      <div class="bedienleiste">
+        <div class="schaltergruppe" id="modellwahl-temp850" role="group" aria-label="Modell"></div>
+        <div class="schaltergruppe" id="laufwahl-temp850" role="group" aria-label="Modelllauf"></div>
+        <label class="mitgliederschalter">
+          <input type="checkbox" id="mitgliederEin-temp850" checked>
+          Einzelne Läufe zeigen
+        </label>
+      </div>
+      <div class="laufinfo" id="laufinfoZeile-temp850"></div>
+      <div class="laufstatus" id="laufwarnung-temp850"></div>
+
+      <div class="legende" id="leg-temp850"></div>
+      <div class="plot gross"><svg id="chart-temp850" role="img" aria-label="Ensemble-Meteogramm der 850-hPa-Temperatur"></svg></div>
+      <details>
+        <summary>Zahlen als Tabelle</summary>
+        <div class="tabellenhuelle"><table id="tab-temp850"></table></div>
+      </details>
+    </section>
+
     <section id="s-niederschlag">
       <p class="dachzeile">Ensemble-Meteogramm</p>
       <h2>Aufsummierter Niederschlag über den Vorhersagezeitraum</h2>
@@ -289,35 +326,6 @@ footer a{color:var(--ink-2)}
       <details>
         <summary>Zahlen als Tabelle</summary>
         <div class="tabellenhuelle"><table id="tab-niederschlag"></table></div>
-      </details>
-    </section>
-
-    <section id="s-temp850">
-      <p class="dachzeile">Ensemble-Meteogramm</p>
-      <h2>850-hPa-Temperatur über den Vorhersagezeitraum</h2>
-      <p class="hinweis">
-        Die Temperatur der freien Atmosphäre in rund 1.500 Metern Höhe — gut geeignet, um die
-        großräumige Luftmasse einzuschätzen (mild/warm oder kalt), aber <strong>nicht identisch</strong>
-        mit der Temperatur am Boden. Darstellung wie bei der 2-m-Temperatur: modellnahe 3-Stunden-
-        Zeitpunkte ohne künstliche Stundeninterpolation; nicht aufsummiert.
-      </p>
-
-      <div class="bedienleiste">
-        <div class="schaltergruppe" id="modellwahl-temp850" role="group" aria-label="Modell"></div>
-        <div class="schaltergruppe" id="laufwahl-temp850" role="group" aria-label="Modelllauf"></div>
-        <label class="mitgliederschalter">
-          <input type="checkbox" id="mitgliederEin-temp850" checked>
-          Einzelne Läufe zeigen
-        </label>
-      </div>
-      <div class="laufinfo" id="laufinfoZeile-temp850"></div>
-      <div class="laufstatus" id="laufwarnung-temp850"></div>
-
-      <div class="legende" id="leg-temp850"></div>
-      <div class="plot gross"><svg id="chart-temp850" role="img" aria-label="Ensemble-Meteogramm der 850-hPa-Temperatur"></svg></div>
-      <details>
-        <summary>Zahlen als Tabelle</summary>
-        <div class="tabellenhuelle"><table id="tab-temp850"></table></div>
       </details>
     </section>
 
@@ -447,7 +455,12 @@ footer a{color:var(--ink-2)}
      dass Browser oder GitHub Pages beim normalen Seitenaufruf eine bis zu
      zehn Minuten alte Datendatei aus dem Cache verwenden. -->
 <script>
-if (location.pathname.endsWith('/app.html')) history.replaceState(null, '', './');
+/* Sichtbare Adresse bereinigen (app.html?v=... -> Projektadresse), den Hash
+   (#analyse) dabei erhalten. Unter file:// wirft replaceState einen Fehler;
+   der darf das Laden der Wetterdaten nicht verhindern. */
+try {
+  if (location.pathname.endsWith('/app.html')) history.replaceState(null, '', './' + location.hash);
+} catch (e) { /* z. B. file:// -- Adresse bleibt, Seite funktioniert trotzdem */ }
 document.write('<script src="daten.js?v=' + Date.now() + '"><\/script>');
 </script>
 <script>
@@ -455,6 +468,11 @@ const DATEN = window.DATEN || /*__DATEN__*/{};
 
 /* ============================ Werkzeug ============================ */
 const $ = s => document.querySelector(s);
+// Fehlt daten.js, wird sie blockiert oder ist sie syntaktisch ungueltig, bleibt
+// window.DATEN undefiniert und DATEN leer -- das ist ein Ladefehler, nicht
+// "es gibt noch keine Laeufe".
+const DATEN_OK = Object.keys(DATEN).length > 0;
+if (!DATEN_OK) $("#datenfehler").hidden = false;
 const NS = "http://www.w3.org/2000/svg";
 const el = (n, a = {}, t) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; return e; };
 const nf = (v, d = 1) => v == null || Number.isNaN(v) ? "–" : v.toFixed(d).replace(".", ",");
@@ -570,10 +588,8 @@ const BEREICHE = [
 const bereichsfarbe = (modell, bereich) =>
   bereich.akkumuliert ? modell.niederschlagFarbe : modell.temperaturFarbe;
 
-// Auch die semantische DOM-Reihenfolge an die fachliche Reihenfolge angleichen.
-// appendChild verschiebt die bereits vorhandenen Abschnitte, es dupliziert sie nicht.
-const vorhersageSeite = $("#seite-vorhersage");
-BEREICHE.forEach(b => vorhersageSeite.appendChild($(`#s-${b.id}`)));
+// Die Reihenfolge der Abschnitte im HTML entspricht BEREICHE:
+// 2-m-Temperatur, 850-hPa-Temperatur, aufsummierter Niederschlag.
 
 // Eigener, unabhaengiger Auswahlzustand je Bereich -- Modell, Laufindex und
 // Mitgliederschalter duerfen sich zwischen den drei Diagrammen unterscheiden.
@@ -582,12 +598,27 @@ BEREICHE.forEach(b => { ZUSTAND[b.id] = { modell: "ecmwf", laufIndex: 0, mitglie
 
 function laeufeFuer(modell) { return DATEN.vorhersage?.[modell] || []; }
 
+/** Formatpruefung eines Laufs -- dieselben Regeln wie gemeinsam.ist_aktuelles_format
+ * (Python, vom Builder benutzt): Marker "modellnativ-v1"; je Bereich Zeitstempel,
+ * Unixzeiten gleicher Laenge und Ensemblemitglieder; beim GFS zusaetzlich der
+ * Kontrolllauf. Ein Browsertest vergleicht beide Implementierungen. */
+function formatAktuell(lauf) {
+  if (!lauf || lauf.zeitauflosung !== "modellnativ-v1") return false;
+  return ["temperatur_2m", "temperatur_850hpa", "niederschlag"].every(feld => {
+    const r = lauf[feld];
+    if (!r || typeof r !== "object" || Array.isArray(r)) return false;
+    if (!Array.isArray(r.zeiten) || !r.zeiten.length
+        || !Array.isArray(r.zeitpunkte_unix) || r.zeitpunkte_unix.length !== r.zeiten.length) return false;
+    if (!Array.isArray(r.mitglieder) || !r.mitglieder.length) return false;
+    if (lauf.modell === "gfs" && (!Array.isArray(r.kontrolllauf) || !r.kontrolllauf.length)) return false;
+    return true;
+  });
+}
+
 function modellMitVerfuegbaremLauf() {
-  // Bevorzugt ECMWF nur dann, wenn bereits mindestens ein Lauf im neuen
-  // modellnahen Format vorliegt; alte Dateien sollen keinen leeren
-  // Startbildschirm verursachen.
-  const hatModellraster = modell => laeufeFuer(modell)
-    .some(lauf => lauf.zeitauflosung === "modellnativ-v1");
+  // Bevorzugt ECMWF nur dann, wenn bereits mindestens ein Lauf im aktuellen
+  // modellnahen Format vorliegt.
+  const hatModellraster = modell => laeufeFuer(modell).some(formatAktuell);
   if (hatModellraster("ecmwf")) return "ecmwf";
   if (hatModellraster("gfs")) return "gfs";
   return "ecmwf";
@@ -597,12 +628,8 @@ function modellMitVerfuegbaremLauf() {
  * Formatmarker werden bewusst abgelehnt: sie enthalten entweder Tageswerte
  * oder die kuenstlich auf Stundenwerte interpolierten Temperaturkurven. */
 function datenAusLauf(bereich, lauf) {
-  if (lauf.zeitauflosung !== "modellnativ-v1") return { verfuegbar: false };
+  if (!formatAktuell(lauf)) return { verfuegbar: false };
   const t = lauf[bereich.feld];
-  if (!t || !Array.isArray(t.zeiten) || !t.zeiten.length
-      || !Array.isArray(t.zeitpunkte_unix) || t.zeitpunkte_unix.length !== t.zeiten.length) {
-    return { verfuegbar: false };
-  }
   return { verfuegbar: true, zeiten: t.zeiten, zeitpunkte_unix: t.zeitpunkte_unix,
            // ECMWF zeigt nur den operationellen Hauptlauf. Seine unsuffigierte
            // Ensemble-Basisreihe wird weder als Kontroll- noch ersatzweise als
@@ -694,7 +721,7 @@ function laufwahlZeichnen(bereich) {
     btn.type = "button";
     btn.textContent = laufLabel(lauf, i);
     btn.setAttribute("aria-pressed", String(z.laufIndex === i));
-    btn.addEventListener("click", () => { z.laufIndex = i; zeichneBereich(bereich); });
+    btn.addEventListener("click", () => { z.laufIndex = i; laufwahlZeichnen(bereich); zeichneBereich(bereich); });
     ziel.appendChild(btn);
   });
 }
@@ -716,7 +743,7 @@ function zeichneBereich(bereich) {
 
   if (!lauf) {
     svg.innerHTML = "";
-    $(`#laufinfoZeile-${bereich.id}`).textContent = "Für dieses Modell liegt noch kein gespeicherter Lauf vor.";
+    $(`#laufinfoZeile-${bereich.id}`).textContent = DATEN_OK ? "Für dieses Modell liegt noch kein gespeicherter Lauf vor." : "Keine Wetterdaten geladen.";
     $(`#leg-${bereich.id}`).innerHTML = "";
     $(`#tab-${bereich.id}`).innerHTML = "";
     return;
@@ -1377,7 +1404,7 @@ function analyseZeichnen() {
   try { zeichneWitterung(); } catch (e) { console.error("witterung", e); }
   const tage = Object.keys(mess()).sort();
   $("#statuszeile").textContent =
-    `Gebaut ${DATEN.gebaut || "–"} · Messreihe ${tage.length ? tage[0] + " bis " + tage[tage.length - 1] : "–"} · ${tage.length} Tage · `
+    `Datenstand ${DATEN.datenstand || DATEN.gebaut || "–"} · Messreihe ${tage.length ? tage[0] + " bis " + tage[tage.length - 1] : "–"} · ${tage.length} Tage · `
     + `Vorhersageläufe: ${Object.keys(laeufe()).length} Tage erfasst, Hauptlauf-Historie ECMWF ${Object.keys(hist("ecmwf")).length} / GFS ${Object.keys(hist("gfs")).length} Tage`;
 }
 
@@ -1390,7 +1417,7 @@ addEventListener("resize", () => { tipAus(); });
 
 /* Test-Hook: reine Berechnungsfunktionen fuer automatisierte Tests freigeben.
    Aendert kein Verhalten der Seite selbst, wird von keiner UI-Funktion gelesen. */
-window.__TEST__ = { paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, laufLabel, zeitachsenWerte, temperaturSkala, gemeinsameTemperaturwerte, bereichsfarbe };
+window.__TEST__ = { paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, formatAktuell, laufLabel, zeitachsenWerte, temperaturSkala, gemeinsameTemperaturwerte, bereichsfarbe };
 
 
 </script>

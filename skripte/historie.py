@@ -11,9 +11,19 @@ haben diese Historie also NICHT -- ihre Statistik beginnt mit dem ersten taeglic
 Lauf. Ein Vergleich Hauptlauf gegen Ensemble ueber unterschiedlich lange Zeitraeume
 waere irrefuehrend; das Dashboard muss die Fallzahlen getrennt ausweisen.
 
-Ausgabe: out/history_<modell>.json
+Ausgabe: daten/history_<modell>.json
+
+Idempotenz: Das Skript wird bei jedem halbstuendlichen Workflowdurchlauf (und bei
+manuellem Start) aufgerufen, ruft die Previous-Runs-API aber nur ab, wenn es noetig
+ist:
+  * vor 12:00 UTC gibt es keine automatische Aktualisierung,
+  * ab 12:00 UTC wird nur aktualisiert, wenn das Feld ``stand`` der jeweiligen
+    Datei aelter als der heutige UTC-Tag ist (oder die Datei fehlt/unlesbar ist),
+  * nur die veralteten Modelle werden neu abgerufen.
+``--erzwingen`` hebt beides bewusst auf (Handbetrieb, z.B. nach einem Ausfall).
 """
 
+import argparse
 import datetime as dt
 import json
 import time
@@ -29,6 +39,7 @@ MODELLE = {"gfs": "gfs_seamless", "ecmwf": "ecmwf_ifs025"}
 LEADS = range(1, 8)
 PAST_DAYS = 92
 OUT = Path(__file__).resolve().parent.parent / "daten"
+AB_STUNDE_UTC = 12   # fruehestens ab dieser UTC-Stunde wird automatisch aktualisiert
 
 
 def hole(params, versuche=5):
@@ -62,33 +73,73 @@ def tagessummen(zeiten, werte):
     return {t: round(s, 1) for t, s in summe.items() if zaehler[t] >= 24}
 
 
-def main():
+def stand_der_datei(kurz):
+    """``stand`` (JJJJ-MM-TT) der Historiendatei oder None, wenn fehlt/unlesbar."""
+    pfad = OUT / f"history_{kurz}.json"
+    try:
+        stand = json.loads(pfad.read_text(encoding="utf-8")).get("stand")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return stand if isinstance(stand, str) else None
+
+
+def veraltete_modelle(jetzt, erzwingen=False):
+    """Modelle, deren Historie jetzt aktualisiert werden soll.
+
+    ``jetzt`` ist ein Zeitpunkt mit UTC-Zeitzone. Rueckgabe: Liste der
+    Modellkennungen in der Reihenfolge von MODELLE (leer = nichts zu tun).
+    """
+    if erzwingen:
+        return list(MODELLE)
+    if jetzt.hour < AB_STUNDE_UTC:
+        return []
+    heute = jetzt.date().isoformat()
+    return [kurz for kurz in MODELLE if (stand_der_datei(kurz) or "") < heute]
+
+
+def aktualisiere(kurz, heute):
+    modell_id = MODELLE[kurz]
+    spalten = [f"precipitation_previous_day{i}" for i in LEADS]
+    d = hole({"latitude": LAT, "longitude": LON, "timezone": TZ_NAME, "models": modell_id,
+              "past_days": PAST_DAYS, "forecast_days": 1, "hourly": ",".join(spalten)})
+    h = d["hourly"]
+    je_lead = {lead: tagessummen(h["time"], h[f"precipitation_previous_day{lead}"]) for lead in LEADS}
+
+    tage = {}
+    for lead, werte in je_lead.items():
+        for tag, v in werte.items():
+            # nur abgeschlossene Tage: heute laeuft noch
+            if dt.date.fromisoformat(tag) >= heute:
+                continue
+            tage.setdefault(tag, {})[str(lead)] = v
+
+    pfad = OUT / f"history_{kurz}.json"
+    pfad.write_text(json.dumps({
+        "modell": kurz,
+        "quelle": "open-meteo Previous-Runs-API, Hauptlauf, stündliche Werte zu Tagessummen 00–24 Uhr Ortszeit",
+        "leads": list(LEADS),
+        "stand": heute.isoformat(),
+        "tage": dict(sorted(tage.items())),
+    }, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print(f"{kurz}: {len(tage)} Tage ({min(tage)} bis {max(tage)}), {pfad.stat().st_size} Bytes")
+
+
+def main(argv=None, jetzt=None):
+    ap = argparse.ArgumentParser(description="Historie der Hauptlaeufe (Previous-Runs-API) auffrischen")
+    ap.add_argument("--erzwingen", action="store_true",
+                    help="Uhrzeit- und Stand-Pruefung ueberspringen und beide Historien neu laden")
+    args = ap.parse_args(argv)
+    jetzt = jetzt or dt.datetime.now(dt.timezone.utc)
+
+    faellig = veraltete_modelle(jetzt, erzwingen=args.erzwingen)
+    if not faellig:
+        grund = (f"vor {AB_STUNDE_UTC}:00 UTC" if jetzt.hour < AB_STUNDE_UTC
+                 else f"Stand bereits {jetzt.date().isoformat()}")
+        print(f"Historie: nichts zu tun ({grund}).")
+        return
     OUT.mkdir(parents=True, exist_ok=True)
-    heute = dt.date.today()
-    for kurz, modell_id in MODELLE.items():
-        spalten = [f"precipitation_previous_day{i}" for i in LEADS]
-        d = hole({"latitude": LAT, "longitude": LON, "timezone": TZ_NAME, "models": modell_id,
-                  "past_days": PAST_DAYS, "forecast_days": 1, "hourly": ",".join(spalten)})
-        h = d["hourly"]
-        je_lead = {lead: tagessummen(h["time"], h[f"precipitation_previous_day{lead}"]) for lead in LEADS}
-
-        tage = {}
-        for lead, werte in je_lead.items():
-            for tag, v in werte.items():
-                # nur abgeschlossene Tage: heute laeuft noch
-                if dt.date.fromisoformat(tag) >= heute:
-                    continue
-                tage.setdefault(tag, {})[str(lead)] = v
-
-        pfad = OUT / f"history_{kurz}.json"
-        pfad.write_text(json.dumps({
-            "modell": kurz,
-            "quelle": "open-meteo Previous-Runs-API, Hauptlauf, stündliche Werte zu Tagessummen 00–24 Uhr Ortszeit",
-            "leads": list(LEADS),
-            "stand": heute.isoformat(),
-            "tage": dict(sorted(tage.items())),
-        }, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-        print(f"{kurz}: {len(tage)} Tage ({min(tage)} bis {max(tage)}), {pfad.stat().st_size} Bytes")
+    for kurz in faellig:
+        aktualisiere(kurz, jetzt.date())
 
 
 if __name__ == "__main__":

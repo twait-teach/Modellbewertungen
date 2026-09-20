@@ -55,7 +55,7 @@ import json
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from gemeinsam import atomar_schreiben_json, hole, mittel, perzentil
+from gemeinsam import atomar_schreiben_json, hole, ist_aktuelles_format, mittel, perzentil
 
 LAT, LON = 48.2456, 12.5228
 TZ_NAME = "Europe/Berlin"
@@ -249,8 +249,15 @@ def aggregiere_alle_leads(mitglieder_werte, horizont, runden=2):
     return zusammen
 
 
-def verarbeite_modell(kurz, cfg, fehler, heute):
-    ens_info = laufinfo(cfg["meta_ensemble"], fehler)
+def verarbeite_modell(kurz, cfg, fehler, heute, ens_info=None):
+    """Ruft das Ensemble ab und baut daraus einen (noch nicht gespeicherten) Slot.
+
+    ``ens_info`` sind die VOR dem Abruf ermittelten Metadaten des Ensemblelaufs.
+    Der Aufrufer reicht sie durch, damit Dateiname und Inhalt garantiert von
+    derselben Initialisierungszeit stammen; ohne Angabe werden sie hier geholt.
+    """
+    if ens_info is None:
+        ens_info = laufinfo(cfg["meta_ensemble"], fehler)
     if not ens_info:
         return None, [f"{kurz}: Ensemble-Laufzeit nicht abrufbar"]
 
@@ -388,6 +395,18 @@ def verarbeite_modell(kurz, cfg, fehler, heute):
     return lauf, hinweise
 
 
+def lauf_unveraendert(cfg, init_vorher):
+    """Prueft unmittelbar vor dem Speichern erneut die Metadaten.
+
+    True nur, wenn sie dieselbe Initialisierungszeit melden wie vor dem
+    Ensemble-Abruf. Sind die Metadaten gerade nicht abrufbar, gilt das als
+    nicht bestaetigt (False): lieber im naechsten Durchlauf wiederholen, als
+    einen nicht verifizierten Slot zu speichern.
+    """
+    danach = laufinfo(cfg["meta_ensemble"], [])
+    return bool(danach) and danach["lauf"] == init_vorher
+
+
 def dateiname(kurz, init: dt.datetime) -> str:
     return f"{kurz}_{init.strftime('%Y-%m-%dT%H')}.json"
 
@@ -397,26 +416,10 @@ def hat_modellnative_meteogrammdaten(lauf):
 
     Aeltere Dateien koennen bereits ``vollstaendig: true`` tragen und sogar
     stuendliche Temperaturen enthalten. Ohne Formatmarker koennten darin aber
-    noch die kuenstlichen Interpolationszacken stecken.
+    noch die kuenstlichen Interpolationszacken stecken. Die Regeln stehen in
+    ``gemeinsam.ist_aktuelles_format`` und gelten identisch fuer den Builder.
     """
-    if lauf.get("zeitauflosung") != "modellnativ-v1":
-        return False
-    for feld in ("temperatur_2m", "temperatur_850hpa", "niederschlag"):
-        reihe = lauf.get(feld)
-        if not isinstance(reihe, dict):
-            return False
-        zeiten = reihe.get("zeiten")
-        unix = reihe.get("zeitpunkte_unix")
-        if (not isinstance(zeiten, list) or not zeiten
-                or not isinstance(unix, list) or len(unix) != len(zeiten)):
-            return False
-        mitglieder = reihe.get("mitglieder")
-        if not isinstance(mitglieder, list) or not mitglieder:
-            return False
-        if lauf.get("modell") == "gfs" and (
-                not isinstance(reihe.get("kontrolllauf"), list) or not reihe["kontrolllauf"]):
-            return False
-    return True
+    return ist_aktuelles_format(lauf)
 
 
 def hat_hauptlaufdaten(lauf):
@@ -566,12 +569,19 @@ def main():
                     bereits = {}
 
             if not hat_modellnative_meteogrammdaten(bereits):
-                lauf, hinweise = verarbeite_modell(kurz, cfg, fehler, heute)
+                lauf, hinweise = verarbeite_modell(kurz, cfg, fehler, heute, ens_info=vorab_info)
                 if not lauf:
                     print(f"{kurz}: Ensemble-Slot noch nicht abrufbar. " + "; ".join(hinweise))
                 elif not lauf["ensemble_vollstaendig"]:
                     print(f"{kurz}: Ensemble {lauf['init']} noch nicht vollstaendig -- noch nicht gespeichert. "
                           + ("Hinweise: " + "; ".join(hinweise) if hinweise else ""))
+                elif not lauf_unveraendert(cfg, vorab_info["lauf"]):
+                    # Waehrend des Abrufs kann Open-Meteo auf den naechsten Lauf
+                    # umgeschaltet haben; die Antwort laesst sich dann nicht
+                    # sicher dem Slot zuordnen. Nichts speichern -- der naechste
+                    # halbstuendliche Durchlauf versucht es erneut.
+                    print(f"{kurz}: Lauf hat sich waehrend des Abrufs geaendert -- Slot "
+                          f"{lauf['init']} wird NICHT gespeichert, neuer Versuch beim naechsten Durchlauf")
                 else:
                     atomar_schreiben_json(erwarteter_pfad, lauf, separators=(",", ":"))
                     print(f"{kurz}: Ensemble-Slot {lauf['init']} sofort gespeichert -- "
