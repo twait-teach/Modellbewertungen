@@ -105,3 +105,26 @@ def test_kurve_ist_mittel_aus_hauptlauf_und_ensemble_und_geglaettet(seite48):
     assert erg["raster"] == [None, None]                 # ohne Ensemble bleibt es leer
     assert erg["geglaettet"] < erg["roh"], "die Kurve muss ruhiger sein als die Rohwerte"
     assert erg["mittig"]
+
+
+def test_naechster_hoechstwert_ist_bei_fallender_temperatur_nicht_der_wert_von_jetzt(seite48):
+    """17 Uhr, Temperatur faellt: Hoechstwert ist der von morgen (06-20 Uhr), Tiefstwert der der Nacht."""
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+    start = int(dt.datetime(2026, 9, 21, 17, 0, tzinfo=ZoneInfo("Europe/Berlin")).timestamp())
+    stunden = [start + h * 3600 for h in range(48)]
+    # Tagesgang mit Maximum um 15 Uhr: 17 Uhr (h=0) liegt auf dem absteigenden Ast
+    import math
+    linie = [round(12 + 6 * math.cos((h + 2) / 24 * 2 * math.pi), 2) for h in range(48)]
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        ctx = browser.new_context(timezone_id="Europe/Berlin")
+        seite = ctx.new_page()
+        seite.goto(f"file://{seite48}#wetter48")
+        seite.wait_for_timeout(300)
+        r = seite.evaluate("([s, l]) => window.__TEST48__.extremwerte({ stunden: s, linie: l }, s[0])", [stunden, linie])
+        browser.close()
+    zeit = lambda ts: dt.datetime.fromtimestamp(ts, ZoneInfo("Europe/Berlin"))
+    assert r["hoch"]["v"] == max(linie[16:28]) and zeit(r["hoch"]["ts"]).day == 22 and 6 <= zeit(r["hoch"]["ts"]).hour <= 20
+    assert r["hoch"]["v"] != linie[0]
+    assert zeit(r["tief"]["ts"]).hour <= 10 and zeit(r["tief"]["ts"]).day == 22

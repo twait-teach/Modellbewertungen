@@ -465,8 +465,9 @@ nav.hauptnav a{white-space:nowrap; flex:none}
           erhebliches Hitzepotenzial hin. Beides bedeutet nicht automatisch Bodenfrost beziehungsweise einen heißen Tag am Boden.</p>
           <p><strong>Vorläufe und anderes Modell:</strong> Verglichen wird das Ensemble-Mittel, ungeglättet — in 1.500 m gibt es
           kaum einen Tagesgang, und Sprünge sind hier oft echte Signale (etwa eine Front). Vorläufe sind die drei vorangegangenen Läufe desselben
-          Modells (durchgezogen, gestrichelt, gepunktet), das andere Modell ist
-          dessen Lauf zur selben Startzeit.</p>
+          Modells (durchgezogen, gestrichelt, gepunktet). Das andere Modell (Lauf zur selben Startzeit) erscheint hier
+          vollständig in seiner eigenen Farbe: Ensemble-Mittel als dicke Linie, Einzelmitglieder dünn, das 10.–90.-Perzentil
+          nur als gestrichelte Grenzen, damit sich die beiden Bänder unterscheiden lassen.</p>
         </div>
       </details>
       <details>
@@ -560,7 +561,10 @@ nav.hauptnav a{white-space:nowrap; flex:none}
           <p><strong>Wettersymbole:</strong> aus dem WMO-Wettercode desselben Modelllaufs (open-meteo), im
           3-Stunden-Abstand, auf schmalen Bildschirmen alle 6 Stunden. Die Symbole unterscheiden Tag und Nacht.
           Sie fassen den Zustand der jeweiligen Stunde zusammen und ersetzen keinen Blick auf die Mengen.</p>
-          <p><strong>Nacht:</strong> grau hinterlegt. Alle Zeiten in Ortszeit. Die Kennzahl „Jetzt“ ist der vorhergesagte Wert für die laufende Stunde, keine Messung.</p>
+          <p><strong>Nacht:</strong> grau hinterlegt. Alle Zeiten in Ortszeit. Die Kennzahl „Jetzt“ ist der vorhergesagte Wert für die laufende Stunde, keine Messung.
+          „Nächster Höchstwert“ gilt für den Tag (06–20 Uhr; heute bis 16 Uhr, danach morgen), „Nächster Tiefstwert“
+          für die Nacht (18–10 Uhr; die laufende oder die kommende Nacht) — so steht dort auch bei fallender Temperatur
+          nicht einfach der Wert von jetzt.</p>
         </div>
       </details>
     </section>
@@ -1102,6 +1106,11 @@ function gemeinsameTemperaturwerte(bereich) {
       const d = datenAusLauf(bereich, l);
       if (d.verfuegbar) d.mittel.forEach((v, i) => { const u = d.zeitpunkte_unix[i]; if (u >= von && u <= bis) werte.push(v); });
     });
+    // 850 hPa zeigt das andere Modell vollstaendig (Mitglieder und Band) -- auch das gehoert in die Skala.
+    const p = bereich.id === "temp850" ? partnerLauf(lauf) : null;
+    const pd = p ? datenAusLauf(bereich, p) : null;
+    if (pd && pd.verfuegbar) [...pd.mitglieder, pd.p10, pd.p90].forEach(r => (r || []).forEach((v, i) => {
+      const u = pd.zeitpunkte_unix[i]; if (u >= von && u <= bis) werte.push(v); }));
   });
   return werte.filter(Number.isFinite);
 }
@@ -1340,6 +1349,10 @@ function ansicht(bereich, z = ZUSTAND[bereich.id]) {
   return { hauptlauf: z.hauptlauf, vorlaeufe: z.vorlaeufe, anderes: z.anderes,
            glatt: bereich.id === "temp2m" && (z.glatt || vergleich) };
 }
+/** 850 hPa: Das andere Modell wird vollstaendig gezeigt (Mittel, Band, Mitglieder), sonst nur
+ * seine Vergleichskurve. Bei 2 m und Niederschlag wuerden zwei Mitgliederwolken unlesbar. */
+const anderesVollstaendig = bereich => bereich.id === "temp850";
+
 function legendeEintraege(bereich, modellInfo, modellFarbe, daten, lauf, a) {
   const eintraege = [
     { mark: markLinie(modellFarbe, false, a.glatt ? 1.5 : 3, a.glatt ? .75 : null), text: modellInfo.name + " Ensemble-Mittel" },
@@ -1356,9 +1369,18 @@ function legendeEintraege(bereich, modellInfo, modellFarbe, daten, lauf, a) {
     if (!da.length) eintraege.push({ mark: "", text: "Vorläufe: keine gespeichert" });
   }
   if (a.anderes) {
-    const p = partnerLauf(lauf), pm = anderesModell(modellInfo.id);
-    eintraege.push(p ? { mark: markLinie(bereichsfarbe(pm, bereich), false, 2.6), text: `${pm.name}, Lauf ${kurzLauf(p)}` }
-                     : { mark: "", text: `${pm.name}: kein passender Lauf gespeichert` });
+    const p = partnerLauf(lauf), pm = anderesModell(modellInfo.id), pf = bereichsfarbe(pm, bereich);
+    if (!p) eintraege.push({ mark: "", text: `${pm.name}: kein passender Lauf gespeichert` });
+    else if (anderesVollstaendig(bereich)) {
+      // 850 hPa: beide Modelle vollstaendig -- Band und Mitglieder brauchen dann den Modellnamen
+      eintraege.forEach(e => {
+        if (e.text === "10.–90. Perzentil") e.text = `${modellInfo.name} 10.–90. Perzentil`;
+        if (e.text === "Einzelne Ensemblemitglieder") e.text = `${modellInfo.name} Einzelmitglieder`;
+      });
+      eintraege.push({ mark: markLinie(pf, false, 3), text: `${pm.name} Ensemble-Mittel, Lauf ${kurzLauf(p)}` },
+                     { mark: markLinie(pf, "4 3", 1.4), text: `${pm.name} 10.–90. Perzentil` },
+                     { mark: markLinie(pf, false, .8), text: `${pm.name} Einzelmitglieder` });
+    } else eintraege.push({ mark: markLinie(pf, false, 2.6), text: `${pm.name}, Lauf ${kurzLauf(p)}` });
   }
   return eintraege;
 }
@@ -1470,6 +1492,9 @@ function zeichneBereich(bereich) {
   const partner = a.anderes ? partnerLauf(lauf) : null;
   const partnerModell = anderesModell(modellInfo.id);
   const partnerReihe = partner ? vergleichsreihe(bereich, partner, t0) : null;
+  const partnerDaten = partner && anderesVollstaendig(bereich) ? datenAusLauf(bereich, partner) : null;
+  const partnerVoll = !!(partnerDaten && partnerDaten.verfuegbar);
+  const partnerFarbe = bereichsfarbe(partnerModell, bereich);
   const L = 46, R = 18, O = 28, U = 40;
   const iw = W - L - R, ih = H - O - U;
 
@@ -1572,6 +1597,10 @@ function zeichneBereich(bereich) {
     if (d) svg.appendChild(el("path", { d, fill: "none", "stroke-linejoin": "round", "stroke-linecap": "round", ...attr, ...klemme }));
   };
 
+  // 850 hPa, anderes Modell vollstaendig: seine Mitglieder ganz unten, damit die eigenen darueber liegen
+  if (partnerVoll) partnerDaten.mitglieder.forEach(serie =>
+    linie({ unix: partnerDaten.zeitpunkte_unix, werte: serie }, { stroke: partnerFarbe, "stroke-width": .8, opacity: .2, "data-serie": "anderes-mitglied" }));
+
   // Unsicherheitsband 10.-90. Perzentil
   const oben = daten.p90, unten = daten.p10;
   let bandStart = null;
@@ -1604,7 +1633,10 @@ function zeichneBereich(bereich) {
   // Vorlaeufe (gleiche Modellfarbe, Strichmuster nach Alter) und das andere Modell
   vorlaufReihen.forEach(v => linie(v.reihe, { stroke: modellFarbe, "stroke-width": 1.8, opacity: .9,
     "stroke-dasharray": v.strich || null, "data-serie": "vorlauf", "data-stunden": v.stunden }));
-  if (partnerReihe) linie(partnerReihe, { stroke: bereichsfarbe(partnerModell, bereich), "stroke-width": 2.6, "data-serie": "anderes-modell" });
+  // Band des anderen Modells nur als gestrichelte Grenzen -- zwei gefuellte Baender liessen sich nicht unterscheiden
+  if (partnerVoll) ["p10", "p90"].forEach(k => linie({ unix: partnerDaten.zeitpunkte_unix, werte: partnerDaten[k] },
+    { stroke: partnerFarbe, "stroke-width": 1.4, "stroke-dasharray": "4 3", "data-serie": "anderes-band" }));
+  if (partnerReihe) linie(partnerReihe, { stroke: partnerFarbe, "stroke-width": partnerVoll ? 3 : 2.6, "data-serie": "anderes-modell" });
   // Gleitendes 24-h-Mittel des gewaehlten Laufs: die kraeftigste Linie
   if (eigeneReihe) linie(eigeneReihe, { stroke: modellFarbe, "stroke-width": 3.2, "data-serie": "gleitendes-mittel" });
 
@@ -1659,6 +1691,7 @@ function zeichneBereich(bereich) {
     a.hauptlauf && daten.hauptlauf ? `Hauptlauf: ${nf(daten.hauptlauf[i])} ${bereich.einheit}` : null,
     ...vorlaufReihen.map(v => `Lauf ${kurzLauf(v.lauf)}: ${nf(wertBei(v.reihe.unix, v.reihe.werte, xWerte[i]))} ${bereich.einheit}`),
     partnerReihe ? `${partnerModell.name} (${kurzLauf(partner)}): ${nf(wertBei(partnerReihe.unix, partnerReihe.werte, xWerte[i]))} ${bereich.einheit}` : null,
+    partnerVoll ? `${partnerModell.name} 10.–90. Perzentil: ${nf(wertBei(partnerDaten.zeitpunkte_unix, partnerDaten.p10, xWerte[i]))}–${nf(wertBei(partnerDaten.zeitpunkte_unix, partnerDaten.p90, xWerte[i]))} ${bereich.einheit}` : null,
     `Mitglieder mit Daten: ${daten.n[i]}/${lauf.mitglieder_n}`,
   ].filter(Boolean);
 
@@ -2353,10 +2386,19 @@ function diagramm(ziel, o) {
     return;
   }
   let lo = o.yNull ? 0 : Math.min(...werte), hi = Math.max(...werte);
-  if (o.yNull) hi = Math.max(hi, o.yMinSpanne || 1);
-  if (!o.yNull) { const pad = Math.max(0.5, (hi - lo) * 0.08); lo -= pad; hi += pad; }
-  const ticks = schoeneTicks(lo, hi, 5, o.yNull ? 0.5 : 1);
-  lo = ticks[0]; hi = ticks[ticks.length - 1];
+  let ticks;
+  if (o.yNull) {
+    // Niederschlag: Achse ab 0 bis zur naechsten runden Marke
+    hi = Math.max(hi, o.yMinSpanne || 1);
+    ticks = schoeneTicks(lo, hi, 5, 0.5);
+    lo = ticks[0]; hi = ticks[ticks.length - 1];
+  } else {
+    // Temperatur: Die Achse reicht genau vom tiefsten bis zum hoechsten Wert (keine Stauchung
+    // durch Aufrunden auf runde Grenzen); beschriftet werden nur runde Werte dazwischen,
+    // z. B. -15 bis 36 °C mit Marken bei -10, 0, 10, 20, 30.
+    if (hi - lo < 1) { const m = (hi + lo) / 2; lo = m - 0.5; hi = m + 0.5; }
+    ticks = schoeneTicks(lo, hi, 6, 1).filter(t => t >= lo - 1e-9 && t <= hi + 1e-9);
+  }
   const y = v => T + ih - (v - lo) / (hi - lo) * ih;
   const g = el("g"); svg.appendChild(g);
   for (const t of ticks) {
@@ -2879,6 +2921,32 @@ function aufbereiten(id) {
   };
 }
 
+/* ---------- Naechster Hoechst- und Tiefstwert ----------
+   Nicht einfach Maximum/Minimum der naechsten 24 Stunden: Faellt die Temperatur, waere das
+   "Maximum" sonst der Wert von jetzt. Stattdessen, wie in Wetterberichten ueblich:
+     Hoechstwert  im Tageszeitraum 06-20 Uhr -- heute, solange es vor 16 Uhr ist, sonst morgen
+     Tiefstwert   im Nachtzeitraum 18-10 Uhr -- die laufende Nacht (vor 07 Uhr bis heute
+                  10 Uhr), sonst die kommende Nacht ab heute 18 Uhr
+   Gezaehlt werden nur Stunden ab jetzt; Zeiten in Ortszeit. */
+const tagesSchluessel = ts => { const o = ort(ts); return `${o.j}-${o.m}-${o.t}`; };
+function extremwerte(d, ab) {
+  const jetzt = ort(ab), heute = tagesSchluessel(ab), morgen = tagesSchluessel(ab + 86400);
+  const hochTag = jetzt.h < 16 ? heute : morgen;
+  const imHoch = ts => { const o = ort(ts); return tagesSchluessel(ts) === hochTag && o.h >= 6 && o.h <= 20; };
+  const imTief = jetzt.h < 7
+    ? ts => tagesSchluessel(ts) === heute && ort(ts).h <= 10
+    : ts => { const k = tagesSchluessel(ts), h = ort(ts).h; return (k === heute && h >= 18) || (k === morgen && h <= 10); };
+  let hoch = null, tief = null;
+  d.stunden.forEach((ts, i) => {
+    const v = d.linie[i];
+    if (ts < ab || !Number.isFinite(v)) return;
+    if (imHoch(ts) && (!hoch || v > hoch.v)) hoch = { v, ts };
+    if (imTief(ts) && (!tief || v < tief.v)) tief = { v, ts };
+  });
+  return { hoch, tief };
+}
+const zeitpunktText = ts => `${tagText(ts)}, ${uhr(ts)} Uhr`;
+
 /* ---------- Diagramm ---------- */
 function zeichnen() {
   const box = $("#plot-wetter48");
@@ -3045,14 +3113,13 @@ function zeichnen() {
   const iJetzt = jetztTs < x0 || jetztTs > x1 + 3600 ? -1
     : d.stunden.reduce((b, ts, k) => (ts <= jetztTs ? k : b), 0);
   const ab = iJetzt < 0 ? x0 : d.stunden[iJetzt];
-  const erste24 = d.stunden.map((ts, i) => i).filter(i => d.stunden[i] >= ab && d.stunden[i] <= ab + 24 * 3600);
-  const temps24 = erste24.map(i => d.linie[i]).filter(Number.isFinite);
+  const extrem = extremwerte(d, ab);
   const regenSumme = d.niederschlag.filter(Number.isFinite).reduce((s, v) => s + v, 0);
   const regenStunden = d.niederschlag.filter(v => Number.isFinite(v) && v >= 0.1).length;
   $("#kacheln-wetter48").innerHTML = [
     { l: "Jetzt", z: iJetzt < 0 ? "–" : nf(d.linie[iJetzt]) + " °C", f: iJetzt < 0 ? "keine aktuelle Stunde" : "Vorhersage · " + wetterArt(d.wettercode[iJetzt]).text },
-    { l: "Höchstwert 24 h", z: temps24.length ? nf(Math.max(...temps24)) + " °C" : "–", f: "nächste 24 Stunden" },
-    { l: "Tiefstwert 24 h", z: temps24.length ? nf(Math.min(...temps24)) + " °C" : "–", f: "nächste 24 Stunden" },
+    { l: "Nächster Höchstwert", z: extrem.hoch ? nf(extrem.hoch.v) + " °C" : "–", f: extrem.hoch ? zeitpunktText(extrem.hoch.ts) : "keine Daten" },
+    { l: "Nächster Tiefstwert", z: extrem.tief ? nf(extrem.tief.v) + " °C" : "–", f: extrem.tief ? zeitpunktText(extrem.tief.ts) : "keine Daten" },
     { l: "Niederschlag 48 h", z: nf(regenSumme, 1) + " mm", f: `Hauptlauf · ${regenStunden} Stunden mit mind. 0,1 mm` },
   ].map(k => `<div class="kachel"><div class="k-label">${k.l}</div><div class="k-zahl">${k.z}</div><div class="k-fuss">${k.f}</div></div>`).join("");
 }
@@ -3077,7 +3144,7 @@ addEventListener("resize", () => {
   if (b !== breite48 && sichtbar()) { breite48 = b; clearTimeout(window._w48); window._w48 = setTimeout(zeichnen, 120); }
 });
 if (sichtbar()) zeichnen();
-window.__TEST48__ = { aufbereiten, glaetten, aufStunden, wetterArt, zeichnen, setzeModell: m => { modell = m; zeichnen(); } };
+window.__TEST48__ = { extremwerte, aufbereiten, glaetten, aufStunden, wetterArt, zeichnen, setzeModell: m => { modell = m; zeichnen(); } };
 })();
 </script>
 

@@ -224,3 +224,21 @@ def test_andere_diagramme_werden_beim_pinch_breiter_und_setzen_zurueck(browser, 
     assert abs(seite.evaluate("s => document.querySelector(s).getBoundingClientRect().width", svg) - b0) < 2
     ctx.close()
     assert not fehler, fehler
+
+
+def test_temperaturachse_der_station_reicht_genau_vom_tiefst_zum_hoechstwert(browser, docs):
+    """Keine Stauchung durch Aufrunden: Die Kurve beruehrt oben und unten den Diagrammrand,
+    beschriftet sind nur runde Werte innerhalb des Bereichs."""
+    ctx = browser.new_context(viewport={"width": 1200, "height": 900}, locale="de-DE", timezone_id="Europe/Berlin")
+    seite = ctx.new_page()
+    seite.goto(f"file://{docs / 'app.html'}#station-heute")
+    seite.wait_for_selector("#st-plotHeuteTemp svg path", timeout=8000)
+    r = seite.evaluate("""() => { const s = document.querySelector('#st-plotHeuteTemp svg');
+        const pfad = [...s.querySelectorAll('path')].find(p => p.getAttribute('stroke') === 'var(--temp)');
+        const ys = pfad.getAttribute('d').match(/-?[0-9.]+,-?[0-9.]+/g).map(p => +p.split(',')[1]);
+        const gitter = [...s.querySelectorAll('line')].filter(l => l.getAttribute('x1') !== l.getAttribute('x2')).map(l => +l.getAttribute('y1'));
+        const marken = [...s.querySelectorAll('text.ax')].filter(t => t.getAttribute('text-anchor') === 'end' && t.textContent !== '°C').map(t => t.textContent);
+        return { oben: Math.min(...ys), unten: Math.max(...ys), achseUnten: Math.max(...gitter), T: 22, marken }; }""")
+    ctx.close()
+    assert abs(r["oben"] - r["T"]) < 0.6 and abs(r["unten"] - r["achseUnten"]) < 0.6
+    assert len(r["marken"]) >= 3 and all("," not in m for m in r["marken"])     # ganze, runde Werte

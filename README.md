@@ -279,7 +279,8 @@ Sie ist grau gezeichnet, damit sie nicht mit dem schwarzen Hauptlauf verwechselt
   älter; durchgezogen, gestrichelt, gepunktet), nach Gültigkeitszeit übereinandergelegt. Verglichen wird nur
   innerhalb eines Modells, die unterschiedlichen Abstände sind deshalb gewollt.
 - *„anderes Modell“ zeigen*: der Lauf des anderen Modells zur selben Startzeit (zu GFS 06/18 UTC der 6 Stunden
-  ältere ECMWF-Lauf).
+  ältere ECMWF-Lauf). Bei 850 hPa vollständig in seiner Farbe (Mittel dick, Mitglieder dünn, 10.–90.-Perzentil nur
+  als gestrichelte Grenzen), bei 2 m und Niederschlag nur seine Vergleichskurve.
 
 Verglichen wird je Bereich immer dieselbe **Vergleichskurve**: 2-m-Temperatur das gleitende 24-h-Mittel,
 850 hPa das ungeglättete Ensemble-Mittel, Niederschlag das Ensemble-Mittel aufsummiert erst ab Beginn des
@@ -401,7 +402,9 @@ Gewichtung 1-2-1 über benachbarte Stunden geglättet. Messlücken bleiben Lück
 Wetterstation: Temperatur rötlich, Niederschlag blau.
 
 **Kennzahlen und veraltete Daten.** „Jetzt" ist der vorhergesagte Wert der laufenden Stunde (nicht die erste
-Stunde der Datei); Höchst- und Tiefstwert gelten für die 24 Stunden ab jetzt. Ein Ensemble-Lauf, der mehr als
+Stunde der Datei). „Nächster Höchstwert" gilt für den Tageszeitraum 06–20 Uhr (heute bis 16 Uhr, danach morgen),
+„Nächster Tiefstwert" für den Nachtzeitraum 18–10 Uhr (laufende oder kommende Nacht) — bei fallender Temperatur
+stünde sonst einfach der Wert von jetzt da. Ein Ensemble-Lauf, der mehr als
 36 Stunden vor der ersten Stunde begann, wird nicht als Band verwendet. Sind die Stundenwerte älter als
 12 Stunden, erscheint ein Hinweis.
 
@@ -425,6 +428,10 @@ Seite), Oberfläche als eigener, abgeschlossener Skriptblock am Ende von `skript
 Messwerte: `daten/station/station_JJJJ-MM.json` (Rohwerte etwa alle 5 Minuten, Monat nach UTC) und
 `daten/station/stand.json`. Für die Seite erzeugt: `docs/station/heute.js` (letzte 48 Stunden),
 `docs/station/verlauf_JJJJ-MM.js` (Stundenwerte je Ortsmonat), `docs/station.html` (Weiterleitung).
+
+**Temperaturachse.** In allen Stationsdiagrammen (Heute, Woche, Monat, Jahr) reicht die Temperaturachse genau vom
+tiefsten bis zum höchsten dargestellten Wert; beschriftet werden nur runde Werte dazwischen (z. B. −15 bis 36 °C mit
+Marken bei −10, 0, 10, 20, 30). Die Niederschlagsachse beginnt weiter bei 0.
 
 **Langjähriges Mittel.** In der Jahresansicht liegt über den Messwerten das amtliche Klimamittel
 1991–2020 des DWD (Station Mühldorf am Inn, 3366): bei der Temperatur eine weiche Jahreskurve aus den

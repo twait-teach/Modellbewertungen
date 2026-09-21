@@ -114,3 +114,18 @@ def test_ohne_gespeicherte_vorlaeufe_steht_ein_hinweis_in_der_legende(browser, v
     serien = _serien(seite, "temp2m")
     seite.close()
     assert "keine gespeichert" in legende and "vorlauf" not in serien
+
+
+def test_850_hpa_zeigt_das_andere_modell_vollstaendig(browser, vergleich):
+    seite = _oeffnen(browser, vergleich, 1366)
+    seite.locator("#anderesEin-temp850").check()
+    seite.locator("#anderesEin-temp2m").check()
+    s850, s2m = _serien(seite, "temp850"), _serien(seite, "temp2m")
+    legende = seite.locator("#leg-temp850").inner_text()
+    fehler = list(seite.fehler)
+    seite.close()
+    assert s850.count("anderes-band") == 2 and "anderes-mitglied" in s850 and s850.count("anderes-modell") == 1
+    assert "anderes-mitglied" not in s2m and "anderes-band" not in s2m          # 2 m: nur die Vergleichskurve
+    for text in ("ECMWF-IFS 10.–90. Perzentil", "GFS 10.–90. Perzentil", "GFS Einzelmitglieder", "Hauptlauf (deterministisch)"):
+        assert text in legende
+    assert not fehler, fehler
