@@ -154,6 +154,10 @@ docs/index.html               kleiner, dauerhaft stabiler Loader für die normal
                                  leitet auf app.html?v=<Zeit> weiter und reicht einen Hash durch
 docs/app.html                 Oberfläche und Auswertungslogik — ändert sich nur bei Code-/Designänderungen
 docs/daten.js                 aktuelle Wetterdaten — ändert sich nur bei Datenänderungen
+docs/handy.html               Loader der Handy-Fassung „WoazeWeather" (Start mit „Station heute")
+docs/handy-app.html           Handy-Fassung: dieselbe Seite plus handy.css/handy.js (siehe Abschnitt „Handy-Fassung")
+docs/handy-sw.js              winziger Dienst, der nichts zwischenspeichert (nötig für „App installieren")
+docs/handy/                   manifest.webmanifest und die Symbole (Sonne mit WW)
 skripte/
   gemeinsam.py                 geteilte Hilfsfunktionen: Abruf mit Wiederholung, atomares
                                  Schreiben, Perzentil und die eine Formatprüfung für Laufdateien
@@ -166,11 +170,15 @@ skripte/
   historie.py                   lädt vergangene Hauptläufe nach (idempotent, siehe oben)
   bauen.py                      baut aus daten/ + vorlage.html die Seite
   vorlage.html                  Gestaltung und Auswertungslogik (beide Seiten)
+  handy.css, handy.js           nur für die Handy-Fassung (werden von bauen.py in handy-app.html eingebaut)
+  handy_symbol.py               zeichnet das Symbol neu (nur bei Bedarf, braucht Pillow)
 tests/                        automatisierte Tests (pytest)
   test_js_analyse.py            Browsertests: Auswertung, Seitenaufbau, Loader, Ladefehler
   test_vorhersage_darstellung.py  Browsertests: Breite, Erklärungen, Achsen, Bezugslinie, Layoutsprung,
                                  Tageslinien (beide brauchen Playwright + Chromium)
   test_zeitverarbeitung.py      Sommerzeit-Tests der Zeitverarbeitung (ohne Browser)
+  test_handy.py                 Handy-Fassung: Bau, Trennung von app.html, Manifest, Symbole (ohne Browser)
+  test_handy_browser.py         Handy-Fassung im Browser: Start, schlanke Ansicht, Zwei-Finger-Zoom (Playwright)
   die übrigen Dateien           schnelle Tests ohne Browser
 .github/workflows/
   aktualisieren.yml             halbstündlicher Daten-Workflow (nur schnelle Tests, kein Chromium)
@@ -460,6 +468,49 @@ Der aktuelle Schlüssel läuft am **20.06.2027** ab; Anfang Juni 2027 erneuern.
 **Noch zu prüfen beim ersten echten Lauf.** Die Messgröße `rain` für den Regenmesser bei
 `scale=max` und die Abrufgrenzen von Netatmo sind nicht offiziell bestätigt. Schlägt nur der
 Regenabruf fehl, erscheint eine Warnung, und die Außenwerte laufen weiter.
+
+---
+
+## Handy-Fassung „WoazeWeather"
+
+Eine Fassung nur fürs Handy, die sich wie eine App auf den Startbildschirm legen lässt. Die
+normale Seite bleibt davon unberührt: `docs/app.html` und `docs/index.html` enthalten kein einziges
+Byte der Handy-Fassung (ein Test prüft das).
+
+**Aufrufen und anheften.** `…/Modellbewertungen/handy.html` im Handy-Browser (Chrome) öffnen und im
+Menü „App installieren" oder „Zum Startbildschirm hinzufügen" wählen. Ohne Hash startet sie mit
+„Station heute". Das Symbol ist eine Sonne mit „WW" (WoazeWeather).
+
+**So entsteht sie.** `skripte/bauen.py` nimmt die fertige normale Seite und setzt an fünf Stellen
+Handy-Teile ein (Kopfzeile mit Manifest, Stylesheet `skripte/handy.css`, Skript `skripte/handy.js`,
+und eine Verbindung in `diagramm()` der Wetterstation). Passt eine dieser Stellen nicht genau einmal,
+bricht der Bau mit einer Meldung ab. Ohne die eingesetzten Teile ist `handy-app.html` Wort für Wort
+`app.html` (Test `test_handy_fassung_ist_sonst_die_normale_seite`). Änderungen am Handy-Aussehen gehören
+in `handy.css`/`handy.js`, nicht in `vorlage.html`.
+
+**Was anders ist.** Untere Leiste statt Reiter oben (Heute, Verlauf, 48 Std., Vorhersage, Analyse);
+Untertitel, Erklärungen, Fußtexte, Koordinaten und „Letzte Aktualisierung" sind ausgeblendet;
+Kennzahlen in drei Spalten; Diagramme randlos, die der Wetterstation etwas höher und mit größerer Schrift.
+
+**Zoom mit zwei Fingern.**
+- *Station heute und Verlauf:* Die Zeitachse wird gezoomt. Beide Diagramme des Reiters laufen im
+  Gleichschritt, die Beschriftung passt sich an, die Höhenachse richtet sich nach dem sichtbaren
+  Ausschnitt. Ein Finger schiebt den Ausschnitt. Doppeltippen oder der Knopf „Ganzer Zeitraum" setzt
+  zurück; ein anderer Zeitraum (Gestern, Monat, blättern) auch. Dafür ruft `diagramm()` vor dem Zeichnen
+  `window.WW_ZOOM.anwenden(ziel, o)` auf, und `window.WW_NEU()` lässt neu zeichnen.
+- *48 Std., Vorhersage, Analyse:* Das Diagramm wird beim Pinch bis zu viermal breiter und lässt sich im
+  Rahmen seitlich wischen. Doppeltippen setzt zurück.
+- Ein kleiner Hinweis unter den Diagrammen verschwindet, sobald einmal gezoomt wurde.
+
+**Bekannte Grenze.** Die Diagramme der Analyse-Seite sind für 900 px Breite gezeichnet; auf dem Handy
+ist ihre Schrift klein und nur mit Zoom gut lesbar.
+
+**Dienst.** `docs/handy-sw.js` leitet jede Anfrage direkt ins Netz und speichert nichts zwischen —
+die App zeigt also immer den aktuellen Stand. Er ist nur da, weil Chrome eine Seite erst dann als App
+anbietet, wenn ein Dienst angemeldet ist. Er ist nur für `handy.html` und `handy-app.html` zuständig.
+
+**Symbol ändern.** `python3 skripte/handy_symbol.py` (braucht `pip install pillow`) schreibt die drei
+Bilder in `docs/handy/` neu. Die Manifest-Datei bleibt, wie sie ist, solange die Dateinamen gleich bleiben.
 
 ---
 

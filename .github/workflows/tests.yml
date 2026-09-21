@@ -44,12 +44,13 @@ jobs:
           --ignore=tests/test_js_analyse.py
           --ignore=tests/test_vorhersage_darstellung.py
           --ignore=tests/test_48h_browser.py
+          --ignore=tests/test_handy_browser.py
 
       - name: Syntax der Skripte
         run: python3 -m py_compile skripte/*.py
 
       - name: Browsertests
-        run: python3 -m pytest tests/test_js_analyse.py tests/test_vorhersage_darstellung.py tests/test_48h_browser.py -q
+        run: python3 -m pytest tests/test_js_analyse.py tests/test_vorhersage_darstellung.py tests/test_48h_browser.py tests/test_handy_browser.py -q
 
       - name: Seite lässt sich bauen
         run: python3 skripte/bauen.py

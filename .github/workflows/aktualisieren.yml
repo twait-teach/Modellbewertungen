@@ -38,6 +38,7 @@ jobs:
           --ignore=tests/test_js_analyse.py
           --ignore=tests/test_vorhersage_darstellung.py
           --ignore=tests/test_48h_browser.py
+          --ignore=tests/test_handy_browser.py
 
       - name: Meteogramm-Slots anlegen und Hauptläufe nachtragen
         run: python3 skripte/sammeln_vorhersage.py --modell beide

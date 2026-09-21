@@ -5,6 +5,11 @@
 einer frischen Versionskennung; aktualisierte Wetterdaten landen ausschliesslich
 in ``daten.js``. Das vermeidet sowohl Browsercache-Probleme als auch Konflikte
 zwischen dem halbstuendlichen Workflow und Entwicklungsarbeit.
+
+Zusaetzlich entsteht die Handy-Fassung "WoazeWeather": ``handy.html`` (Loader) und
+``handy-app.html`` (dieselbe Seite plus skripte/handy.css und skripte/handy.js).
+``app.html`` bleibt davon voellig unberuehrt -- die normale Ansicht aendert sich
+durch die Handy-Fassung in keinem Byte.
 """
 
 import datetime as dt
@@ -33,6 +38,72 @@ STARTSEITE = """<!doctype html>
 <noscript><p><a href="app.html">Zur Wetterseite</a></p></noscript>
 </body></html>
 """
+
+HANDY_CSS = WURZEL / "skripte" / "handy.css"
+HANDY_JS = WURZEL / "skripte" / "handy.js"
+
+HANDY_KOPF = """<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f6f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11161b" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="WoazeWeather">
+<link rel="manifest" href="handy/manifest.webmanifest">
+<link rel="icon" type="image/png" href="handy/symbol-192.png">
+<link rel="apple-touch-icon" href="handy/symbol-192.png">"""
+
+# Loader der Handy-Fassung: wie index.html (frische Versionskennung gegen Browsercache),
+# nur dass ohne Hash mit dem Reiter "Station heute" gestartet wird.
+HANDY_STARTSEITE = """<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#f4f6f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11161b" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="handy/manifest.webmanifest">
+<link rel="icon" type="image/png" href="handy/symbol-192.png">
+<title>WoazeWeather</title>
+<style>body{font-family:system-ui,sans-serif;margin:24px;color:#4a5a68;background:#f4f6f7}@media (prefers-color-scheme:dark){body{background:#11161b;color:#a3b2be}}</style>
+</head><body>
+<p>WoazeWeather wird geladen …</p>
+<script>location.replace('handy-app.html?v=' + Date.now() + (location.hash || '#station-heute'));</script>
+<noscript><p><a href="handy-app.html#station-heute">Zur Wetterseite</a></p></noscript>
+</body></html>
+"""
+
+# Die Verbindung zwischen Wetterstation-Diagrammen und dem Zoom in handy.js. Sie wird nur in die
+# Handy-Fassung eingesetzt: window.WW_ZOOM gibt es dort, in app.html nicht.
+HANDY_ANKER = 'function diagramm(ziel, o) {\n  const box = $(ziel); box.innerHTML = "";'
+HANDY_EINSATZ = (
+    "window.WW_NEU = () => zeichnen();   // Handy-Fassung: Diagramme von aussen neu zeichnen lassen\n"
+    "function diagramm(ziel, o) {\n"
+    "  if (window.WW_ZOOM) o = window.WW_ZOOM.anwenden(ziel, o);   // Handy-Fassung: Zoom und Diagrammhoehe\n"
+    '  const box = $(ziel); box.innerHTML = "";'
+)
+
+
+def handy_seite(seite, css, js):
+    """Leitet aus der fertigen normalen Seite die Handy-Fassung ab.
+
+    Jede Ersetzung muss genau einmal passen. Aendert jemand die Vorlage so, dass
+    eine Stelle verschwindet oder doppelt vorkommt, bricht der Bau mit einer klaren
+    Meldung ab, statt eine halbe Handy-Fassung zu veroeffentlichen.
+    """
+    if "</script" in js.lower():
+        raise SystemExit("skripte/handy.js darf kein </script enthalten (wird in die Seite eingebettet)")
+    ersetzungen = [
+        ('<meta name="viewport" content="width=device-width,initial-scale=1">', HANDY_KOPF),
+        ('<meta name="robots" content="index,follow">', '<meta name="robots" content="noindex">'),
+        ("<title>Vorhersage und Analyse Mühldorf</title>", "<title>WoazeWeather</title>"),
+        ("</style>\n</head>\n<body>\n",
+         "</style>\n<style>\n" + css + "</style>\n</head>\n<body class=\"handy\">\n<script>\n" + js + "</script>\n"),
+        (HANDY_ANKER, HANDY_EINSATZ),
+    ]
+    for alt, neu in ersetzungen:
+        if seite.count(alt) != 1:
+            raise SystemExit(f"Handy-Fassung: Stelle nicht genau einmal in der Seite gefunden: {alt[:70]!r}")
+        seite = seite.replace(alt, neu)
+    return seite
+
 
 # Wie weit die Messreihe in die Seite soll. Aelteres bleibt im Repo erhalten,
 # wird aber nicht eingebettet -- die Auswertung reicht ohnehin nur so weit
@@ -169,9 +240,15 @@ def main():
              + "<style>" + seite.split("<style>", 1)[1].split("</style>", 1)[0] + "</style>\n</head>\n<body>\n"
              + seite.split("</style>", 1)[1] + "\n</body>\n</html>\n")
 
+    handy = handy_seite(seite, HANDY_CSS.read_text(encoding="utf-8"), HANDY_JS.read_text(encoding="utf-8"))
+
     ZIEL.parent.mkdir(parents=True, exist_ok=True)
     atomar_schreiben(START_ZIEL, STARTSEITE)
     atomar_schreiben(ZIEL, seite)
+    # Die Handy-Dateien liegen neben app.html (der Ordner richtet sich nach ZIEL, damit Tests
+    # mit umgebogenem ZIEL nie in das echte docs/ schreiben).
+    atomar_schreiben(ZIEL.parent / "handy.html", HANDY_STARTSEITE)
+    atomar_schreiben(ZIEL.parent / "handy-app.html", handy)
     daten_js = "window.DATEN=" + json.dumps(
         paket, ensure_ascii=False, separators=(",", ":")) + ";\n"
     atomar_schreiben(DATEN_ZIEL, daten_js)
@@ -179,6 +256,7 @@ def main():
     tage = sorted(messungen)
     print(f"docs/index.html gebaut — {len(STARTSEITE)} Bytes (cachefester Loader)")
     print(f"docs/app.html gebaut — {len(seite)} Bytes (statischer Seitencode)")
+    print(f"docs/handy.html und docs/handy-app.html gebaut — {len(handy)} Bytes (Handy-Fassung WoazeWeather)")
     print(f"docs/daten.js gebaut — {len(daten_js)} Bytes (aktuelle Wetterdaten)")
     print(f"  Messreihe:   {len(tage)} Tage ({tage[0] if tage else '–'} bis {tage[-1] if tage else '–'})")
     print(f"  Läufe:       {len(forecasts)} ({min(forecasts)} bis {max(forecasts)})")
