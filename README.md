@@ -138,7 +138,7 @@ Ensemble-Statistik für immer; für das Meteogramm bedeutet das schlicht, dass f
 Dokument entsteht. Messwerte sind unkritisch: das DWD-Archiv reicht rund 500 Tage zurück, ältere
 Monatsdateien bleiben unabhängig davon erhalten (siehe unten, „Speicherung der Messwerte").
 
-**Für das Meteogramm** werden zudem nur die letzten 12 Läufe je Modell (GFS: 14) mit vollen
+**Für das Meteogramm** werden zudem nur die letzten 12 Läufe je Modell mit vollen
 Ensemblemitgliedern aufbewahrt (`skripte/sammeln_vorhersage.py`, Konstante `AUFBEWAHREN`) — ältere
 Laufdateien werden automatisch gelöscht. Das ist beabsichtigt: die Rohdaten mit 30–50 Mitgliedern
 pro Lauf müssen für den Laufvergleich nicht unbegrenzt archiviert werden.
@@ -269,8 +269,9 @@ Sie ist grau gezeichnet, damit sie nicht mit dem schwarzen Hauptlauf verwechselt
 - *Haupt-/Kontrolllauf zeigen* (an): die schwarzen Linien (GFS: Hauptlauf und Kontrolllauf, ECMWF-IFS: Hauptlauf).
 - *Gleitendes 24-h-Mittel zeigen* (nur 2-m-Temperatur): Ensemble-Mittel, zentriert über 24 Stunden zeitgewichtet
   gemittelt; die ersten und letzten 12 Stunden bleiben leer.
-- *Vorläufe zeigen*: die Läufe desselben Modells zur gleichen Uhrzeit 24, 48 und 72 Stunden früher
-  (durchgezogen, gestrichelt, gepunktet), nach Gültigkeitszeit übereinandergelegt.
+- *Vorläufe zeigen*: die drei vorangegangenen Läufe desselben Modells (GFS 6/12/18 h, ECMWF-IFS 12/24/36 h
+  älter; durchgezogen, gestrichelt, gepunktet), nach Gültigkeitszeit übereinandergelegt. Verglichen wird nur
+  innerhalb eines Modells, die unterschiedlichen Abstände sind deshalb gewollt.
 - *„anderes Modell“ zeigen*: der Lauf des anderen Modells zur selben Startzeit (zu GFS 06/18 UTC der 6 Stunden
   ältere ECMWF-Lauf).
 
@@ -278,9 +279,7 @@ Verglichen wird je Bereich immer dieselbe **Vergleichskurve**: 2-m-Temperatur da
 850 hPa das ungeglättete Ensemble-Mittel, Niederschlag das Ensemble-Mittel aufsummiert erst ab Beginn des
 gewählten Laufs (davor keine Kurve). Bei der 2-m-Temperatur ist das 24-h-Mittel deshalb angehakt und gesperrt,
 solange Vorläufe oder das andere Modell gezeigt werden; danach bleibt es angehakt, bis man es abwählt. Die
-Temperaturachse berücksichtigt alle Vergleichskurven von vornherein, damit sie beim Anhaken nicht springt. Damit
-72 Stunden alte GFS-Läufe vorhanden sind, bewahrt `sammeln_vorhersage.py` beim GFS 14 statt 12 Läufe auf
-(`AUFBEWAHREN_JE_MODELL`).
+Temperaturachse berücksichtigt alle Vergleichskurven von vornherein, damit sie beim Anhaken nicht springt.
 
 **Verspätete Läufe.** Ist der neueste gespeicherte Lauf eines Modells älter als 36 Stunden (Konstante
 `LAUF_VERALTET_H`), nennt die Statuszeile über dem Diagramm sein Alter.

@@ -1,5 +1,5 @@
 """Browsertests fuer die Haken im Meteogramm: Haupt-/Kontrolllauf, gleitendes 24-h-Mittel,
-Vorlaeufe (gleiche Uhrzeit 24/48/72 h frueher) und das jeweils andere Modell."""
+Vorlaeufe (die drei vorangegangenen Laeufe desselben Modells) und das jeweils andere Modell."""
 import datetime as dt
 
 import pytest
@@ -53,11 +53,11 @@ def test_vorlaeufe_sperren_das_gleitende_mittel_bei_der_2m_temperatur(browser, v
     assert danach == [True, False]                           # bleibt angehakt, ist aber wieder frei
     assert serien.count("gleitendes-mittel") == 1 and serien.count("vorlauf") == 3
     for text in ("Vorlauf 24.10., 00 UTC (−24 h)", "23.10., 00 UTC (−48 h)", "22.10., 00 UTC (−72 h)"):
-        assert text in legende                               # Laeufe gleicher Uhrzeit, mit Abstand
+        assert text in legende                               # die drei vorangegangenen Laeufe, mit Abstand
     assert not fehler, fehler
 
 
-def test_vorlaeufe_gleicher_uhrzeit_und_passender_lauf_des_anderen_modells(browser, vergleich):
+def test_vorlaeufe_sind_die_drei_vorangegangenen_laeufe_und_passender_lauf_des_anderen_modells(browser, vergleich):
     seite = _oeffnen(browser, vergleich, 1366)
     r = seite.evaluate("""() => { const T = window.__TEST__, D = window.DATEN || {};
         const laeufe = (typeof DATEN !== 'undefined' ? DATEN : D).vorhersage;
@@ -67,7 +67,7 @@ def test_vorlaeufe_gleicher_uhrzeit_und_passender_lauf_des_anderen_modells(brows
                  partner06: T.partnerLauf(g06).init, partnerEcmwf: T.partnerLauf(laeufe.ecmwf[0]).init }; }""")
     seite.close()
     assert r["vor00"] == ["2026-10-24T00:00Z", "2026-10-23T00:00Z", "2026-10-22T00:00Z"]
-    assert r["vor06"] == [None, None, None]                  # keine 06-UTC-Vorlaeufe gespeichert
+    assert r["vor06"] == ["2026-10-25T00:00Z", "2026-10-24T00:00Z", "2026-10-23T00:00Z"]   # beliebige Startzeit
     assert r["partner06"] == "2026-10-25T00:00Z"             # ECMWF hat kein 06 UTC -> der 6 h aeltere
     assert r["partnerEcmwf"] == "2026-10-25T00:00Z"
 
@@ -107,7 +107,8 @@ def test_haken_haupt_kontrolllauf_und_anderes_modell(browser, vergleich):
 
 def test_ohne_gespeicherte_vorlaeufe_steht_ein_hinweis_in_der_legende(browser, vergleich):
     seite = _oeffnen(browser, vergleich, 1366)
-    seite.locator("#modellwahl-temp2m button", has_text="GFS").click()   # neuester GFS-Lauf: 06 UTC
+    seite.locator("#modellwahl-temp2m button", has_text="GFS").click()
+    seite.locator("#laufwahl-temp2m button").last.click()               # aeltester GFS-Lauf: nichts davor
     seite.locator("#vorlaeufeEin-temp2m").check()
     legende = seite.locator("#leg-temp2m").inner_text()
     serien = _serien(seite, "temp2m")

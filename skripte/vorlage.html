@@ -403,8 +403,8 @@ nav.hauptnav a{white-space:nowrap; flex:none}
           insgesamt wärmer oder kälter wird. Um Mitternacht entspricht der Wert dem Tagesmittel. An Anfang und Ende des Laufs
           fehlen je 12 Stunden, weil dort kein volles Fenster vorliegt.</p>
           <p><strong>Vorläufe und anderes Modell:</strong> Verglichen wird immer das gleitende 24-h-Mittel — deshalb ist es
-          angehakt, solange einer dieser Vergleiche gezeigt wird. Vorläufe sind die Läufe desselben Modells zur gleichen
-          Uhrzeit 24, 48 und 72 Stunden früher (durchgezogen, gestrichelt, gepunktet), soweit sie gespeichert sind. Liegen
+          angehakt, solange einer dieser Vergleiche gezeigt wird. Vorläufe sind die drei vorangegangenen Läufe desselben Modells (GFS: 6, 12, 18 Stunden älter; ECMWF-IFS: 12, 24, 36
+          Stunden; durchgezogen, gestrichelt, gepunktet). Liegen
           die Kurven eng beieinander, ist die Vorhersage von Lauf zu Lauf stabil; springen sie, ist sie es nicht. Das andere
           Modell ist dessen Lauf zur selben Startzeit (beim ECMWF-IFS gibt es nur 00 und 12 UTC; zu einem 06- oder 18-UTC-Lauf
           des GFS wird der 6 Stunden ältere gezeigt).</p>
@@ -453,8 +453,8 @@ nav.hauptnav a{white-space:nowrap; flex:none}
           geeigneten Bedingungen ein erhöhtes Potenzial für Bodenfrost bedeuten. Werte um oder über 20 °C deuten auf ein
           erhebliches Hitzepotenzial hin. Beides bedeutet nicht automatisch Bodenfrost beziehungsweise einen heißen Tag am Boden.</p>
           <p><strong>Vorläufe und anderes Modell:</strong> Verglichen wird das Ensemble-Mittel, ungeglättet — in 1.500 m gibt es
-          kaum einen Tagesgang, und Sprünge sind hier oft echte Signale (etwa eine Front). Vorläufe sind die Läufe desselben
-          Modells zur gleichen Uhrzeit 24, 48 und 72 Stunden früher (durchgezogen, gestrichelt, gepunktet), das andere Modell ist
+          kaum einen Tagesgang, und Sprünge sind hier oft echte Signale (etwa eine Front). Vorläufe sind die drei vorangegangenen Läufe desselben
+          Modells (durchgezogen, gestrichelt, gepunktet), das andere Modell ist
           dessen Lauf zur selben Startzeit.</p>
         </div>
       </details>
@@ -500,8 +500,8 @@ nav.hauptnav a{white-space:nowrap; flex:none}
           Kurven nicht verzerrt. Einzelne Mitglieder mit noch mehr Niederschlag laufen oben aus dem Diagramm heraus.</p>
           <p><strong>Vorläufe und anderes Modell:</strong> Verglichen wird das Ensemble-Mittel, aufsummiert erst ab dem Beginn
           des gewählten Laufs. Ältere Läufe hatten bis dahin schon Regen „auf dem Konto“; ohne diesen Abzug lägen ihre Kurven
-          nicht übereinander. Deshalb beginnen diese Kurven erst beim Start des gewählten Laufs. Vorläufe sind die Läufe
-          desselben Modells zur gleichen Uhrzeit 24, 48 und 72 Stunden früher (durchgezogen, gestrichelt, gepunktet), das
+          nicht übereinander. Deshalb beginnen diese Kurven erst beim Start des gewählten Laufs. Vorläufe sind die drei vorangegangenen
+          Läufe desselben Modells (durchgezogen, gestrichelt, gepunktet), das
           andere Modell ist dessen Lauf zur selben Startzeit.</p>
           <p><strong>Lesehilfe:</strong> Das Band beschreibt die Streuung der Mitglieder, keine Wahrscheinlichkeit für
           eine bestimmte Menge. Auch außerhalb des Bands bleiben Mengen möglich — ein Ensemble erfasst nicht jede Unsicherheit,
@@ -1141,7 +1141,7 @@ function zeitgewichteterMittelwert(unix, werte, von, bis, vollstaendig = false) 
      Niederschlag     Ensemble-Mittel, aufsummiert ab Beginn des GEWAEHLTEN Laufs (aeltere
                       Laeufe hatten bis dahin schon Regen "auf dem Konto"; davor keine Kurve) */
 const GLEITFENSTER_S = 24 * 3600;
-const VORLAUF_ABSTAENDE_H = [24, 48, 72];          // Laeufe gleicher Uhrzeit von gestern, vorgestern, vor drei Tagen
+const VORLAUF_ANZAHL = 3;                          // so viele direkt vorangegangene Laeufe desselben Modells
 const VORLAUF_STIL = ["", "7 4", "2 3"];            // Strichmuster je Alter (durchgezogen, gestrichelt, gepunktet)
 const PARTNER_MAX_ABSTAND_H = 12;                  // anderes Modell: Lauf hoechstens so viel aelter als der gewaehlte
 const initUnix = lauf => Date.parse(lauf.init) / 1000;
@@ -1183,12 +1183,17 @@ function vergleichsreihe(bereich, lauf, startUnix) {
   return { unix, werte: daten.mittel };
 }
 
-/** Laeufe desselben Modells gleicher Uhrzeit 24/48/72 h vor dem gegebenen Lauf
- * (nicht gespeicherte bleiben mit lauf: null in der Liste). */
+/** Die direkt vorangegangenen gespeicherten Laeufe desselben Modells (GFS alle 6 h,
+ * ECMWF-IFS alle 12 h). Verglichen wird nur innerhalb eines Modells, deshalb duerfen die
+ * Abstaende je Modell verschieden sein. Fehlende Plaetze bleiben mit lauf: null in der Liste. */
 function vorlaeufeVon(lauf) {
-  const t0 = initUnix(lauf), liste = laeufeFuer(lauf.modell).filter(formatAktuell);
-  return VORLAUF_ABSTAENDE_H.map((h, k) => ({ stunden: h, strich: VORLAUF_STIL[k],
-    lauf: liste.find(l => initUnix(l) === t0 - h * 3600) || null }));
+  const t0 = initUnix(lauf);
+  const aeltere = laeufeFuer(lauf.modell).filter(l => formatAktuell(l) && initUnix(l) < t0)
+    .sort((p, q) => initUnix(q) - initUnix(p)).slice(0, VORLAUF_ANZAHL);
+  return VORLAUF_STIL.slice(0, VORLAUF_ANZAHL).map((strich, k) => {
+    const l = aeltere[k] || null;
+    return { strich, lauf: l, stunden: l ? Math.round((t0 - initUnix(l)) / 3600) : null };
+  });
 }
 
 /** Passender Lauf des anderen Modells: der juengste, der nicht nach dem gewaehlten Lauf

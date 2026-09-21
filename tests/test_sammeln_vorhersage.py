@@ -634,7 +634,6 @@ def test_aufraeumen_sortiert_ueber_tagesgrenzen_korrekt(tmp_path, monkeypatch):
     chronologisch sortieren (z.B. ...09-30T18 vor ...10-01T00, nicht danach)."""
     monkeypatch.setattr(sv, "OUT", tmp_path)
     monkeypatch.setattr(sv, "AUFBEWAHREN", 2)
-    monkeypatch.setattr(sv, "AUFBEWAHREN_JE_MODELL", {})
     laeufe = [
         dt.datetime(2026, 9, 30, 18, tzinfo=dt.timezone.utc),
         dt.datetime(2026, 10, 1, 0, tzinfo=dt.timezone.utc),
@@ -837,7 +836,6 @@ def test_anderes_zeitraster_verwirft_den_alten_hauptlauf_zur_neuholung(monkeypat
     assert nachher["temperatur_2m"]["hauptlauf"] is None and nachher["hauptlauf_vollstaendig"] is False
 
 
-def test_gfs_behaelt_genug_laeufe_fuer_den_vergleich_mit_72_stunden_alten_laeufen():
-    """Vorlaeufe gleicher Uhrzeit bis 72 h zurueck: beim 6-stuendlichen GFS mindestens 13 Laeufe."""
-    assert sv.AUFBEWAHREN_JE_MODELL.get("gfs", sv.AUFBEWAHREN) >= 13
-    assert sv.AUFBEWAHREN_JE_MODELL.get("ecmwf", sv.AUFBEWAHREN) >= 7
+def test_genug_laeufe_fuer_laufwahl_und_drei_vorlaeufe():
+    """Die Laufwahl bietet bis zu 6 Laeufe an, jeder davon braucht 3 Vorlaeufe."""
+    assert sv.AUFBEWAHREN >= 6 + 3
