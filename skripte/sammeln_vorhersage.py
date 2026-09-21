@@ -507,6 +507,38 @@ def normalisiere_slot(lauf):
     return vorher != json.dumps(lauf, sort_keys=True)
 
 
+# Plausibilitaet: Zwischen zwei Zeitpunkten aendern sich die Mitglieder eines Ensembles
+# bei 850 hPa weitgehend gemeinsam. Weicht die Aenderung der einzelnen Mitglieder im
+# Schnitt um mehr als diese Schwelle von der Aenderung des Mittels ab, laufen ab dort
+# offensichtlich nicht zusammengehoerige Datenreihen weiter (beobachtet am 20.09.2026
+# bei ECMWF-IFS, +153 h: 2,5-2,9 K; saubere Abrufe desselben Laufs: unter 1 K).
+PLAUSI_SCHWELLE_K = 2.0
+
+
+def groesster_mitgliedersprung(lauf):
+    """(Sprungmass in K, Index des Zeitpunkts) des auffaelligsten Schritts der
+    850-hPa-Mitglieder. Der letzte Zeitpunkt zaehlt nicht mit: Beim GFS ist er
+    (+384 h) bei Open-Meteo dauerhaft auffaellig, schon beim ersten Abruf."""
+    reihe = lauf.get("temperatur_850hpa") or {}
+    mitglieder = reihe.get("mitglieder") or []
+    anzahl = len(reihe.get("zeitpunkte_unix") or [])
+    groesster = (0.0, None)
+    for i in range(1, anzahl - 1):
+        schritte = [m[i] - m[i - 1] for m in mitglieder
+                    if i < len(m) and m[i] is not None and m[i - 1] is not None]
+        if len(schritte) < 2:
+            continue
+        mittel_schritt = sum(schritte) / len(schritte)
+        mass = sum(abs(x - mittel_schritt) for x in schritte) / len(schritte)
+        if mass > groesster[0]:
+            groesster = (round(mass, 2), i)
+    return groesster
+
+
+def ist_plausibel(lauf):
+    return groesster_mitgliedersprung(lauf)[0] <= PLAUSI_SCHWELLE_K
+
+
 def ensemble_inhalt(lauf):
     """Der Ensembleteil eines Slots als Vergleichstext: ohne Hauptlauf und ohne
     Abrufzeit, damit nur fachlich andere Werte als Aenderung zaehlen."""
@@ -532,7 +564,10 @@ def aktualisiere_ensemble(kurz, cfg, bereits, vorab_info, fehler, heute):
     Aenderung ersetzt. Der bereits ergaenzte Hauptlauf bleibt dabei erhalten.
 
     Nie ersetzt wird, wenn der neue Abruf unvollstaendig ist, weniger
-    Mitglieder hat oder der Lauf waehrend des Abrufs gewechselt hat.
+    Mitglieder hat, der Lauf waehrend des Abrufs gewechselt hat oder der neue
+    Abruf unplausibel ist, der gespeicherte aber nicht (siehe ist_plausibel):
+    Gute Daten werden nie durch fehlerhafte ersetzt. Ein unplausibel gespeicherter
+    Slot wird dagegen durch den naechsten abweichenden Abruf ersetzt.
     """
     lauf, _ = verarbeite_modell(kurz, cfg, fehler, heute, ens_info=vorab_info)
     if not lauf or not lauf.get("ensemble_vollstaendig"):
@@ -540,6 +575,11 @@ def aktualisiere_ensemble(kurz, cfg, bereits, vorab_info, fehler, heute):
     if lauf.get("init") != bereits.get("init") or (lauf.get("mitglieder_n") or 0) < (bereits.get("mitglieder_n") or 0):
         return None
     if ensemble_inhalt(lauf) == ensemble_inhalt(bereits):
+        return None
+    if not ist_plausibel(lauf) and ist_plausibel(bereits):
+        mass, i = groesster_mitgliedersprung(lauf)
+        print(f"{kurz}: Neuabruf von {lauf['init']} unplausibel (Mitgliedersprung {mass} K an Stelle {i}) "
+              f"-- gespeicherter Stand bleibt")
         return None
     if not lauf_unveraendert(cfg, vorab_info["lauf"]):
         return None
@@ -679,6 +719,10 @@ def main():
                     atomar_schreiben_json(erwarteter_pfad, lauf, separators=(",", ":"))
                     print(f"{kurz}: Ensemble-Slot {lauf['init']} sofort gespeichert -- "
                           f"{lauf['mitglieder_n']} Mitglieder; Hauptlauf wird nachgereicht")
+                    if not ist_plausibel(lauf):
+                        # Vorlaeufig behalten: Der naechste abweichende Abruf ersetzt ihn.
+                        print(f"{kurz}: Achtung, Slot {lauf['init']} unplausibel (Mitgliedersprung "
+                              f"{groesster_mitgliedersprung(lauf)[0]} K) -- wird beim naechsten Abruf ersetzt")
             else:
                 geaendert = normalisiere_slot(bereits)
                 aktualisiert = aktualisiere_ensemble(kurz, cfg, bereits, vorab_info, fehler, heute)

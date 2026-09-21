@@ -76,7 +76,13 @@ denselben Slot nachgetragen. Ein inzwischen neuerer Hauptlauf kann dadurch nicht
 mit einem älteren Ensemble vermischt werden. Solange Open-Meteo noch genau diesen Lauf ausgibt, wird sein
 Ensemble bei jedem Durchlauf erneut abgerufen und der Slot nur bei fachlich geänderten Werten ersetzt (der
 Langfristteil eines GFS-Laufs ab +240 h wird dort nachweislich später fertig; der Hauptlauf bleibt dabei
-erhalten). Haben sich keine Daten geändert, entstehen weder
+erhalten). **Plausibilitätsprüfung:** Ein gespeicherter Lauf wird nie durch einen unplausiblen Neuabruf ersetzt.
+Unplausibel heißt: Bei 850 hPa weichen die Schritte der einzelnen Mitglieder von einem Zeitpunkt zum nächsten im
+Schnitt um mehr als 2 K (`PLAUSI_SCHWELLE_K`) vom Schritt des Mittels ab — dann laufen ab dort nicht
+zusammengehörige Datenreihen weiter. Der letzte Zeitpunkt zählt nicht mit (beim GFS +384 h dauerhaft auffällig).
+Ist schon der erste Abruf unplausibel, wird er vorläufig gespeichert und vom nächsten abweichenden Abruf ersetzt.
+Anlass: Am 20./21.09.2026 hatten Neuabrufe saubere Läufe (ECMWF 20.09. 00 und 12 UTC, GFS 20.09. 18 UTC) durch
+fehlerhafte ersetzt; die sauberen Fassungen wurden aus der Git-Historie wiederhergestellt. Haben sich keine Daten geändert, entstehen weder
 ein neuer Seitenbau noch ein unnötiger Commit:
 
 - `sammeln.py` schreibt `daten/forecasts_<Tag>.json` nur bei einer **fachlichen** Änderung. Der

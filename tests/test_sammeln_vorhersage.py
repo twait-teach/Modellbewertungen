@@ -839,3 +839,53 @@ def test_anderes_zeitraster_verwirft_den_alten_hauptlauf_zur_neuholung(monkeypat
 def test_genug_laeufe_fuer_laufwahl_und_drei_vorlaeufe():
     """Die Laufwahl bietet bis zu 6 Laeufe an, jeder davon braucht 3 Vorlaeufe."""
     assert sv.AUFBEWAHREN >= 6 + 3
+
+
+# ---------------------------------------------------------------- Plausibilitaet beim Neuabruf
+def _mit_850(lauf, reihen):
+    """Setzt 850-hPa-Mitglieder (Liste von Reihen) mit passendem Zeitraster."""
+    n = len(reihen[0])
+    lauf["temperatur_850hpa"] = {**lauf["temperatur_850hpa"], "mitglieder": reihen,
+                                 "zeiten": ["x"] * n, "zeitpunkte_unix": [1789603200 + 3 * 3600 * i for i in range(n)]}
+    return lauf
+
+
+SAUBER = [[5.0, 6.0, 7.0, 8.0, 9.0], [4.0, 5.2, 6.1, 7.3, 8.0], [6.0, 6.8, 8.1, 8.9, 10.0]]
+# ab dem dritten Zeitpunkt laufen fremde Reihen weiter (wie ECMWF 20.09.2026, +153 h)
+KAPUTT = [[5.0, 6.0, 12.0, 12.5, 13.0], [4.0, 5.2, 0.1, 0.4, 1.0], [6.0, 6.8, 11.0, 11.2, 12.0]]
+
+
+def test_plausibilitaet_erkennt_nicht_zusammengehoerige_reihen():
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    assert sv.ist_plausibel(_mit_850(_vollstaendiger_lauf(init), SAUBER))
+    mass, stelle = sv.groesster_mitgliedersprung(_mit_850(_vollstaendiger_lauf(init), KAPUTT))
+    assert mass > sv.PLAUSI_SCHWELLE_K and stelle == 2
+    assert not sv.ist_plausibel(_mit_850(_vollstaendiger_lauf(init), KAPUTT))
+
+
+def test_letzter_zeitpunkt_zaehlt_nicht_mit():
+    """GFS +384 h ist bei Open-Meteo dauerhaft auffaellig -- darf keinen Lauf verwerfen."""
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    reihen = [r[:-1] + [r[-1] + (8 if i % 2 else -8)] for i, r in enumerate(SAUBER)]
+    assert sv.ist_plausibel(_mit_850(_vollstaendiger_lauf(init), reihen))
+
+
+def test_unplausibler_neuabruf_ersetzt_keinen_plausiblen_slot(monkeypatch, tmp_path):
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    bestehend = _mit_850(_slot_mit_hauptlauf(init, wert=1.0), SAUBER)
+    bestehend["temperatur_850hpa"]["hauptlauf"] = [15.0] * 5
+    neu = _mit_850(_neu_abgerufen(init, wert=7.5), KAPUTT)
+    pfad, vorher = _durchlauf_mit_bestehendem_slot(monkeypatch, tmp_path, bestehend, neu, [init, init])
+    assert pfad.read_text(encoding="utf-8") == vorher
+
+
+def test_plausibler_neuabruf_ersetzt_einen_unplausiblen_slot(monkeypatch, tmp_path):
+    init = dt.datetime(2026, 9, 17, 0, tzinfo=dt.timezone.utc)
+    bestehend = _mit_850(_slot_mit_hauptlauf(init, wert=1.0), KAPUTT)
+    bestehend["temperatur_850hpa"]["hauptlauf"] = [15.0] * 5
+    neu = _mit_850(_neu_abgerufen(init, wert=7.5), SAUBER)
+    pfad, _ = _durchlauf_mit_bestehendem_slot(monkeypatch, tmp_path, bestehend, neu, [init, init])
+    nachher = json.loads(pfad.read_text(encoding="utf-8"))
+    assert nachher["temperatur_850hpa"]["mitglieder"] == SAUBER
+    assert nachher["temperatur_2m"]["hauptlauf"] == [15.0]        # Hauptlauf bleibt erhalten
+
