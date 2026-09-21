@@ -394,7 +394,9 @@ def test_drei_bereiche_haben_unabhaengige_zustaende():
                 eigene_elemente: t.BEREICHE.every(b =>
                     document.querySelector(`#modellwahl-${b.id}`)
                     && document.querySelector(`#laufwahl-${b.id}`)
-                    && document.querySelector(`#mitgliederEin-${b.id}`)
+                    && document.querySelector(`#hauptlaufEin-${b.id}`)
+                    && document.querySelector(`#vorlaeufeEin-${b.id}`)
+                    && document.querySelector(`#anderesEin-${b.id}`)
                     && document.querySelector(`#chart-${b.id}`)
                     && document.querySelector(`#leg-${b.id}`)
                     && document.querySelector(`#tab-${b.id}`)
@@ -410,7 +412,7 @@ def test_drei_bereiche_haben_unabhaengige_zustaende():
     assert ergebnis["eigene_elemente"] is True
 
 
-def test_laufauswahl_und_mitgliederschalter_wirken_nur_im_eigenen_bereich():
+def test_laufauswahl_und_haken_wirken_nur_im_eigenen_bereich():
     testdatei = _seite_vorhersage("_test_bereiche_unabhaengig.html")
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -420,16 +422,16 @@ def test_laufauswahl_und_mitgliederschalter_wirken_nur_im_eigenen_bereich():
         page.goto(f"file://{testdatei}")
         page.wait_for_timeout(250)
 
-        # im Niederschlagsbereich den zweiten Lauf waehlen, Mitglieder ausschalten
+        # im Niederschlagsbereich den zweiten Lauf waehlen, Haupt-/Kontrolllauf ausschalten
         page.locator("#laufwahl-niederschlag button").nth(1).click()
-        page.locator("#mitgliederEin-niederschlag").click()
+        page.locator("#hauptlaufEin-niederschlag").click()
         page.wait_for_timeout(150)
 
         z = page.evaluate("""() => {
             const Z = window.__TEST__.ZUSTAND;
             return {
                 t2_lauf: Z.temp2m.laufIndex, regen_lauf: Z.niederschlag.laufIndex, t850_lauf: Z.temp850.laufIndex,
-                t2_mit: Z.temp2m.mitglieder, regen_mit: Z.niederschlag.mitglieder, t850_mit: Z.temp850.mitglieder,
+                t2_mit: Z.temp2m.hauptlauf, regen_mit: Z.niederschlag.hauptlauf, t850_mit: Z.temp850.hauptlauf,
             };
         }""")
         browser.close()

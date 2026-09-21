@@ -132,8 +132,11 @@ summary:focus-visible{outline:2px solid var(--ecmwf); outline-offset:3px; border
 .laufinfo b{color:var(--ink); font-weight:500}
 /* Technische Nebenangaben (Verfuegbarkeit, Abrufzeit) treten optisch zurueck. */
 .laufinfo .neben{color:var(--ink-3)}
-.mitgliederschalter{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-2); margin-left:auto}
-.mitgliederschalter input{accent-color:var(--ink)}
+/* Haken rechts in der Bedienleiste (Haupt-/Kontrolllauf, gleitendes Mittel, Vorlaeufe, anderes Modell) */
+.schalterliste{display:flex; flex-wrap:wrap; gap:4px 16px; margin-left:auto; justify-content:flex-end}
+.schalter{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-2); cursor:pointer; white-space:nowrap}
+.schalter input{accent-color:var(--ink); margin:0}
+.schalter:has(input:disabled){cursor:default; color:var(--ink-3)}
 .warnzeile{
   font-size:12.5px; color:var(--warn); background:color-mix(in srgb,var(--warn) 10%,transparent);
   border:1px solid color-mix(in srgb,var(--warn) 35%,transparent); border-radius:3px;
@@ -302,7 +305,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
   .kurzhinweis{font-size:13.5px; margin-bottom:12px}
   .bedienleiste{gap:8px 10px; margin-bottom:10px}
   .schaltergruppe button{padding:7px 10px}
-  .mitgliederschalter{margin-left:0; width:100%; order:9}
+  .schalterliste{margin-left:0; width:100%; order:9; justify-content:flex-start; gap:6px 14px}
   /* Laufwahl: "aktuell" steckt im Tooltip, die Knoepfe bleiben zweizeilig kompakt */
   .laufwahl-aktuell{display:none}
   /* Laufinfo: nur Modell, Lauf, Mitglieder und Horizont; Technisches entfaellt */
@@ -898,10 +901,12 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
       <div class="bedienleiste" id="bedienleiste-temp2m">
         <div class="schaltergruppe" id="modellwahl-temp2m" role="group" aria-label="Modell"></div>
         <div class="schaltergruppe" id="laufwahl-temp2m" role="group" aria-label="Modelllauf"></div>
-        <label class="mitgliederschalter">
-          <input type="checkbox" id="mitgliederEin-temp2m" checked>
-          Einzelne Mitglieder zeigen
-        </label>
+        <div class="schalterliste" id="schalter-temp2m">
+          <label class="schalter"><input type="checkbox" id="hauptlaufEin-temp2m" checked> Haupt-/Kontrolllauf zeigen</label>
+          <label class="schalter"><input type="checkbox" id="glattEin-temp2m"> Gleitendes 24-h-Mittel zeigen</label>
+          <label class="schalter"><input type="checkbox" id="vorlaeufeEin-temp2m"> Vorläufe zeigen</label>
+          <label class="schalter"><input type="checkbox" id="anderesEin-temp2m"><span><span class="anderes-name">GFS</span> zeigen</span></label>
+        </div>
       </div>
       <div class="laufinfo" id="laufinfoZeile-temp2m"></div>
       <div class="laufstatus" id="laufwarnung-temp2m"></div>
@@ -923,6 +928,16 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
           angegebenen Temperaturniveau. Dieses Niveau ist der über die Zeit gewichtete Mittelwert der beiden
           Ensemble-Mittelkurven, gemittelt über den Zeitraum, den beide Modelle gemeinsam abdecken; GFS und ECMWF-IFS
           zählen gleich stark.</p>
+          <p><strong>Gleitendes 24-h-Mittel:</strong> das Ensemble-Mittel, an jedem Zeitpunkt über die 24 Stunden davor und
+          danach gemittelt (je 12 Stunden, nach Zeit gewichtet). Der Tagesgang fällt dadurch heraus; übrig bleibt, ob es
+          insgesamt wärmer oder kälter wird. Um Mitternacht entspricht der Wert dem Tagesmittel. An Anfang und Ende des Laufs
+          fehlen je 12 Stunden, weil dort kein volles Fenster vorliegt.</p>
+          <p><strong>Vorläufe und anderes Modell:</strong> Verglichen wird immer das gleitende 24-h-Mittel — deshalb ist es
+          angehakt, solange einer dieser Vergleiche gezeigt wird. Vorläufe sind die Läufe desselben Modells zur gleichen
+          Uhrzeit 24, 48 und 72 Stunden früher (durchgezogen, gestrichelt, gepunktet), soweit sie gespeichert sind. Liegen
+          die Kurven eng beieinander, ist die Vorhersage von Lauf zu Lauf stabil; springen sie, ist sie es nicht. Das andere
+          Modell ist dessen Lauf zur selben Startzeit (beim ECMWF-IFS gibt es nur 00 und 12 UTC; zu einem 06- oder 18-UTC-Lauf
+          des GFS wird der 6 Stunden ältere gezeigt).</p>
           <p>Zeitachse: Die senkrechten Linien markieren Mitternacht in Ortszeit (Europa/Berlin).</p>
         </div>
       </details>
@@ -942,10 +957,11 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
       <div class="bedienleiste" id="bedienleiste-temp850">
         <div class="schaltergruppe" id="modellwahl-temp850" role="group" aria-label="Modell"></div>
         <div class="schaltergruppe" id="laufwahl-temp850" role="group" aria-label="Modelllauf"></div>
-        <label class="mitgliederschalter">
-          <input type="checkbox" id="mitgliederEin-temp850" checked>
-          Einzelne Mitglieder zeigen
-        </label>
+        <div class="schalterliste" id="schalter-temp850">
+          <label class="schalter"><input type="checkbox" id="hauptlaufEin-temp850" checked> Haupt-/Kontrolllauf zeigen</label>
+          <label class="schalter"><input type="checkbox" id="vorlaeufeEin-temp850"> Vorläufe zeigen</label>
+          <label class="schalter"><input type="checkbox" id="anderesEin-temp850"><span><span class="anderes-name">GFS</span> zeigen</span></label>
+        </div>
       </div>
       <div class="laufinfo" id="laufinfoZeile-temp850"></div>
       <div class="laufstatus" id="laufwarnung-temp850"></div>
@@ -966,6 +982,10 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
           <p><strong>Einordnung:</strong> 850-hPa-Temperaturen unter 0 °C deuten auf eine kalte Luftmasse hin und können unter
           geeigneten Bedingungen ein erhöhtes Potenzial für Bodenfrost bedeuten. Werte um oder über 20 °C deuten auf ein
           erhebliches Hitzepotenzial hin. Beides bedeutet nicht automatisch Bodenfrost beziehungsweise einen heißen Tag am Boden.</p>
+          <p><strong>Vorläufe und anderes Modell:</strong> Verglichen wird das Ensemble-Mittel, ungeglättet — in 1.500 m gibt es
+          kaum einen Tagesgang, und Sprünge sind hier oft echte Signale (etwa eine Front). Vorläufe sind die Läufe desselben
+          Modells zur gleichen Uhrzeit 24, 48 und 72 Stunden früher (durchgezogen, gestrichelt, gepunktet), das andere Modell ist
+          dessen Lauf zur selben Startzeit.</p>
         </div>
       </details>
       <details>
@@ -984,10 +1004,11 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
       <div class="bedienleiste" id="bedienleiste-niederschlag">
         <div class="schaltergruppe" id="modellwahl-niederschlag" role="group" aria-label="Modell"></div>
         <div class="schaltergruppe" id="laufwahl-niederschlag" role="group" aria-label="Modelllauf"></div>
-        <label class="mitgliederschalter">
-          <input type="checkbox" id="mitgliederEin-niederschlag" checked>
-          Einzelne Mitglieder zeigen
-        </label>
+        <div class="schalterliste" id="schalter-niederschlag">
+          <label class="schalter"><input type="checkbox" id="hauptlaufEin-niederschlag" checked> Haupt-/Kontrolllauf zeigen</label>
+          <label class="schalter"><input type="checkbox" id="vorlaeufeEin-niederschlag"> Vorläufe zeigen</label>
+          <label class="schalter"><input type="checkbox" id="anderesEin-niederschlag"><span><span class="anderes-name">GFS</span> zeigen</span></label>
+        </div>
       </div>
       <div class="laufinfo" id="laufinfoZeile-niederschlag"></div>
       <div class="laufstatus" id="laufwarnung-niederschlag"></div>
@@ -1007,6 +1028,11 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
           <p><strong>Skala:</strong> GFS und ECMWF-IFS verwenden dieselbe Niederschlagsachse. Sie endet 20 % über dem
           höchsten Wert des 90.-Perzentil-Bands beider Modelle (mindestens 5 mm), damit ein Modellwechsel die Höhe der
           Kurven nicht verzerrt. Einzelne Mitglieder mit noch mehr Niederschlag laufen oben aus dem Diagramm heraus.</p>
+          <p><strong>Vorläufe und anderes Modell:</strong> Verglichen wird das Ensemble-Mittel, aufsummiert erst ab dem Beginn
+          des gewählten Laufs. Ältere Läufe hatten bis dahin schon Regen „auf dem Konto“; ohne diesen Abzug lägen ihre Kurven
+          nicht übereinander. Deshalb beginnen diese Kurven erst beim Start des gewählten Laufs. Vorläufe sind die Läufe
+          desselben Modells zur gleichen Uhrzeit 24, 48 und 72 Stunden früher (durchgezogen, gestrichelt, gepunktet), das
+          andere Modell ist dessen Lauf zur selben Startzeit.</p>
           <p><strong>Lesehilfe:</strong> Das Band beschreibt die Streuung der Mitglieder, keine Wahrscheinlichkeit für
           eine bestimmte Menge. Auch außerhalb des Bands bleiben Mengen möglich — ein Ensemble erfasst nicht jede Unsicherheit,
           und bei Schauern kann die Menge vor Ort deutlich abweichen.</p>
@@ -1312,8 +1338,9 @@ function treffer(g, x, y, w, h, text) {
 }
 const legendeHtml = eintraege => eintraege.map(e => `<span class="leg">${e.mark}${e.text}</span>`).join("");
 function legende(ziel, eintraege) { $(ziel).innerHTML = legendeHtml(eintraege); }
-const markLinie = (farbe, gestrichelt, breit) =>
-  `<svg width="22" height="10" aria-hidden="true"><line x1="1" y1="5" x2="21" y2="5" stroke="${farbe}" stroke-width="${breit || 2.5}" stroke-linecap="round"${gestrichelt ? ' stroke-dasharray="5 3.5"' : ''}/></svg>`;
+// gestrichelt: true (Standardmuster) oder ein eigenes Strichmuster wie "7 4"
+const markLinie = (farbe, gestrichelt, breit, deckkraft) =>
+  `<svg width="22" height="10" aria-hidden="true"><line x1="1" y1="5" x2="21" y2="5" stroke="${farbe}" stroke-width="${breit || 2.5}" stroke-linecap="round"${gestrichelt ? ` stroke-dasharray="${gestrichelt === true ? "5 3.5" : gestrichelt}"` : ""}${deckkraft ? ` opacity="${deckkraft}"` : ""}/></svg>`;
 const markFlaeche = (farbe, alpha) =>
   `<svg width="22" height="10" aria-hidden="true"><rect x="1" y="1" width="20" height="8" rx="1.5" fill="${farbe}" opacity="${alpha || 1}"/></svg>`;
 const legendeAusSerien = serien => serien
@@ -1446,10 +1473,14 @@ const bereichsfarbe = (modell, bereich) =>
 // Die Reihenfolge der Abschnitte im HTML entspricht BEREICHE:
 // 2-m-Temperatur, 850-hPa-Temperatur, aufsummierter Niederschlag.
 
-// Eigener, unabhaengiger Auswahlzustand je Bereich -- Modell, Laufindex und
-// Mitgliederschalter duerfen sich zwischen den drei Diagrammen unterscheiden.
+// Eigener, unabhaengiger Auswahlzustand je Bereich -- Modell, Laufindex und die
+// Haken duerfen sich zwischen den drei Diagrammen unterscheiden:
+//   hauptlauf  Haupt- und Kontrolllauf zeigen
+//   glatt      gleitendes 24-h-Mittel zeigen (nur 2-m-Temperatur)
+//   vorlaeufe  Vergleichskurven der Laeufe 24/48/72 h davor zeigen
+//   anderes    Vergleichskurve des jeweils anderen Modells zeigen
 const ZUSTAND = {};
-BEREICHE.forEach(b => { ZUSTAND[b.id] = { modell: "ecmwf", laufIndex: 0, mitglieder: true }; });
+BEREICHE.forEach(b => { ZUSTAND[b.id] = { modell: "ecmwf", laufIndex: 0, hauptlauf: true, glatt: false, vorlaeufe: false, anderes: false }; });
 
 function laeufeFuer(modell) { return DATEN.vorhersage?.[modell] || []; }
 
@@ -1583,6 +1614,13 @@ function gemeinsameTemperaturwerte(bereich) {
     if (!daten.verfuegbar) return;
     daten.mitglieder.forEach(r => r.forEach(v => werte.push(v)));
     [daten.kontrolllauf, daten.hauptlauf, daten.mittel, daten.p90, daten.p10].forEach(r => (r || []).forEach(v => werte.push(v)));
+    // Alles, was per Haken dazukommen kann, gehoert von vornherein in die Skala -- sonst
+    // wuerde sie sich beim Setzen eines Hakens aendern. Nur der gemeinsame Zeitraum zaehlt.
+    const von = daten.zeitpunkte_unix[0], bis = daten.zeitpunkte_unix[daten.zeitpunkte_unix.length - 1];
+    [...vorlaeufeVon(lauf).map(v => v.lauf), partnerLauf(lauf)].filter(Boolean).forEach(l => {
+      const d = datenAusLauf(bereich, l);
+      if (d.verfuegbar) d.mittel.forEach((v, i) => { const u = d.zeitpunkte_unix[i]; if (u >= von && u <= bis) werte.push(v); });
+    });
   });
   return werte.filter(Number.isFinite);
 }
@@ -1610,7 +1648,7 @@ function gemeinsamesP90Maximum(bereich) {
  * Stuetzstellen, Trapezregel) ueber [von, bis]. Teilstuecke mit fehlendem Wert
  * an einem Ende zaehlen nicht mit. 3-h- und 6-h-Schritte gehen so richtig
  * gewichtet ein. */
-function zeitgewichteterMittelwert(unix, werte, von, bis) {
+function zeitgewichteterMittelwert(unix, werte, von, bis, vollstaendig = false) {
   let flaeche = 0, dauer = 0;
   for (let i = 0; i + 1 < unix.length; i++) {
     const a = unix[i], b = unix[i + 1], va = werte[i], vb = werte[i + 1];
@@ -1621,7 +1659,74 @@ function zeitgewichteterMittelwert(unix, werte, von, bis) {
     flaeche += (f(lo) + f(hi)) / 2 * (hi - lo);
     dauer += hi - lo;
   }
+  if (vollstaendig && dauer < bis - von - 1) return null;   // Luecke im Fenster: kein Wert
   return dauer > 0 ? flaeche / dauer : null;
+}
+
+/* ---------- Vergleichskurven: gleitendes Mittel, Vorlaeufe, anderes Modell ----------
+   Jedes Diagramm hat genau EINE Vergleichskurve, mit der aktueller Lauf, Vorlaeufe und
+   das andere Modell verglichen werden:
+     2-m-Temperatur   gleitendes 24-h-Mittel des Ensemble-Mittels (Tagesgang herausgemittelt)
+     850 hPa          Ensemble-Mittel, ungeglaettet
+     Niederschlag     Ensemble-Mittel, aufsummiert ab Beginn des GEWAEHLTEN Laufs (aeltere
+                      Laeufe hatten bis dahin schon Regen "auf dem Konto"; davor keine Kurve) */
+const GLEITFENSTER_S = 24 * 3600;
+const VORLAUF_ABSTAENDE_H = [24, 48, 72];          // Laeufe gleicher Uhrzeit von gestern, vorgestern, vor drei Tagen
+const VORLAUF_STIL = ["", "7 4", "2 3"];            // Strichmuster je Alter (durchgezogen, gestrichelt, gepunktet)
+const PARTNER_MAX_ABSTAND_H = 12;                  // anderes Modell: Lauf hoechstens so viel aelter als der gewaehlte
+const initUnix = lauf => Date.parse(lauf.init) / 1000;
+const kurzLauf = lauf => `${lauf.init.slice(8, 10)}.${lauf.init.slice(5, 7)}., ${lauf.init.slice(11, 13)} UTC`;
+const anderesModell = id => MODELLE.find(m => m.id !== id);
+
+/** Gleitendes, zeitgewichtetes Mittel ueber ein zentriertes Fenster. Nur wo das Fenster
+ * vollstaendig in den Daten liegt -- an den Raendern (je 12 h) bleibt die Kurve leer. */
+function gleitendesMittel(unix, werte, fensterS = GLEITFENSTER_S) {
+  const h = fensterS / 2, a = unix[0], b = unix[unix.length - 1];
+  return unix.map(t => (t - h < a || t + h > b) ? null : zeitgewichteterMittelwert(unix, werte, t - h, t + h, true));
+}
+
+/** Wert einer Kurve zu einem beliebigen Zeitpunkt (linear zwischen Stuetzstellen). */
+function wertBei(unix, werte, t) {
+  for (let i = 0; i + 1 < unix.length; i++) {
+    if (t < unix[i] || t > unix[i + 1]) continue;
+    const a = werte[i], b = werte[i + 1];
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+    return unix[i + 1] === unix[i] ? a : a + (b - a) * (t - unix[i]) / (unix[i + 1] - unix[i]);
+  }
+  return unix.length && t === unix[unix.length - 1] && Number.isFinite(werte[werte.length - 1]) ? werte[werte.length - 1] : null;
+}
+
+/** Vergleichskurve eines Laufs fuer einen Bereich (siehe oben). "startUnix" ist der Beginn
+ * des gewaehlten Laufs; er zaehlt nur beim aufsummierten Niederschlag. */
+function vergleichsreihe(bereich, lauf, startUnix) {
+  const daten = datenAusLauf(bereich, lauf);
+  if (!daten.verfuegbar) return null;
+  const unix = daten.zeitpunkte_unix;
+  if (bereich.id === "temp2m") return { unix, werte: gleitendesMittel(unix, daten.mittel) };
+  if (bereich.akkumuliert) {
+    // Die Summe beginnt bei 0 zur eigenen Initialisierung; bis startUnix Gefallenes abziehen.
+    const u = [initUnix(lauf), ...unix], w = [0, ...daten.mittel];
+    const basis = startUnix <= u[0] ? 0 : wertBei(u, w, startUnix);
+    return { unix, werte: unix.map((t, i) => (t < startUnix || basis == null || !Number.isFinite(daten.mittel[i]))
+      ? null : Math.max(0, Math.round((daten.mittel[i] - basis) * 100) / 100)) };
+  }
+  return { unix, werte: daten.mittel };
+}
+
+/** Laeufe desselben Modells gleicher Uhrzeit 24/48/72 h vor dem gegebenen Lauf
+ * (nicht gespeicherte bleiben mit lauf: null in der Liste). */
+function vorlaeufeVon(lauf) {
+  const t0 = initUnix(lauf), liste = laeufeFuer(lauf.modell).filter(formatAktuell);
+  return VORLAUF_ABSTAENDE_H.map((h, k) => ({ stunden: h, strich: VORLAUF_STIL[k],
+    lauf: liste.find(l => initUnix(l) === t0 - h * 3600) || null }));
+}
+
+/** Passender Lauf des anderen Modells: der juengste, der nicht nach dem gewaehlten Lauf
+ * startete und hoechstens PARTNER_MAX_ABSTAND_H aelter ist (ECMWF hat nur 00/12 UTC). */
+function partnerLauf(lauf) {
+  const t0 = initUnix(lauf);
+  const liste = laeufeFuer(anderesModell(lauf.modell).id).filter(formatAktuell);
+  return liste.find(l => initUnix(l) <= t0 && t0 - initUnix(l) <= PARTNER_MAX_ABSTAND_H * 3600) || null;
 }
 
 /** Temperaturniveau: Mittel der beiden Ensemble-Mittelkurven (GFS und ECMWF
@@ -1742,18 +1847,38 @@ function statusHtml(lauf, daten) {
   (lauf.hinweise || []).forEach(h => meldungen.push(h));
   return meldungen.length ? `<div class="warnzeile">${meldungen.join(" · ")}</div>` : "";
 }
-function legendeEintraege(modellInfo, modellFarbe, daten, mitglieder) {
-  return [
-    { mark: markLinie(modellFarbe, false, 3), text: modellInfo.name + " Ensemble-Mittel" },
+/** Was die Haken im Bereich gerade bewirken (fuer Zeichnen, Legende und Tooltip). */
+function ansicht(bereich, z = ZUSTAND[bereich.id]) {
+  const vergleich = z.vorlaeufe || z.anderes;
+  // 2-m-Temperatur: Vergleiche laufen ueber das 24-h-Mittel, das dann mit angezeigt wird.
+  return { hauptlauf: z.hauptlauf, vorlaeufe: z.vorlaeufe, anderes: z.anderes,
+           glatt: bereich.id === "temp2m" && (z.glatt || vergleich) };
+}
+function legendeEintraege(bereich, modellInfo, modellFarbe, daten, lauf, a) {
+  const eintraege = [
+    { mark: markLinie(modellFarbe, false, a.glatt ? 1.5 : 3, a.glatt ? .75 : null), text: modellInfo.name + " Ensemble-Mittel" },
+    ...(a.glatt ? [{ mark: markLinie(modellFarbe, false, 3.2), text: "Gleitendes 24-h-Mittel" }] : []),
     { mark: markFlaeche(modellFarbe, .18), text: "10.–90. Perzentil" },
-    ...(daten.kontrolllauf ? [{ mark: markLinie("var(--ink)", true), text: "Kontrolllauf" }] : []),
-    ...(daten.hauptlauf ? [{ mark: markLinie("var(--ink)", false, 2.4), text: "Hauptlauf (deterministisch)" }] : []),
-    ...(mitglieder ? [{ mark: markLinie(modellFarbe, false, .8), text: "Einzelne Ensemblemitglieder" }] : []),
+    { mark: markLinie(modellFarbe, false, .8), text: "Einzelne Ensemblemitglieder" },
+    ...(a.hauptlauf && daten.kontrolllauf ? [{ mark: markLinie("var(--ink)", true), text: "Kontrolllauf" }] : []),
+    ...(a.hauptlauf && daten.hauptlauf ? [{ mark: markLinie("var(--ink)", false, 2.4), text: "Hauptlauf (deterministisch)" }] : []),
   ];
+  if (a.vorlaeufe) {
+    const da = vorlaeufeVon(lauf).filter(v => v.lauf);
+    da.forEach(v => eintraege.push({ mark: markLinie(modellFarbe, v.strich, 1.8, .9),
+      text: `Vorlauf ${kurzLauf(v.lauf)} (−${v.stunden} h)` }));
+    if (!da.length) eintraege.push({ mark: "", text: "Vorläufe: keine gespeichert" });
+  }
+  if (a.anderes) {
+    const p = partnerLauf(lauf), pm = anderesModell(modellInfo.id);
+    eintraege.push(p ? { mark: markLinie(bereichsfarbe(pm, bereich), false, 2.6), text: `${pm.name}, Lauf ${kurzLauf(p)}` }
+                     : { mark: "", text: `${pm.name}: kein passender Lauf gespeichert` });
+  }
+  return eintraege;
 }
 
 /* ---------- Feste Mindesthoehen: kein Layoutsprung beim Umschalten ----------
-   Jede Variante (beide Modelle, alle Laeufe, Mitglieder ein/aus) wird in einer
+   Jede Variante (beide Modelle, alle Laeufe, alle Haken gesetzt) wird in einer
    unsichtbaren Kopie des Elements mit derselben Breite gesetzt und gemessen.
    Die groesste Hoehe wird als Mindesthoehe festgelegt -- unabhaengig davon,
    welcher Zustand gerade gezeigt wird. */
@@ -1777,13 +1902,15 @@ function reserviereHoehen(bereich) {
 
   leiste.style.minHeight = messeHoehe(leiste, MODELLE, (probe, m) => {
     probe.innerHTML = "";
-    const zf = { modell: m.id, laufIndex: 0, mitglieder: true };
+    const zf = { modell: m.id, laufIndex: 0 };
     const g1 = document.createElement("div"), g2 = document.createElement("div");
     g1.className = g2.className = "schaltergruppe";
     modellwahlBauen(g1, bereich, zf);
     laufwahlBauen(g2, bereich, zf);
-    const schalter = $(`#mitgliederEin-${bereich.id}`).closest("label").cloneNode(true);
-    schalter.querySelector("input").removeAttribute("id");
+    const schalter = $(`#schalter-${bereich.id}`).cloneNode(true);
+    schalter.removeAttribute("id");
+    schalter.querySelectorAll("[id]").forEach(e => e.removeAttribute("id"));
+    schalter.querySelector(".anderes-name").textContent = anderesModell(m.id).name;
     probe.append(g1, g2, schalter);
   }) + "px";
 
@@ -1795,8 +1922,10 @@ function reserviereHoehen(bereich) {
     (probe, v) => { probe.innerHTML = v.lauf ? statusHtml(v.lauf, v.daten) : ""; }) + "px";
 
   const leg = $(`#leg-${bereich.id}`);
-  const legendenVarianten = alleLaeufe.filter(v => v.daten.verfuegbar).flatMap(v =>
-    [true, false].map(mit => legendeHtml(legendeEintraege(v.m, bereichsfarbe(v.m, bereich), v.daten, mit))));
+  // Die laengste Legende entsteht mit allen Haken gesetzt; sie bestimmt die Mindesthoehe.
+  const alleAn = ansicht(bereich, { hauptlauf: true, glatt: true, vorlaeufe: true, anderes: true });
+  const legendenVarianten = alleLaeufe.filter(v => v.daten.verfuegbar).map(v =>
+    legendeHtml(legendeEintraege(bereich, v.m, bereichsfarbe(v.m, bereich), v.daten, v.lauf, alleAn)));
   leg.style.minHeight = messeHoehe(leg, [""].concat(legendenVarianten), (probe, h) => { probe.innerHTML = h; }) + "px";
   return true;
 }
@@ -1846,6 +1975,15 @@ function zeichneBereich(bereich) {
   }
 
   const punkte = daten.zeiten.length;
+  const a = ansicht(bereich, z);
+  const t0 = initUnix(lauf);
+  // Vergleichskurven (nur berechnet, wenn der jeweilige Haken sie braucht)
+  const eigeneReihe = a.glatt ? vergleichsreihe(bereich, lauf, t0) : null;
+  const vorlaufReihen = a.vorlaeufe ? vorlaeufeVon(lauf).filter(v => v.lauf)
+    .map(v => ({ ...v, reihe: vergleichsreihe(bereich, v.lauf, t0) })).filter(v => v.reihe) : [];
+  const partner = a.anderes ? partnerLauf(lauf) : null;
+  const partnerModell = anderesModell(modellInfo.id);
+  const partnerReihe = partner ? vergleichsreihe(bereich, partner, t0) : null;
   const L = 46, R = 18, O = 28, U = 40;
   const iw = W - L - R, ih = H - O - U;
 
@@ -1921,6 +2059,32 @@ function zeichneBereich(bereich) {
     });
     return d.trim();
   };
+  // Pfad fuer Kurven mit eigenem Zeitraster (Vorlaeufe, anderes Modell): nach echter Zeit
+  // positioniert und am linken/rechten Diagrammrand sauber abgeschnitten.
+  const pfadZeit = (unix, werte) => {
+    let d = "", offen = false;
+    const punkt = (u, v) => { d += (offen ? "L" : "M") + xZeit(u).toFixed(1) + " " + y(v).toFixed(1) + " "; offen = true; };
+    for (let i = 0; i < unix.length; i++) {
+      const u = unix[i], v = werte[i];
+      if (!Number.isFinite(v)) { offen = false; continue; }
+      if (u < xMin) {
+        const n = unix[i + 1], vn = werte[i + 1];
+        if (n > xMin && Number.isFinite(vn)) punkt(xMin, v + (vn - v) * (xMin - u) / (n - u));
+        continue;
+      }
+      if (u > xMax) {
+        const vo = unix[i - 1], vv = werte[i - 1];
+        if (offen && vo < xMax && Number.isFinite(vv)) punkt(xMax, vv + (v - vv) * (xMax - vo) / (u - vo));
+        break;
+      }
+      punkt(u, v);
+    }
+    return d.trim();
+  };
+  const linie = (reihe, attr) => {
+    const d = pfadZeit(reihe.unix, reihe.werte);
+    if (d) svg.appendChild(el("path", { d, fill: "none", "stroke-linejoin": "round", "stroke-linecap": "round", ...attr, ...klemme }));
+  };
 
   // Unsicherheitsband 10.-90. Perzentil
   const oben = daten.p90, unten = daten.p10;
@@ -1940,26 +2104,32 @@ function zeichneBereich(bereich) {
     } else if (bandStart != null) bandZeichnen(i - 1);
   }
 
-  // Einzelne Ensemblemitglieder: duenne, transparente Linien
-  if (z.mitglieder) {
-    daten.mitglieder.forEach(serie => {
-      const d = pfad(serie);
-      if (d) svg.appendChild(el("path", { d, fill: "none", stroke: modellFarbe, "stroke-width": .8, opacity: .22, "stroke-linejoin": "round", "data-serie": "mitglied", ...klemme }));
-    });
-  }
+  // Einzelne Ensemblemitglieder: duenne, transparente Linien (immer sichtbar)
+  daten.mitglieder.forEach(serie => {
+    const d = pfad(serie);
+    if (d) svg.appendChild(el("path", { d, fill: "none", stroke: modellFarbe, "stroke-width": .8, opacity: .22, "stroke-linejoin": "round", "data-serie": "mitglied", ...klemme }));
+  });
 
-  // Ensemble-Mittel
+  // Ensemble-Mittel; mit gleitendem Mittel tritt es zurueck
   const dMittel = pfad(daten.mittel);
-  if (dMittel) svg.appendChild(el("path", { d: dMittel, fill: "none", stroke: modellFarbe, "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round", "data-serie": "ensemble-mittel", ...klemme }));
+  if (dMittel) svg.appendChild(el("path", { d: dMittel, fill: "none", stroke: modellFarbe, "stroke-width": a.glatt ? 1.5 : 3,
+    opacity: a.glatt ? .75 : null, "stroke-linejoin": "round", "stroke-linecap": "round", "data-serie": "ensemble-mittel", ...klemme }));
 
-  // Kontrolllauf
-  const dKontrolle = daten.kontrolllauf ? pfad(daten.kontrolllauf) : "";
+  // Vorlaeufe (gleiche Modellfarbe, Strichmuster nach Alter) und das andere Modell
+  vorlaufReihen.forEach(v => linie(v.reihe, { stroke: modellFarbe, "stroke-width": 1.8, opacity: .9,
+    "stroke-dasharray": v.strich || null, "data-serie": "vorlauf", "data-stunden": v.stunden }));
+  if (partnerReihe) linie(partnerReihe, { stroke: bereichsfarbe(partnerModell, bereich), "stroke-width": 2.6, "data-serie": "anderes-modell" });
+  // Gleitendes 24-h-Mittel des gewaehlten Laufs: die kraeftigste Linie
+  if (eigeneReihe) linie(eigeneReihe, { stroke: modellFarbe, "stroke-width": 3.2, "data-serie": "gleitendes-mittel" });
+
+  // Kontrolllauf (nur mit Haken "Haupt-/Kontrolllauf zeigen")
+  const dKontrolle = a.hauptlauf && daten.kontrolllauf ? pfad(daten.kontrolllauf) : "";
   if (dKontrolle) svg.appendChild(el("path", { d: dKontrolle, fill: "none", stroke: "var(--ink)", "stroke-width": 2, "stroke-dasharray": "7 3.5", "stroke-linecap": "round", "data-serie": "kontrolllauf", ...klemme }));
 
   // Deterministischer Hauptlauf -- nur eingebettet, wenn seine Initialisierung
   // exakt zum Ensemblelauf passt (das stellt schon sammeln_vorhersage.py sicher;
   // hier gilt nur noch: vorhanden -> zeichnen, sonst nicht).
-  if (daten.hauptlauf) {
+  if (a.hauptlauf && daten.hauptlauf) {
     const dHl = pfad(daten.hauptlauf);
     if (dHl) svg.appendChild(el("path", { d: dHl, fill: "none", stroke: "var(--ink)", "stroke-width": 2.4, "stroke-linecap": "round", "data-serie": "hauptlauf", ...klemme }));
   }
@@ -1998,8 +2168,11 @@ function zeichneBereich(bereich) {
   const werteZeilen = i => [
     `Ensemble-Mittel: ${nf(daten.mittel[i])} ${bereich.einheit}`,
     `10.–90. Perzentil: ${nf(daten.p10[i])}–${nf(daten.p90[i])} ${bereich.einheit}`,
-    daten.kontrolllauf ? `Kontrolllauf: ${nf(daten.kontrolllauf[i])} ${bereich.einheit}` : null,
-    daten.hauptlauf ? `Hauptlauf: ${nf(daten.hauptlauf[i])} ${bereich.einheit}` : null,
+    eigeneReihe ? `24-h-Mittel: ${nf(eigeneReihe.werte[i])} ${bereich.einheit}` : null,
+    a.hauptlauf && daten.kontrolllauf ? `Kontrolllauf: ${nf(daten.kontrolllauf[i])} ${bereich.einheit}` : null,
+    a.hauptlauf && daten.hauptlauf ? `Hauptlauf: ${nf(daten.hauptlauf[i])} ${bereich.einheit}` : null,
+    ...vorlaufReihen.map(v => `Lauf ${kurzLauf(v.lauf)}: ${nf(wertBei(v.reihe.unix, v.reihe.werte, xWerte[i]))} ${bereich.einheit}`),
+    partnerReihe ? `${partnerModell.name} (${kurzLauf(partner)}): ${nf(wertBei(partnerReihe.unix, partnerReihe.werte, xWerte[i]))} ${bereich.einheit}` : null,
     `Mitglieder mit Daten: ${daten.n[i]}/${lauf.mitglieder_n}`,
   ].filter(Boolean);
 
@@ -2041,7 +2214,7 @@ function zeichneBereich(bereich) {
         : "Zeitpunkt (Ortszeit, modellnahe 3-/6-h-Schritte)"));
   }
 
-  $(`#leg-${bereich.id}`).innerHTML = legendeHtml(legendeEintraege(modellInfo, modellFarbe, daten, z.mitglieder));
+  $(`#leg-${bereich.id}`).innerHTML = legendeHtml(legendeEintraege(bereich, modellInfo, modellFarbe, daten, lauf, a));
 
   const kontrolleKopf = daten.kontrolllauf ? `<th>Kontrolllauf (${bereich.einheit})</th>` : "";
   const tabellenZeile = (u, i) =>
@@ -2053,9 +2226,28 @@ function zeichneBereich(bereich) {
     + xWerte.map(tabellenZeile).join("") + `</tbody>`;
 }
 
+/** Haken auf den Zustand bringen. 2-m-Temperatur: Solange Vorlaeufe oder das andere
+ * Modell gezeigt werden, ist das gleitende 24-h-Mittel angehakt und gesperrt -- die
+ * Vergleiche laufen ueber diese Kurve. */
+function schalterAbgleichen(bereich) {
+  const z = ZUSTAND[bereich.id], id = bereich.id;
+  $(`#hauptlaufEin-${id}`).checked = z.hauptlauf;
+  $(`#vorlaeufeEin-${id}`).checked = z.vorlaeufe;
+  $(`#anderesEin-${id}`).checked = z.anderes;
+  $(`#schalter-${id} .anderes-name`).textContent = anderesModell(z.modell).name;
+  const g = $(`#glattEin-${id}`);
+  if (g) {
+    const gesperrt = z.vorlaeufe || z.anderes;
+    g.checked = z.glatt || gesperrt;
+    g.disabled = gesperrt;
+    g.closest("label").title = gesperrt
+      ? "Vorläufe und das andere Modell werden über das gleitende 24-h-Mittel verglichen." : "";
+  }
+}
 function bereichNeuZeichnen(bereich) {
   modellwahlZeichnen(bereich);
   laufwahlZeichnen(bereich);
+  schalterAbgleichen(bereich);
   zeichneBereich(bereich);
 }
 
@@ -2069,7 +2261,16 @@ function vorhersageLayouten() {
 }
 
 BEREICHE.forEach(bereich => {
-  $(`#mitgliederEin-${bereich.id}`).addEventListener("change", e => { ZUSTAND[bereich.id].mitglieder = e.target.checked; zeichneBereich(bereich); });
+  const z = ZUSTAND[bereich.id];
+  const haken = (name, setzen) => {
+    const eingabe = $(`#${name}Ein-${bereich.id}`);
+    if (eingabe) eingabe.addEventListener("change", e => { setzen(e.target.checked); schalterAbgleichen(bereich); zeichneBereich(bereich); });
+  };
+  haken("hauptlauf", an => { z.hauptlauf = an; });
+  haken("glatt", an => { z.glatt = an; });
+  // Wer vergleicht, bekommt das 24-h-Mittel dazu -- und behaelt es, bis er es selbst abwaehlt.
+  haken("vorlaeufe", an => { z.vorlaeufe = an; if (an && bereich.id === "temp2m") z.glatt = true; });
+  haken("anderes", an => { z.anderes = an; if (an && bereich.id === "temp2m") z.glatt = true; });
 });
 
 /* ======================================================================
@@ -2586,7 +2787,7 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { ko
 
 /* Test-Hook: reine Berechnungsfunktionen fuer automatisierte Tests freigeben.
    Aendert kein Verhalten der Seite selbst, wird von keiner UI-Funktion gelesen. */
-window.__TEST__ = { gemeinsamesP90Maximum, kopfzoneMessen, paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, formatAktuell, laufLabel, zeitachsenWerte, temperaturSkala, gemeinsameTemperaturwerte, bereichsfarbe,
+window.__TEST__ = { gleitendesMittel, wertBei, vergleichsreihe, vorlaeufeVon, partnerLauf, ansicht, gemeinsamesP90Maximum, kopfzoneMessen, paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, formatAktuell, laufLabel, zeitachsenWerte, temperaturSkala, gemeinsameTemperaturwerte, bereichsfarbe,
   ortsTeile, ortsMitternacht, ortsMitternaechte, zeitgewichteterMittelwert, temperaturNiveau, bezugslinieWert };
 
 

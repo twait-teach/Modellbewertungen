@@ -10,7 +10,7 @@ Stefanskirchen" beschrieben. Zu den beiden Mühldorf-Bereichen:
   **850-hPa-Temperatur** und **aufsummierter Niederschlag**, jeweils für **GFS** und **ECMWF-IFS** (das klassische
   physikalische Modell, nicht die KI-Variante AIFS). Jeder Bereich hat eine eigene, voneinander
   unabhängige Bedienleiste: Modellumschaltung, Auswahl eines gespeicherten Laufs (mit echtem Datum
-  und Uhrzeit, z. B. „aktuell · 18.09., 12 UTC"), eigener Schalter für die Einzelmitglieder, eigene
+  und Uhrzeit, z. B. „aktuell · 18.09., 12 UTC"), eigene Haken (siehe „Haken im Meteogramm“), eigene
   Legende, eigenes Diagramm und eigene Zahlentabelle. Unter jeder Überschrift steht ein Satz Kurzhinweis;
   die ausführliche Erklärung (Mitglieder, Mittel, Perzentilband, Kontroll-/Hauptlauf, Aufsummierung,
   Skala und Bezugslinie) liegt einklappbar unter dem Diagramm („Erklärung und Darstellung").
@@ -138,7 +138,7 @@ Ensemble-Statistik für immer; für das Meteogramm bedeutet das schlicht, dass f
 Dokument entsteht. Messwerte sind unkritisch: das DWD-Archiv reicht rund 500 Tage zurück, ältere
 Monatsdateien bleiben unabhängig davon erhalten (siehe unten, „Speicherung der Messwerte").
 
-**Für das Meteogramm** werden zudem nur die letzten 12 Läufe je Modell mit vollen
+**Für das Meteogramm** werden zudem nur die letzten 12 Läufe je Modell (GFS: 14) mit vollen
 Ensemblemitgliedern aufbewahrt (`skripte/sammeln_vorhersage.py`, Konstante `AUFBEWAHREN`) — ältere
 Laufdateien werden automatisch gelöscht. Das ist beabsichtigt: die Rohdaten mit 30–50 Mitgliedern
 pro Lauf müssen für den Laufvergleich nicht unbegrenzt archiviert werden.
@@ -186,6 +186,7 @@ tests/                        automatisierte Tests (pytest)
   test_zeitverarbeitung.py      Sommerzeit-Tests der Zeitverarbeitung (ohne Browser)
   test_handy.py                 Handy-Fassung: Bau, Trennung von app.html, Manifest, Symbole (ohne Browser)
   test_handy_browser.py         Handy-Fassung im Browser: Start, schlanke Ansicht, Zwei-Finger-Zoom (Playwright)
+  test_vergleichskurven.py      Haken im Meteogramm: gleitendes Mittel, Vorläufe, anderes Modell (Playwright)
   die übrigen Dateien           schnelle Tests ohne Browser
 .github/workflows/
   aktualisieren.yml             halbstündlicher Daten-Workflow (nur schnelle Tests, kein Chromium)
@@ -263,6 +264,23 @@ Zeitraum beider Modelle, GFS und ECMWF gleich gewichtet. Die „Bezugslinie" ist
 5-°C-Gitterlinie zu diesem Niveau (bei Gleichstand die höhere); enthält die Achse keine 5-°C-Linie,
 wird nur das Niveau genannt. Sie ist kein Grenzwert und enthält keine Bewertung wie „mild" oder „kalt".
 Sie ist grau gezeichnet, damit sie nicht mit dem schwarzen Hauptlauf verwechselt wird.
+
+**Haken im Meteogramm.** Jeder Bereich hat eigene Haken; die Einzelmitglieder sind immer zu sehen.
+- *Haupt-/Kontrolllauf zeigen* (an): die schwarzen Linien (GFS: Hauptlauf und Kontrolllauf, ECMWF-IFS: Hauptlauf).
+- *Gleitendes 24-h-Mittel zeigen* (nur 2-m-Temperatur): Ensemble-Mittel, zentriert über 24 Stunden zeitgewichtet
+  gemittelt; die ersten und letzten 12 Stunden bleiben leer.
+- *Vorläufe zeigen*: die Läufe desselben Modells zur gleichen Uhrzeit 24, 48 und 72 Stunden früher
+  (durchgezogen, gestrichelt, gepunktet), nach Gültigkeitszeit übereinandergelegt.
+- *„anderes Modell“ zeigen*: der Lauf des anderen Modells zur selben Startzeit (zu GFS 06/18 UTC der 6 Stunden
+  ältere ECMWF-Lauf).
+
+Verglichen wird je Bereich immer dieselbe **Vergleichskurve**: 2-m-Temperatur das gleitende 24-h-Mittel,
+850 hPa das ungeglättete Ensemble-Mittel, Niederschlag das Ensemble-Mittel aufsummiert erst ab Beginn des
+gewählten Laufs (davor keine Kurve). Bei der 2-m-Temperatur ist das 24-h-Mittel deshalb angehakt und gesperrt,
+solange Vorläufe oder das andere Modell gezeigt werden; danach bleibt es angehakt, bis man es abwählt. Die
+Temperaturachse berücksichtigt alle Vergleichskurven von vornherein, damit sie beim Anhaken nicht springt. Damit
+72 Stunden alte GFS-Läufe vorhanden sind, bewahrt `sammeln_vorhersage.py` beim GFS 14 statt 12 Läufe auf
+(`AUFBEWAHREN_JE_MODELL`).
 
 **Verspätete Läufe.** Ist der neueste gespeicherte Lauf eines Modells älter als 36 Stunden (Konstante
 `LAUF_VERALTET_H`), nennt die Statuszeile über dem Diagramm sein Alter.

@@ -74,6 +74,10 @@ LAT, LON = 48.2456, 12.5228
 TZ_NAME = "Europe/Berlin"
 OUT = Path(__file__).resolve().parent.parent / "daten" / "vorhersage"
 AUFBEWAHREN = 12  # so viele Laeufe je Modell werden mit vollen Mitgliederdaten behalten
+# Abweichungen je Modell: Die Seite vergleicht einen Lauf mit den Laeufen gleicher Uhrzeit
+# 24, 48 und 72 Stunden davor ("Vorlaeufe zeigen"). Beim GFS (alle 6 Stunden ein Lauf)
+# braucht das 13 Laeufe; 14 lassen einen Lauf Reserve.
+AUFBEWAHREN_JE_MODELL = {"gfs": 14}
 
 MODELLE = {
     "gfs": {
@@ -624,14 +628,14 @@ def ergaenze_hauptlauf(lauf, cfg, fehler):
 
 
 def aufraeumen(kurz):
-    """Nur die AUFBEWAHREN juengsten Laeufe je Modell behalten. Sortiert wird
+    """Nur die AUFBEWAHREN (bzw. AUFBEWAHREN_JE_MODELL) juengsten Laeufe je Modell behalten. Sortiert wird
     nicht nach Dateiname/Stunde, sondern nach der tatsaechlichen, im
     Dateinamen enthaltenen vollen Initialisierung (JJJJ-MM-TTThh) -- der
     Dateiname ist so gebaut, dass ein einfacher Textvergleich schon korrekt
     chronologisch sortiert (siehe dateiname())."""
     dateien = sorted(OUT.glob(f"{kurz}_*.json"), key=lambda p: p.name, reverse=True)
     entfernt = []
-    for pfad in dateien[AUFBEWAHREN:]:
+    for pfad in dateien[AUFBEWAHREN_JE_MODELL.get(kurz, AUFBEWAHREN):]:
         pfad.unlink()
         entfernt.append(pfad.name)
     return entfernt

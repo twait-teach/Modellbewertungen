@@ -394,7 +394,7 @@ def test_groessenaenderung_zeichnet_das_diagramm_neu(browser, reich):
 
 # ------------------------------------------------------------------ Kein Layoutsprung
 @pytest.mark.parametrize("breite", [390, 800, 1920])
-def test_kein_layoutsprung_beim_wechsel_von_modell_lauf_und_mitgliederschalter(browser, reich, breite):
+def test_kein_layoutsprung_beim_wechsel_von_modell_lauf_und_haken(browser, reich, breite):
     """Rahmenoberkante des Diagramms, Bedienleiste und Legende bleiben in JEDEM Zustand an derselben Stelle."""
     seite = _oeffnen(browser, reich["datei"], breite, 1200)
 
@@ -416,7 +416,9 @@ def test_kein_layoutsprung_beim_wechsel_von_modell_lauf_und_mitgliederschalter(b
                 seite.locator(f"#laufwahl-{bereich} button").nth(i).click()
                 seite.wait_for_timeout(30)
                 for an in (False, True):
-                    seite.locator(f"#mitgliederEin-{bereich}").set_checked(an)
+                    # alle Haken zugleich aus bzw. an (die laengste Legende entsteht mit allen)
+                    for haken in ("hauptlauf", "vorlaeufe", "anderes"):
+                        seite.locator(f"#{haken}Ein-{bereich}").set_checked(an)
                     seite.wait_for_timeout(30)
                     l = lage(bereich)
                     zustaende.append((modell, i, an, (l["leiste"], l["info"], l["status"], l["legende"], rahmen(bereich))))
