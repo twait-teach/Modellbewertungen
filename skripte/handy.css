@@ -1,0 +1,127 @@
+/* ============================================================================
+   WoazeWeather -- Handy-Ansicht
+   Wird von skripte/bauen.py NUR in docs/handy-app.html eingebaut, nie in die
+   normale Seite (docs/app.html). Alle Regeln haengen an body.handy.
+   ============================================================================ */
+
+:root{ --sonne:#e59f00 }
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){ --sonne:#f5b921 } }
+
+html{ -webkit-text-size-adjust:100% }
+body.handy{
+  padding-inline:12px;
+  padding-bottom:calc(64px + env(safe-area-inset-bottom, 0px));   /* Platz fuer die untere Leiste */
+  overflow-x:hidden;
+  -webkit-tap-highlight-color:transparent;
+}
+body.handy .wrap{ padding-block:8px 16px }
+
+/* ---------- Kopf: eine Zeile Titel, eine Zeile Stand ---------- */
+body.handy .kopf{ padding-bottom:2px; gap:0 12px }
+body.handy .kopf h1{ font-size:18px; flex:1 1 100% }
+/* Nur die Zeitangabe zeigen; Koordinaten und "Letzte Aktualisierung" ausblenden.
+   (Die Beschriftungen sind reiner Text -- Schriftgroesse 0, der Wert in <b> bleibt.) */
+body.handy .kopf .stand{ font-size:0; line-height:0; text-align:left; flex:1 1 100% }
+body.handy .kopf .stand b{ font-size:12px; line-height:1.4; min-width:0; color:var(--ink-2); font-weight:400 }
+body.handy .kopf .stand.nur-station #st-letzteAktualisierung{ display:none }
+body.handy .kopf .stand.nur-station #st-letzteMessung::before{ content:"Letzte Messung: "; color:var(--ink-3) }
+body.handy .kopfzone{ display:none }
+
+/* ---------- Unnoetiges ausblenden ---------- */
+body.handy .dachzeile,
+body.handy .kurzhinweis,
+body.handy details,
+body.handy footer{ display:none !important }
+body.handy .unterabschnitt{ margin-top:22px; padding-top:18px }
+
+/* ---------- Ueberschriften der Abschnitte ---------- */
+body.handy section{ margin-top:18px }
+body.handy section:first-of-type{ margin-top:6px }
+body.handy section > h2{ font-size:17px; margin:0 0 8px }
+/* Der Name des Reiters steht schon in der unteren Leiste */
+body.handy #seite-station-verlauf > section > h2,
+body.handy #seite-wetter48 > section > h2{ display:none }
+/* Station heute: Datum und Heute/Gestern in einer Zeile */
+body.handy #seite-station-heute > section{ display:grid; grid-template-columns:1fr auto; align-items:center; column-gap:10px }
+body.handy #seite-station-heute > section > *{ grid-column:1 / -1 }
+body.handy #seite-station-heute > section > h2{ grid-column:1; grid-row:1; margin:0 0 10px }
+body.handy #seite-station-heute > section > .bedienleiste{ grid-column:2; grid-row:1; margin:0 0 10px }
+body.handy .bedienleiste{ margin-bottom:10px; gap:8px 10px }
+body.handy .schaltergruppe button{ padding:9px 14px; font-size:13px }
+
+/* ---------- Kennzahlen: drei Spalten, kleiner ---------- */
+body.handy .kacheln{ grid-template-columns:repeat(3,1fr); margin-bottom:10px }
+body.handy .kachel{ padding:8px 10px; min-width:0 }
+body.handy .kachel .k-label{ font-size:9.5px; letter-spacing:.03em }
+body.handy .kachel .k-zahl{ font-size:19px; line-height:1.25 }
+body.handy .kachel .k-fuss{ font-size:11px; line-height:1.3 }
+/* Bleibt in der letzten Reihe Platz, wird die letzte Kachel breiter (statt einer grauen Luecke). */
+body.handy .kacheln > .kachel:last-child:nth-child(3n+1){ grid-column:span 3 }
+body.handy .kacheln > .kachel:last-child:nth-child(3n+2){ grid-column:span 2 }
+body.handy #kacheln-wetter48{ margin-bottom:10px }
+[id^="seite-station"] .kacheln{ margin-bottom:10px }
+
+/* ---------- Diagramme: randlos, gross, gut lesbar ---------- */
+body.handy .diagrammtitel{ margin:10px 0 4px; font-size:13px }
+body.handy .plot{
+  margin-inline:-12px; border-radius:0; border-inline:none; box-shadow:none;
+  padding:8px 10px 4px;
+  touch-action:pan-x pan-y;                       /* Pinch gehoert dem Diagramm, nicht dem Browser */
+}
+body.handy .st-plot{ padding:8px 10px 2px }
+body.handy .st-plot svg{ touch-action:pan-y }     /* Wischen erlaubt Tooltip, Zwei-Finger-Zoom laeuft ueber Skript */
+body.handy .st-plot .ax{ font-size:11.5px }
+body.handy #plot-wetter48{ margin-inline:-12px; border-radius:0; border-inline:none; box-shadow:none; padding:10px 8px 4px }
+body.handy .laufinfo{ font-size:11.5px }
+body.handy .legende{ margin-bottom:8px }
+body.handy .leg{ font-size:12px }
+
+/* Zoom zuruecksetzen (wird vom Skript eingesetzt) */
+body.handy .diagrammtitel{ position:relative; min-height:28px }
+body.handy .ww-zurueck{
+  position:absolute; right:12px; top:-1px; z-index:2;
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; font-weight:500;
+  background:var(--panel); color:var(--ink); border:1px solid var(--rule); border-radius:4px;
+  padding:4px 9px; cursor:pointer;
+}
+body.handy .ww-zurueck[hidden]{ display:none !important }
+body.handy .ww-hinweis{ margin:6px 0 0; font-size:11.5px; color:var(--ink-3); text-align:center }
+body.handy .ww-hinweis[hidden]{ display:none !important }
+
+/* ---------- Untere Leiste statt Reiter oben ---------- */
+body.handy nav.hauptnav{
+  position:fixed; left:0; right:0; bottom:0; z-index:40; margin:0;
+  display:flex; gap:0; overflow:visible;
+  background:var(--panel); border-top:1px solid var(--rule); border-bottom:none;
+  padding:0 0 env(safe-area-inset-bottom, 0px);
+}
+body.handy nav.hauptnav a{
+  flex:1 1 0; min-width:0; margin:0; padding:11px 2px 10px; text-align:center;
+  font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif; letter-spacing:0; text-transform:none;
+  font-size:0; font-weight:500; color:var(--ink-3);
+  background:transparent; border:none; border-top:3px solid transparent; border-radius:0;
+}
+/* Kurze Beschriftungen (die langen bleiben fuer Screenreader im Text) */
+body.handy nav.hauptnav a::after{ font-size:12px; line-height:1.2 }
+body.handy nav.hauptnav a[data-seite="station-heute"]{ order:1 }
+body.handy nav.hauptnav a[data-seite="station-heute"]::after{ content:"Heute" }
+body.handy nav.hauptnav a[data-seite="station-verlauf"]{ order:2 }
+body.handy nav.hauptnav a[data-seite="station-verlauf"]::after{ content:"Verlauf" }
+body.handy nav.hauptnav a[data-seite="wetter48"]{ order:3 }
+body.handy nav.hauptnav a[data-seite="wetter48"]::after{ content:"48 Std." }
+body.handy nav.hauptnav a[data-seite="vorhersage"]{ order:4 }
+body.handy nav.hauptnav a[data-seite="vorhersage"]::after{ content:"Vorhersage" }
+body.handy nav.hauptnav a[data-seite="analyse"]{ order:5 }
+body.handy nav.hauptnav a[data-seite="analyse"]::after{ content:"Analyse" }
+body.handy nav.hauptnav a[aria-current="page"]{
+  color:var(--ink); background:transparent; border:none; border-top:3px solid var(--sonne);
+}
+body.handy nav.hauptnav a[aria-current="page"]::after{ font-weight:600 }
+
+/* ---------- Analyse-Seite: nie breiter als der Bildschirm ---------- */
+body.handy #seite-analyse{ max-width:100% }
+body.handy .tabellenhuelle{ margin-inline:-12px; padding-inline:12px }
+/* Tabellen duerfen schmaler werden statt die Seite aufzuweiten */
+body.handy table{ min-width:0; font-size:12.5px }
+body.handy th, body.handy td{ padding:7px 6px }
+body.handy thead th{ white-space:normal; letter-spacing:.02em }

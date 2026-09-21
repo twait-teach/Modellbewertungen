@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#f4f6f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11161b" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="handy/manifest.webmanifest">
+<link rel="icon" type="image/png" href="handy/symbol-192.png">
+<title>WoazeWeather</title>
+<style>body{font-family:system-ui,sans-serif;margin:24px;color:#4a5a68;background:#f4f6f7}@media (prefers-color-scheme:dark){body{background:#11161b;color:#a3b2be}}</style>
+</head><body>
+<p>WoazeWeather wird geladen …</p>
+<script>location.replace('handy-app.html?v=' + Date.now() + (location.hash || '#station-heute'));</script>
+<noscript><p><a href="handy-app.html#station-heute">Zur Wetterseite</a></p></noscript>
+</body></html>
