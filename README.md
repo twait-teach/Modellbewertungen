@@ -123,7 +123,14 @@ Feld leer — **nie ein geschätzter Wert**.
 
 Vergangene **Hauptläufe** (für die tagesgenaue Analyse) lassen sich bei open-meteo rückwirkend
 abrufen, rund 90 Tage weit. Genau daher stammt die Vorgeschichte in `daten/history_*.json`, und
-`skripte/historie.py` schließt damit auch Lücken.
+`skripte/historie.py` schließt damit auch Lücken. Jeder Abruf wird mit dem Bestand **zusammengeführt**:
+Tage, die aus dem 90-Tage-Fenster der API fallen, bleiben dauerhaft erhalten (bis 09/2026 wurde die Datei
+jedes Mal ersetzt; die dabei verlorenen Tage 14.–19.06.2026 stehen in `history_*_nachtrag.json` und werden
+beim nächsten Lauf übernommen).
+
+**Tägliche Ensemble-Kennzahlen** (`daten/forecasts_*.json`, eine Datei je Tag mit Hauptlauf, Ensemble-Mittel
+und Perzentilen für 14 Vorlaufzeiten) werden nie gelöscht. Die Seite bettet Messwerte der letzten 14 Monate
+ein (`MONATE_RUECKWAERTS` in `bauen.py`), also genug für eine volle Jahresauswertung.
 
 **Ensembles gibt es nur live** — sowohl für die tagesgenaue Analyse als auch für das
 Meteogramm auf der Vorhersage-Seite. Ein Lauf, der ausfällt oder falsch erkannt wird, fehlt in der

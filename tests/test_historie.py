@@ -96,3 +96,16 @@ def test_erzwingen_hebt_uhrzeit_und_stand_auf(umgebung, tmp_path):
     _stand_schreiben(tmp_path, "ecmwf", "2026-09-19")
     historie.main(["--erzwingen"], jetzt=dt.datetime(2026, 9, 19, 6, 0, tzinfo=UTC))
     assert sorted(umgebung) == ["ecmwf_ifs025", "gfs_seamless"]
+
+
+def test_aeltere_tage_bleiben_beim_neuen_abruf_erhalten(umgebung, tmp_path):
+    """Die API liefert nur ~92 Tage; was herausfaellt, darf nicht verloren gehen."""
+    (tmp_path / "history_gfs.json").write_text(json.dumps({"modell": "gfs", "stand": "2026-09-18",
+        "tage": {"2025-01-05": {"1": 3.2, "5": 1.0}, "2026-09-17": {"1": 9.9}}}), encoding="utf-8")
+    (tmp_path / "history_gfs_nachtrag.json").write_text(json.dumps({"tage": {"2024-12-31": {"1": 0.5}}}), encoding="utf-8")
+    historie.main(["--erzwingen"], jetzt=dt.datetime(2026, 9, 19, 13, 0, tzinfo=UTC))
+    tage = json.loads((tmp_path / "history_gfs.json").read_text(encoding="utf-8"))["tage"]
+    assert tage["2025-01-05"] == {"1": 3.2, "5": 1.0}            # alter Tag bleibt
+    assert tage["2024-12-31"] == {"1": 0.5}                       # Nachtrag uebernommen
+    assert tage["2026-09-17"]["1"] == 2.4 and tage["2026-09-18"]["7"] == 2.4   # neu geliefert ersetzt/ergaenzt
+    assert list(tage) == sorted(tage)

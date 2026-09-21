@@ -106,9 +106,9 @@ def handy_seite(seite, css, js):
 
 
 # Wie weit die Messreihe in die Seite soll. Aelteres bleibt im Repo erhalten,
-# wird aber nicht eingebettet -- die Auswertung reicht ohnehin nur so weit
-# zurueck, wie es Vorhersagen gibt (rund 90 Tage).
-MONATE_RUECKWAERTS = 8
+# wird aber nicht eingebettet. 14 Monate: genug fuer eine volle Jahresauswertung
+# (Hauptlauf-Historie und taegliche Ensemble-Kennzahlen werden dauerhaft gesammelt).
+MONATE_RUECKWAERTS = 14
 
 
 def meteogrammlauf_anzeigbar(lauf):

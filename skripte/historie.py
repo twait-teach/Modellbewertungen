@@ -6,6 +6,12 @@ Liefert fuer die letzten ~90 Tage, was GFS bzw. ECMWF mit 1 bis 7 Tagen Vorlauf
 fuer jeden Tag vorhergesagt hatten. Damit ist die Guete der HAUPTLAEUFE sofort
 auswertbar, statt erst ueber Monate zu wachsen.
 
+Dauerhafte Zeitreihe: Jeder Abruf wird mit dem bisherigen Bestand ZUSAMMENGEFUEHRT,
+nicht ueberschrieben. Tage, die aus dem 92-Tage-Fenster der API herausfallen, bleiben
+dadurch erhalten; nur Tage, die der aktuelle Abruf liefert, werden (identisch)
+erneuert. Eine optionale Datei history_<modell>_nachtrag.json wird ebenfalls
+uebernommen (einmaliger Nachtrag frueher verlorener Tage).
+
 Wichtige Grenze: Die Previous-Runs-API kennt keine Ensembles. Die Ensemble-Mittel
 haben diese Historie also NICHT -- ihre Statistik beginnt mit dem ersten taeglichen
 Lauf. Ein Vergleich Hauptlauf gegen Ensemble ueber unterschiedlich lange Zeitraeume
@@ -34,7 +40,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gemeinsam import stunden_im_ortstag  # noqa: E402
+from gemeinsam import atomar_schreiben, stunden_im_ortstag  # noqa: E402
 
 LAT, LON = 48.2456, 12.5228
 TZ_NAME = "Europe/Berlin"
@@ -102,6 +108,24 @@ def veraltete_modelle(jetzt, erzwingen=False):
     return [kurz for kurz in MODELLE if (stand_der_datei(kurz) or "") < heute]
 
 
+def vorhandene_tage(kurz):
+    """Bisheriger Bestand: Tage aus history_<kurz>.json und (falls vorhanden)
+    history_<kurz>_nachtrag.json. Fehlende oder unlesbare Dateien zaehlen als leer."""
+    tage = {}
+    for name in (f"history_{kurz}_nachtrag.json", f"history_{kurz}.json"):
+        try:
+            d = json.loads((OUT / name).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        alt = d.get("tage") if isinstance(d, dict) else None
+        if not isinstance(alt, dict):
+            continue
+        for tag, werte in alt.items():
+            if isinstance(werte, dict):
+                tage.setdefault(tag, {}).update(werte)
+    return tage
+
+
 def aktualisiere(kurz, heute):
     modell_id = MODELLE[kurz]
     spalten = [f"precipitation_previous_day{i}" for i in LEADS]
@@ -110,7 +134,9 @@ def aktualisiere(kurz, heute):
     h = d["hourly"]
     je_lead = {lead: tagessummen(h["time"], h[f"precipitation_previous_day{lead}"]) for lead in LEADS}
 
-    tage = {}
+    # Mit dem Bestand zusammenfuehren: aeltere Tage bleiben, neu gelieferte ersetzen.
+    tage = vorhandene_tage(kurz)
+    vorher = len(tage)
     for lead, werte in je_lead.items():
         for tag, v in werte.items():
             # nur abgeschlossene Tage: heute laeuft noch
@@ -118,15 +144,19 @@ def aktualisiere(kurz, heute):
                 continue
             tage.setdefault(tag, {})[str(lead)] = v
 
+    if not tage:
+        print(f"{kurz}: keine Tage erhalten — Datei bleibt unverändert")
+        return
     pfad = OUT / f"history_{kurz}.json"
-    pfad.write_text(json.dumps({
+    atomar_schreiben(pfad, json.dumps({
         "modell": kurz,
         "quelle": "open-meteo Previous-Runs-API, Hauptlauf, stündliche Werte zu Tagessummen 00–24 Uhr Ortszeit",
         "leads": list(LEADS),
         "stand": heute.isoformat(),
         "tage": dict(sorted(tage.items())),
-    }, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    print(f"{kurz}: {len(tage)} Tage ({min(tage)} bis {max(tage)}), {pfad.stat().st_size} Bytes")
+    }, ensure_ascii=False, separators=(",", ":")))
+    print(f"{kurz}: {len(tage)} Tage ({min(tage)} bis {max(tage)}), davon {len(tage) - vorher} neu, "
+          f"{pfad.stat().st_size} Bytes")
 
 
 def main(argv=None, jetzt=None):

@@ -2174,7 +2174,9 @@ function zeichneGuete() {
     const diff = Math.abs(e1.mae - g1.mae);
     txt += `<p>Bei einem Tag Vorlauf liegt <strong>${besser}</strong> vorn: ${nf(Math.min(e1.mae, g1.mae), 2)} gegen ${nf(Math.max(e1.mae, g1.mae), 2)} mm mittlerer Fehler — ein Unterschied von ${nf(diff, 2)} mm über ${e1.n} Tage.</p>`;
   }
-  txt += `<p>Die Hauptläufe haben eine Vorgeschichte von rund drei Monaten, weil sich vergangene Modellläufe nachträglich abrufen lassen. <strong>Für die Ensemble-Mittel gilt das nicht</strong> — für sie ${ensTage === 0 ? "liegt noch kein abgeschlossener Tag vor" : `sind es bisher ${ensTage} Tag${ensTage > 1 ? "e" : ""}`}. Die Spalte „Tage" nennt jeweils die Fallzahl, auf der ein Wert beruht.</p>`;
+  const hlTage = Object.keys(hist("ecmwf")).concat(Object.keys(hist("gfs"))).sort();
+  const hlAb = hlTage.length ? hlTage[0].split("-").reverse().join(".") : null;
+  txt += `<p>Für die Hauptläufe reicht die Reihe ${hlAb ? `bis zum ${hlAb} zurück` : "noch nicht zurück"}, weil sich vergangene Modellläufe rund drei Monate nachträglich abrufen lassen; seitdem wird sie fortlaufend ergänzt. <strong>Für die Ensemble-Mittel gilt das nicht</strong> — sie werden erst seit Beginn der täglichen Erfassung gesammelt; bisher ${ensTage === 0 ? "liegt noch kein abgeschlossener Tag vor" : `sind es ${ensTage} Tag${ensTage > 1 ? "e" : ""}`}. Die Spalte „Tage" nennt jeweils die Fallzahl, auf der ein Wert beruht.</p>`;
   $("#befund-guete").innerHTML = txt;
 }
 
