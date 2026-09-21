@@ -89,9 +89,12 @@ section > h2{
 .hinweis strong{color:var(--ink); font-weight:600}
 .kurzhinweis{color:var(--ink-2); font-size:14px; margin:0 0 16px}
 
-/* ---------- Einklappbare Erklaerungen ---------- */
-details.erklaerung{margin-top:14px; border:1px solid var(--rule); border-radius:3px; background:var(--panel); padding:10px 16px}
-details.erklaerung > summary{color:var(--ink)}
+/* ---------- Einklappbare Bereiche (Erklaerung, Tabellen) ----------
+   Ein einheitliches Aussehen fuer alle Reiter: schlichter Kasten, zurueckhaltende Beschriftung. */
+details{margin-top:12px; border:1px solid var(--rule); border-radius:3px; background:var(--panel); padding:9px 16px}
+summary{cursor:pointer; font-size:13px; color:var(--ink-2); font-weight:500}
+summary:hover, details[open] > summary{color:var(--ink)}
+summary:focus-visible{outline:2px solid var(--ecmwf); outline-offset:3px; border-radius:2px}
 .erklaerungstext{max-width:1080px; margin-top:8px; font-size:13.5px; color:var(--ink-2)}
 .erklaerungstext p{margin:0 0 10px}
 .erklaerungstext p:last-child{margin-bottom:0}
@@ -112,6 +115,8 @@ details.erklaerung > summary{color:var(--ink)}
 .schaltergruppe button:disabled:hover{background:transparent; color:var(--ink-2)}
 .laufinfo{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; color:var(--ink-2); min-height:18px}
 .laufinfo b{color:var(--ink); font-weight:500}
+/* Technische Nebenangaben (Verfuegbarkeit, Abrufzeit) treten optisch zurueck. */
+.laufinfo .neben{color:var(--ink-3)}
 .mitgliederschalter{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-2); margin-left:auto}
 .mitgliederschalter input{accent-color:var(--ink)}
 .warnzeile{
@@ -139,7 +144,8 @@ details.erklaerung > summary{color:var(--ink)}
   background:var(--panel); border:1px solid var(--rule); border-radius:3px;
   padding:16px 14px 10px; overflow-x:auto; box-shadow:var(--schatten);
 }
-.plot svg{display:block; min-width:640px; width:100%; height:auto}
+/* Alle Diagramme werden auf die tatsaechliche Breite gezeichnet (Schrift unskaliert). */
+.plot svg{display:block; width:100%; height:auto}
 text{font-family:"IBM Plex Mono",ui-monospace,monospace}
 .ax{fill:var(--ink-3); font-size:10.5px}
 .axl{fill:var(--ink-2); font-size:10.5px; font-weight:500}
@@ -173,11 +179,6 @@ td.besser{font-weight:600}
 .pill-warn{background:color-mix(in srgb,var(--warn) 18%,transparent); color:var(--warn)}
 .pill-schlecht{background:color-mix(in srgb,var(--schlecht) 16%,transparent); color:var(--schlecht)}
 
-details{margin-top:14px; border-top:1px solid var(--rule-soft); padding-top:10px}
-summary{cursor:pointer; font-size:13px; color:var(--ink-2); font-weight:500}
-summary:hover{color:var(--ink)}
-summary:focus-visible{outline:2px solid var(--ecmwf); outline-offset:3px; border-radius:2px}
-
 /* ---------- Befund-Block ---------- */
 .befund{
   border-left:3px solid var(--ecmwf); background:var(--panel); border-top:1px solid var(--rule);
@@ -191,6 +192,8 @@ summary:focus-visible{outline:2px solid var(--ecmwf); outline-offset:3px; border
 /* ---------- Unterabschnitte der Analyse ---------- */
 .unterabschnitt{margin-top:36px; padding-top:28px; border-top:1px solid var(--rule)}
 .unterabschnitt > .dachzeile{margin-top:0}
+/* Streudiagramm: quadratnah und nicht breiter als 620 px, sonst wird es riesig */
+#chart-streu-witterung{max-width:620px}
 
 /* ---------- Tooltip ---------- */
 #tip{
@@ -207,13 +210,6 @@ footer p{margin:0 0 6px; max-width:78ch}
 footer a{color:var(--ink-2)}
 .status{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; color:var(--ink-3); margin-top:10px}
 
-@media (max-width:560px){
-  .kopf .stand{text-align:left}
-  .wrap{padding-block:12px 48px}
-  section{margin-top:34px}
-  nav.hauptnav a{padding:8px 11px 9px; font-size:11.5px}
-  .mitgliederschalter{margin-left:0; width:100%; order:9}
-}
 @media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
 
 /* ---------- Wetterstation Stefanskirchen (Reiter "Station heute" / "Station Verlauf") ---------- */
@@ -238,7 +234,6 @@ body:not([data-seite]) [data-fuer~="vorhersage"]{display:revert!important}
    Ihre Hoehe wird einmal aus allen Varianten gemessen und festgehalten, damit die
    Reiterleiste beim Wechsel nicht springt (kopfzoneMessen im Skript unten). */
 .kopfzone{position:relative}
-.kopf{box-sizing:border-box}
 .nur-station{display:none!important}
 body[data-seite^="station"] .nur-station{display:revert!important}
 body[data-seite^="station"] .nur-haupt{display:none!important}
@@ -254,14 +249,15 @@ body[data-seite^="station"] .nur-station[hidden]{display:none!important}
 .st-plot svg{min-width:0; touch-action:pan-y}
 .leer{fill:var(--ink-3); font-size:12px}
 td.luecke{color:var(--ink-3)}
-.erklaerungstext p{margin:8px 0}
-[id^="seite-station"] .kacheln{margin-bottom:18px}
-[id^="seite-station"] details{border:1px solid var(--rule); border-radius:3px; background:var(--panel); padding:10px 16px}
-/* ---------- Reiter "48h Wetter" ---------- */
+/* Kennzahlen ueber Diagrammen: ueberall derselbe Abstand */
+[id^="seite-station"] .kacheln, #kacheln-wetter48{margin-bottom:16px}
+/* ---------- Reiter "48h Wetter" ----------
+   Gleiche Farbsprache wie die Wetterstation: Temperatur roetlich, Niederschlag blau.
+   (Die Modellfarben bleiben der Unterscheidung GFS/ECMWF vorbehalten.) */
 .w-nacht{fill:color-mix(in srgb,var(--ink) 6%,transparent)}
-.w-band{fill:var(--band)}
-.w-linie{fill:none; stroke:var(--mess); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round}
-.w-regen{fill:var(--ecmwf); opacity:.55}
+.w-band{fill:var(--temp-band)}
+.w-linie{fill:none; stroke:var(--temp); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round}
+.w-regen{fill:var(--regen); opacity:.6}
 .wsym{stroke-linecap:round}
 .w-wolke{fill:color-mix(in srgb,var(--ink-3) 55%,transparent)}
 .w-sonne{fill:var(--warn)}
@@ -270,18 +266,45 @@ td.luecke{color:var(--ink-3)}
 .w-schnee{stroke:var(--ecmwf); stroke-width:1.3}
 .w-nebel{stroke:var(--ink-3); stroke-width:1.3}
 .w-blitz{fill:var(--warn)}
-#plot-wetter48{background:var(--panel); border:1px solid var(--rule); border-radius:3px; padding:14px 12px 8px; box-shadow:var(--schatten)}
-#plot-wetter48 svg{display:block; width:100%; height:auto; min-width:0}
-#kacheln-wetter48{margin-bottom:16px}
 
-/* Reiter: auf schmalen Bildschirmen seitlich wischen statt umbrechen */
+/* Reiter: auf mittleren Breiten seitlich wischen statt umbrechen */
 nav.hauptnav{overflow-x:auto; scrollbar-width:none}
 nav.hauptnav::-webkit-scrollbar{display:none}
 nav.hauptnav a{white-space:nowrap; flex:none}
+
+/* ---------- Schmale Bildschirme (normale Seite am Handy) ----------
+   Alle Regeln fuer schmale Breiten an EINER Stelle. Die Handy-Fassung (handy.css)
+   baut darauf auf und ersetzt nur die Reiterleiste. */
 @media (max-width:560px){
-  /* Handy: vier Reiter als 2x2-Raster, damit keiner hinter dem Rand verschwindet */
-  nav.hauptnav{display:grid; grid-template-columns:1fr 1fr; gap:6px; border-bottom:none; overflow:visible}
-  nav.hauptnav a{text-align:center; border:1px solid var(--rule); border-radius:3px; margin:0; padding:9px 6px; background:var(--panel)}
+  body{padding-inline:14px}
+  .wrap{padding-block:10px 40px}
+  .kopf{gap:4px 16px}
+  .kopf .stand{text-align:left}
+  .kopf .stand .koord{display:none}
+  .unterzeile{font-size:13.5px; margin-top:4px}
+  section{margin-top:30px}
+  section > h2{font-size:18px}
+  .kurzhinweis{font-size:13.5px; margin-bottom:12px}
+  .bedienleiste{gap:8px 10px; margin-bottom:10px}
+  .schaltergruppe button{padding:7px 10px}
+  .mitgliederschalter{margin-left:0; width:100%; order:9}
+  /* Laufwahl: "aktuell" steckt im Tooltip, die Knoepfe bleiben zweizeilig kompakt */
+  .laufwahl-aktuell{display:none}
+  /* Laufinfo: nur Modell, Lauf, Mitglieder und Horizont; Technisches entfaellt */
+  .laufinfo .neben{display:none}
+  .laufstatus{margin-bottom:10px}
+  .legende{gap:4px 14px; margin-bottom:10px}
+  .plot{padding:10px 8px 6px}
+  .kachel{padding:10px 12px}
+  .kachel .k-zahl{font-size:21px}
+  .kacheln{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+  /* Reiter: kurze Namen in zwei Reihen (drei oben, zwei unten), nichts verschwindet am Rand */
+  nav.hauptnav{display:grid; grid-template-columns:repeat(6,1fr); gap:6px; border-bottom:none; overflow:visible; margin-top:12px}
+  nav.hauptnav a{grid-column:span 2; text-align:center; border:1px solid var(--rule); border-radius:3px; margin:0;
+    padding:8px 4px; background:var(--panel); font-size:0}
+  nav.hauptnav a::after{content:attr(data-kurz); font-size:11.5px}
+  nav.hauptnav a[data-seite="analyse"]{order:1}
+  nav.hauptnav a[data-seite^="station"]{order:2; grid-column:span 3}
   nav.hauptnav a[aria-current="page"]{background:var(--ink); color:var(--panel); border-color:var(--ink)}
 }
 </style>
@@ -294,7 +317,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
     </h1>
     <div class="stand nur-haupt">
       <b id="standDatum">–</b>
-      Station 03366 · 48,279° N 12,502° E · 406 m ü. NN
+      DWD-Station 03366 <span class="koord">· 48,279° N 12,502° E </span>· 406 m ü. NN
     </div>
     <div class="stand nur-station">
       Letzte Messung: <b id="st-letzteMessung">–</b><br>
@@ -306,7 +329,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
     Ensemble-Meteogramme von <strong>GFS</strong> und <strong>ECMWF-IFS</strong> für die DWD-Station Mühldorf am Inn.
   </p>
   <p class="unterzeile" data-fuer="wetter48">
-    Temperatur, Niederschlag und Wetter der nächsten 48 Stunden aus dem aktuellen Lauf.
+    Temperatur, Niederschlag und Wetter der nächsten 48 Stunden (Hauptlauf und Ensemble).
   </p>
   <p class="unterzeile" data-fuer="analyse">
     Wie genau frühere Niederschlagsvorhersagen waren — gemessen an der DWD-Station Mühldorf am Inn.
@@ -316,11 +339,11 @@ nav.hauptnav a{white-space:nowrap; flex:none}
   </p>
   </div>
   <nav class="hauptnav" id="hauptnav">
-    <a href="#vorhersage" data-seite="vorhersage">Vorhersage Mühldorf</a>
-    <a href="#wetter48" data-seite="wetter48">48h Wetter</a>
-    <a href="#station-heute" data-seite="station-heute">Station heute</a>
-    <a href="#station-verlauf" data-seite="station-verlauf">Station Verlauf</a>
-    <a href="#analyse" data-seite="analyse">Niederschlagsanalyse</a>
+    <a href="#vorhersage" data-seite="vorhersage" data-kurz="Vorhersage">Vorhersage Mühldorf</a>
+    <a href="#wetter48" data-seite="wetter48" data-kurz="48 Std.">48h Wetter</a>
+    <a href="#station-heute" data-seite="station-heute" data-kurz="Station heute">Station heute</a>
+    <a href="#station-verlauf" data-seite="station-verlauf" data-kurz="Station Verlauf">Station Verlauf</a>
+    <a href="#analyse" data-seite="analyse" data-kurz="Analyse">Niederschlagsanalyse</a>
   </nav>
 
   <!-- Hinweise stehen unter der Reiterleiste, damit deren Position nie springt. -->
@@ -337,7 +360,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
 
     <section id="s-temp2m">
       <p class="dachzeile">Ensemble-Meteogramm</p>
-      <h2>2-m-Temperatur über den Vorhersagezeitraum</h2>
+      <h2>2-m-Temperatur</h2>
       <p class="kurzhinweis">
         Bodennahe Lufttemperatur (2 m) als Ensemble-Meteogramm, für GFS und ECMWF-IFS auf derselben Temperaturskala.
       </p>
@@ -347,7 +370,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
         <div class="schaltergruppe" id="laufwahl-temp2m" role="group" aria-label="Modelllauf"></div>
         <label class="mitgliederschalter">
           <input type="checkbox" id="mitgliederEin-temp2m" checked>
-          Einzelne Läufe zeigen
+          Einzelne Mitglieder zeigen
         </label>
       </div>
       <div class="laufinfo" id="laufinfoZeile-temp2m"></div>
@@ -361,12 +384,12 @@ nav.hauptnav a{white-space:nowrap; flex:none}
           <p>Die bodennahe Lufttemperatur in rund zwei Metern Höhe — die im Alltag gemeinte „Temperatur draußen".
           Jede dünne Linie ist ein einzelnes Ensemblemitglied, dargestellt an den modellnahen
           3-Stunden-Zeitpunkten — der Tagesgang ist dadurch direkt ablesbar, ohne künstliche Stundeninterpolation.
-          Das dunkle Band zeigt das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel. Kontrolllauf und
-          deterministischer Hauptlauf sind gesondert hervorgehoben. Anders als beim Niederschlag wird hier
+          Das Band zeigt das 10.–90.-Perzentil (80 % der Mitglieder liegen darin), die dicke Linie das Ensemble-Mittel.
+          Kontrolllauf (nur GFS) und deterministischer Hauptlauf sind schwarz hervorgehoben. Anders als beim Niederschlag wird hier
           <strong>nicht</strong> aufsummiert — jeder Zeitpunkt steht für sich.</p>
           <p><strong>Skala und Bezugslinie:</strong> GFS und ECMWF-IFS verwenden dieselbe Temperaturskala. Sie reicht knapp über den
           tiefsten und höchsten dargestellten Wert beider Modelle (alle Mitglieder, Mittel, Band, Kontroll- und Hauptlauf).
-          Die dicke waagerechte Bezugslinie ist kein Grenzwert: Sie liegt auf der nächstgelegenen 5-°C-Gitterlinie zum
+          Die graue waagerechte Bezugslinie ist kein Grenzwert: Sie liegt auf der nächstgelegenen 5-°C-Gitterlinie zum
           angegebenen Temperaturniveau. Dieses Niveau ist der über die Zeit gewichtete Mittelwert der beiden
           Ensemble-Mittelkurven, gemittelt über den Zeitraum, den beide Modelle gemeinsam abdecken; GFS und ECMWF-IFS
           zählen gleich stark.</p>
@@ -381,7 +404,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
 
     <section id="s-temp850">
       <p class="dachzeile">Ensemble-Meteogramm</p>
-      <h2>850-hPa-Temperatur über den Vorhersagezeitraum</h2>
+      <h2>850-hPa-Temperatur</h2>
       <p class="kurzhinweis">
         Temperatur in rund 1.500 m Höhe als Hinweis auf die Luftmasse — nicht identisch mit der Temperatur am Boden.
       </p>
@@ -391,7 +414,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
         <div class="schaltergruppe" id="laufwahl-temp850" role="group" aria-label="Modelllauf"></div>
         <label class="mitgliederschalter">
           <input type="checkbox" id="mitgliederEin-temp850" checked>
-          Einzelne Läufe zeigen
+          Einzelne Mitglieder zeigen
         </label>
       </div>
       <div class="laufinfo" id="laufinfoZeile-temp850"></div>
@@ -406,8 +429,8 @@ nav.hauptnav a{white-space:nowrap; flex:none}
           großräumige Luftmasse einzuschätzen, aber <strong>nicht identisch</strong>
           mit der Temperatur am Boden. Darstellung wie bei der 2-m-Temperatur: modellnahe 3-Stunden-
           Zeitpunkte ohne künstliche Stundeninterpolation; nicht aufsummiert. Dünne Linien sind einzelne
-          Ensemblemitglieder, das dunkle Band das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel.</p>
-          <p><strong>Skala und Bezugslinie:</strong> Beide Modelle verwenden dieselbe Temperaturskala. Die dicke waagerechte
+          Ensemblemitglieder, das Band das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel.</p>
+          <p><strong>Skala und Bezugslinie:</strong> Beide Modelle verwenden dieselbe Temperaturskala. Die graue waagerechte
           Bezugslinie ist kein Grenzwert, sondern die nächstgelegene 5-°C-Gitterlinie zum angegebenen Temperaturniveau
           (zeitgewichteter Mittelwert der beiden Ensemble-Mittelkurven im gemeinsamen Zeitraum, GFS und ECMWF-IFS gleich gewichtet).</p>
           <p><strong>Einordnung:</strong> 850-hPa-Temperaturen unter 0 °C deuten auf eine kalte Luftmasse hin und können unter
@@ -423,7 +446,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
 
     <section id="s-niederschlag">
       <p class="dachzeile">Ensemble-Meteogramm</p>
-      <h2>Aufsummierter Niederschlag über den Vorhersagezeitraum</h2>
+      <h2>Aufsummierter Niederschlag</h2>
       <p class="kurzhinweis">
         Seit Laufbeginn aufsummierter Niederschlag je Ensemblemitglied, mit Ensemble-Mittel und 10.–90.-Perzentil-Band.
       </p>
@@ -433,7 +456,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
         <div class="schaltergruppe" id="laufwahl-niederschlag" role="group" aria-label="Modelllauf"></div>
         <label class="mitgliederschalter">
           <input type="checkbox" id="mitgliederEin-niederschlag" checked>
-          Einzelne Läufe zeigen
+          Einzelne Mitglieder zeigen
         </label>
       </div>
       <div class="laufinfo" id="laufinfoZeile-niederschlag"></div>
@@ -447,18 +470,19 @@ nav.hauptnav a{white-space:nowrap; flex:none}
           <p>Jede dünne Linie ist ein einzelnes Ensemblemitglied. Die stündlichen Niederschlagsmengen werden
           zunächst zu den Modellintervallen zusammengefasst (GFS: 3 Stunden, ab +240 Stunden 6 Stunden;
           ECMWF: 3 Stunden) und dann je Mitglied über die Zeit aufsummiert. Erst danach werden daraus
-          Mittelwert und Streuung gebildet. Das dunkle Band zeigt
-          das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel. Kontrolllauf und deterministischer
-          Hauptlauf sind gesondert hervorgehoben.</p>
-          <p><strong>Achse:</strong> Die senkrechte Achse endet 20 % über dem höchsten Wert des
-          90.-Perzentil-Bands (mindestens 5 mm). Einzelne Mitglieder mit noch mehr Niederschlag laufen oben
-          oben aus dem Diagramm heraus.</p>
+          Mittelwert und Streuung gebildet. Das Band zeigt
+          das 10.–90.-Perzentil, die dicke Linie das Ensemble-Mittel. Kontrolllauf (nur GFS) und deterministischer
+          Hauptlauf sind schwarz hervorgehoben. Das Mittel ist eine rechnerische Größe: Es verwischt, wann der Regen
+          einsetzt, und steigt deshalb gleichmäßiger an als jeder einzelne Lauf.</p>
+          <p><strong>Skala:</strong> GFS und ECMWF-IFS verwenden dieselbe Niederschlagsachse. Sie endet 20 % über dem
+          höchsten Wert des 90.-Perzentil-Bands beider Modelle (mindestens 5 mm), damit ein Modellwechsel die Höhe der
+          Kurven nicht verzerrt. Einzelne Mitglieder mit noch mehr Niederschlag laufen oben aus dem Diagramm heraus.</p>
+          <p><strong>Lesehilfe:</strong> Das Band beschreibt die Streuung der Mitglieder, keine Wahrscheinlichkeit für
+          eine bestimmte Menge. Auch außerhalb des Bands bleiben Mengen möglich — ein Ensemble erfasst nicht jede Unsicherheit,
+          und bei Schauern kann die Menge vor Ort deutlich abweichen.</p>
           <p>Zeitachse: Die senkrechten Linien markieren Mitternacht in Ortszeit (Europa/Berlin).</p>
         </div>
-                <p><strong>Skala:</strong> GFS und ECMWF-IFS verwenden dieselbe Niederschlagsachse. Sie richtet sich nach dem
-          Modell mit dem höchsten 90.-Perzentil-Wert (plus 20 % Rand), damit ein Modellwechsel die Höhe der Kurven nicht
-          verzerrt. Einzelne Mitglieder oberhalb der Achse laufen bewusst aus dem Bild.</p>
-</details>
+      </details>
       <details>
         <summary>Zahlen als Tabelle</summary>
         <div class="tabellenhuelle"><table id="tab-niederschlag"></table></div>
@@ -473,7 +497,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
     <section id="s-wetter48">
       <p class="dachzeile">Nächste 48 Stunden</p>
       <h2>Temperatur, Niederschlag und Wetter im Stundenschritt</h2>
-      <p class="kurzhinweis">Ein Diagramm für alles — Einzelheiten in der Erklärung unter dem Diagramm.</p>
+      <p class="kurzhinweis">Temperaturkurve mit Unsicherheitsband, stündlicher Niederschlag und Wettersymbole in einem Diagramm.</p>
       <div class="bedienleiste" id="bedienleiste-wetter48">
         <div class="schaltergruppe" id="modellwahl-wetter48" role="group" aria-label="Modell"></div>
       </div>
@@ -488,16 +512,18 @@ nav.hauptnav a{white-space:nowrap; flex:none}
           <p><strong>Temperaturkurve:</strong> der Mittelwert aus dem <strong>Hauptlauf</strong> (deterministischer
           Lauf, Stundenwerte) und dem <strong>Ensemble-Mittel</strong> desselben Modells. Das Ensemble liefert
           3-Stunden-Schritte; die Zwischenwerte werden linear ergänzt, anschließend wird die Kurve leicht geglättet.
+          Hauptlauf und Ensemble können aus verschiedenen Modellläufen stammen (siehe Zeile über den Kennzahlen).
           Das Band zeigt das <strong>10.–90.-Perzentil</strong> des Ensembles: In diesem Bereich liegen 80 % der
-          Mitglieder. Ein breites Band heißt unsichere Lage.</p>
+          Mitglieder. Ein breites Band heißt unsichere Lage; ein schmales Band ist keine Garantie.</p>
           <p><strong>Niederschlag:</strong> die stündliche Menge des Hauptlaufs als Balken, mit eigener Skala rechts
-          in Millimetern. Zwei Größen in einem Diagramm sind ein bewusster Kompromiss für den schnellen Überblick —
+          in Millimetern je Stunde. Beim ECMWF-IFS stehen die Werte teils nur in 3-Stunden-Schritten zur Verfügung und werden
+          von open-meteo auf Stunden verteilt; die Aufteilung innerhalb dieser drei Stunden ist dann nicht belastbar. Zwei Größen in einem Diagramm sind ein bewusster Kompromiss für den schnellen Überblick —
           die Balken sind deshalb zurückhaltend gezeichnet und liegen immer unten. Wer Mengen genau vergleichen will,
           nimmt den Reiter „Vorhersage Mühldorf“ mit dem aufsummierten Niederschlag.</p>
           <p><strong>Wettersymbole:</strong> aus dem WMO-Wettercode desselben Modelllaufs (open-meteo), im
           3-Stunden-Abstand, auf schmalen Bildschirmen alle 6 Stunden. Die Symbole unterscheiden Tag und Nacht.
           Sie fassen den Zustand der jeweiligen Stunde zusammen und ersetzen keinen Blick auf die Mengen.</p>
-          <p><strong>Nacht:</strong> grau hinterlegt. Alle Zeiten in Ortszeit.</p>
+          <p><strong>Nacht:</strong> grau hinterlegt. Alle Zeiten in Ortszeit. Die Kennzahl „Jetzt“ ist der vorhergesagte Wert für die laufende Stunde, keine Messung.</p>
         </div>
       </details>
     </section>
@@ -607,11 +633,12 @@ nav.hauptnav a{white-space:nowrap; flex:none}
 
       <div class="unterabschnitt">
         <p class="dachzeile">Die Alltagsfrage</p>
-        <h2>Fällt mehr als 5 mm — ja oder nein?</h2>
+        <h2>Fallen 5 mm oder mehr — ja oder nein?</h2>
         <p class="hinweis">
           Für „gießen oder nicht" zählt oft nicht der Millimeterwert, sondern ob nennenswerter Regen
           kommt. Die reine Trefferquote täuscht dabei: meist regnet es nicht, also liegt schon richtig,
-          wer immer „trocken" sagt. Deshalb steht die Vergleichsmarke daneben.
+          wer immer „trocken" sagt. Deshalb steht die Vergleichsmarke daneben. Ausgewertet werden die Hauptläufe,
+          Vorlauf 1 bis 5 Tage zusammengefasst.
         </p>
         <div class="kacheln" id="kacheln-schwelle"></div>
         <div class="tabellenhuelle"><table id="tab-schwelle"></table></div>
@@ -637,8 +664,10 @@ nav.hauptnav a{white-space:nowrap; flex:none}
         <p class="dachzeile">Ehrlichkeit der Unsicherheit</p>
         <h2>Trifft die Ensemble-Spannweite zu?</h2>
         <p class="hinweis">
-          Schätzt ein Ensemble seine eigene Unsicherheit richtig ein, muss der gemessene Wert in etwa
-          <strong>80 %</strong> der Fälle innerhalb des 10-bis-90-Perzentil-Bands liegen.
+          Schätzt ein Ensemble seine eigene Unsicherheit richtig ein, sollte der gemessene Tageswert auf lange Sicht in
+          etwa <strong>80 %</strong> der Fälle innerhalb des 10-bis-90-Perzentil-Bands liegen. Ausgewertet werden alle
+          gespeicherten Vorlaufzeiten zusammen. Trockene Tage, an denen alle Mitglieder 0 mm zeigen und nichts fällt,
+          zählen als Treffer — das hebt den Wert an.
         </p>
         <div id="streuung-inhalt"></div>
       </div>
@@ -677,13 +706,14 @@ nav.hauptnav a{white-space:nowrap; flex:none}
     <footer>
       <p>
         <strong>Messwerte:</strong> DWD-Klimastation Mühldorf am Inn (03366), stündliche Niederschlagswerte
-        aus dem offenen Datenarchiv, zu Tagessummen von 0 bis 24 Uhr Ortszeit verdichtet. Nur Tage mit
-        vollständigen 24 Stundenwerten gehen ein.
+        aus dem offenen Datenarchiv, zu Tagessummen von 0 bis 24 Uhr Ortszeit verdichtet. Nur Tage, für die
+        alle Stundenwerte vorliegen, gehen ein.
       </p>
       <p>
-        <strong>Vorhersagen:</strong> open-meteo.com. Ensembles: ECMWF-IFS 0,25° (51 Läufe, nur 00/12-UTC-Initialisierung
-        bis Tag 15) und GFS/GEFS (31 Läufe, 00/06/12/18 UTC, bis Tag 16). Mittel, Perzentile und
-        Trefferquoten werden aus den Einzelläufen selbst gebildet.
+        <strong>Vorhersagen:</strong> open-meteo.com. Ensembles: ECMWF-IFS 0,25° (51 Mitglieder einschließlich
+        Kontrolllauf; erfasst werden die 00- und 12-UTC-Läufe, Horizont 15 Tage) und GFS/GEFS (31 Mitglieder einschließlich
+        Kontrolllauf; 00/06/12/18 UTC, Horizont 16 Tage). Mittel, Perzentile und Trefferquoten werden aus den
+        Mitgliedern selbst gebildet.
       </p>
       <p>
         <strong>Wichtige Einschränkung:</strong> Die Station liegt rund 4 km vom Modellgitterpunkt entfernt.
@@ -721,7 +751,8 @@ const $ = s => document.querySelector(s);
 const DATEN_OK = Object.keys(DATEN).length > 0;
 if (!DATEN_OK) $("#datenfehler").hidden = false;
 const NS = "http://www.w3.org/2000/svg";
-const el = (n, a = {}, t) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; return e; };
+// Attribute ohne Wert (undefined/null) werden weggelassen statt als Text "undefined" gesetzt.
+const el = (n, a = {}, t) => { const e = document.createElementNS(NS, n); for (const k in a) if (a[k] != null) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; return e; };
 const nf = (v, d = 1) => v == null || Number.isNaN(v) ? "–" : v.toFixed(d).replace(".", ",");
 const TAG_KURZ = ["So","Mo","Di","Mi","Do","Fr","Sa"];
 const datumKurz = iso => { const d = new Date(iso + "T12:00:00"); return TAG_KURZ[d.getDay()] + " " + d.getDate() + "." + (d.getMonth() + 1) + "."; };
@@ -749,9 +780,8 @@ function treffer(g, x, y, w, h, text) {
   r.addEventListener("pointerleave", tipAus);
   g.appendChild(r);
 }
-function legende(ziel, eintraege) {
-  $(ziel).innerHTML = eintraege.map(e => `<span class="leg">${e.mark}${e.text}</span>`).join("");
-}
+const legendeHtml = eintraege => eintraege.map(e => `<span class="leg">${e.mark}${e.text}</span>`).join("");
+function legende(ziel, eintraege) { $(ziel).innerHTML = legendeHtml(eintraege); }
 const markLinie = (farbe, gestrichelt, breit) =>
   `<svg width="22" height="10" aria-hidden="true"><line x1="1" y1="5" x2="21" y2="5" stroke="${farbe}" stroke-width="${breit || 2.5}" stroke-linecap="round"${gestrichelt ? ' stroke-dasharray="5 3.5"' : ''}/></svg>`;
 const markFlaeche = (farbe, alpha) =>
@@ -815,6 +845,7 @@ addEventListener("hashchange", () => {
   // Beim Einblenden neu messen: waehrend die Seite ausgeblendet war, hatte sie keine Breite.
   if (typeof vorhersageLayouten === "function" && !$("#seite-vorhersage").hidden
       && Math.abs($("#seite-vorhersage").getBoundingClientRect().width - vorhersageBreite) >= 1) vorhersageLayouten();
+  if (typeof analyseLayouten === "function") analyseLayouten();
 });
 
 /* ============================ Datenzugriff (Analyse-Datenbestand) ============================ */
@@ -836,8 +867,16 @@ function laufPasstFuer(lauf, modell, quelle) {
   return !!(info && info.lauf && info.lauf.startsWith(lauf.lauf + "T00:00"));
 }
 
-/** Alle Paare (Vorhersage, Messung) für ein Modell, eine Vorlaufzeit und eine Quelle. */
+/** Alle Paare (Vorhersage, Messung) für ein Modell, eine Vorlaufzeit und eine Quelle.
+ * Das Ergebnis wird gemerkt: Guete, Bias und 5-mm-Schwelle fragen dieselben Paare ab,
+ * und die eingebetteten Daten aendern sich waehrend der Sitzung nicht. */
+const paareSpeicher = new Map();
 function paare(modell, lead, quelle) {
+  const schluessel = `${modell}|${lead}|${quelle}`;
+  if (!paareSpeicher.has(schluessel)) paareSpeicher.set(schluessel, paareBerechnen(modell, lead, quelle));
+  return paareSpeicher.get(schluessel);
+}
+function paareBerechnen(modell, lead, quelle) {
   const out = [], m = mess();
   if (quelle === "hl") {
     const h = hist(modell);
@@ -1115,7 +1154,16 @@ function laufwahlBauen(ziel, bereich, z) {
   laeufe.slice(0, Math.max(3, Math.min(laeufe.length, 6))).forEach((lauf, i) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.textContent = laufLabel(lauf, i);
+    // Text wie laufLabel(); "aktuell · " steckt in einem eigenen Teil, damit er auf
+    // schmalen Bildschirmen entfallen kann (der Tooltip nennt ihn weiterhin).
+    const text = laufLabel(lauf, i);
+    if (i === 0) {
+      const teil = document.createElement("span");
+      teil.className = "laufwahl-aktuell";
+      teil.textContent = "aktuell · ";
+      btn.append(teil, text.slice(teil.textContent.length));
+      btn.title = "neuester gespeicherter Lauf";
+    } else btn.textContent = text;
     btn.setAttribute("aria-pressed", String(z.laufIndex === i));
     btn.addEventListener("click", () => { z.laufIndex = i; laufwahlZeichnen(bereich); zeichneBereich(bereich); });
     ziel.appendChild(btn);
@@ -1134,10 +1182,16 @@ function aktuellerLauf(bereich) {
    gemessen werden kann. */
 function laufinfoHtml(lauf, modellInfo) {
   const initDatum = lauf.init.slice(0, 10).split("-").reverse().join(".");
+  const zeit = iso => { const ms = Date.parse(iso); return Number.isFinite(ms) ? ortsDatumUhr(ms / 1000) : null; };
+  const neben = [zeit(lauf.verfuegbar_seit) && `bei open-meteo seit ${zeit(lauf.verfuegbar_seit)}`,
+                 zeit(lauf.abgerufen) && `abgerufen ${zeit(lauf.abgerufen)}`].filter(Boolean);
   return `<b>${modellInfo.name}, Lauf vom ${initDatum}, ${lauf.init.slice(11, 13)} UTC</b> · `
-    + `${lauf.mitglieder_n} Ensemblemitglieder · Horizont ${lauf.horizont_tage} Tage · `
-    + `verfügbar seit ${lauf.verfuegbar_seit.slice(11, 16)} UTC · abgerufen ${lauf.abgerufen.slice(0, 16).replace("T", " ")} UTC`;
+    + `${lauf.mitglieder_n} Ensemblemitglieder · Horizont ${lauf.horizont_tage} Tage`
+    + (neben.length ? `<span class="neben"> · ${neben.join(" · ")}</span>` : "");
 }
+// Ab diesem Alter (Stunden seit Laufbeginn) gilt der neueste gespeicherte Lauf als verspaetet.
+// Regulaer kommt je Modell spaetestens alle 12 Stunden ein neuer Lauf, mit einigen Stunden Verzug.
+const LAUF_VERALTET_H = 36;
 function statusHtml(lauf, daten) {
   if (!daten.verfuegbar) {
     // Aeltere Laufdatei ohne modellnahes Raster: verstaendliche Meldung statt
@@ -1145,6 +1199,11 @@ function statusHtml(lauf, daten) {
     return `<div class="warnzeile">Für diesen älteren Lauf sind noch keine Daten im modellnahen 3-/6-Stunden-Raster gespeichert.</div>`;
   }
   const meldungen = [];
+  const neuester = laeufeFuer(lauf.modell)[0] === lauf;
+  const alterStunden = (Date.now() - Date.parse(lauf.init)) / 3600e3;
+  if (neuester && alterStunden > LAUF_VERALTET_H) {
+    meldungen.push(`Neuere Läufe sind noch nicht eingetroffen — dieser Lauf ist bereits ${(alterStunden / 24).toFixed(1).replace(".", ",").replace(/,0$/, "")} Tage alt.`);
+  }
   if (lauf.ensemble_vollstaendig !== false && !daten.hauptlauf) {
     meldungen.push("Ensemble vollständig verfügbar — der passende Hauptlauf wird automatisch nachgetragen.");
   } else if (!lauf.vollstaendig) {
@@ -1158,11 +1217,10 @@ function legendeEintraege(modellInfo, modellFarbe, daten, mitglieder) {
     { mark: markLinie(modellFarbe, false, 3), text: modellInfo.name + " Ensemble-Mittel" },
     { mark: markFlaeche(modellFarbe, .18), text: "10.–90. Perzentil" },
     ...(daten.kontrolllauf ? [{ mark: markLinie("var(--ink)", true), text: "Kontrolllauf" }] : []),
-    ...(daten.hauptlauf ? [{ mark: markLinie("var(--ink)", false, 2.4), text: modellInfo.id === "ecmwf" ? "Operationeller Hauptlauf" : "Deterministischer Hauptlauf" }] : []),
+    ...(daten.hauptlauf ? [{ mark: markLinie("var(--ink)", false, 2.4), text: "Hauptlauf (deterministisch)" }] : []),
     ...(mitglieder ? [{ mark: markLinie(modellFarbe, false, .8), text: "Einzelne Ensemblemitglieder" }] : []),
   ];
 }
-const legendeHtml = eintraege => eintraege.map(e => `<span class="leg">${e.mark}${e.text}</span>`).join("");
 
 /* ---------- Feste Mindesthoehen: kein Layoutsprung beim Umschalten ----------
    Jede Variante (beide Modelle, alle Laeufe, Mitglieder ein/aus) wird in einer
@@ -1213,13 +1271,17 @@ function reserviereHoehen(bereich) {
   return true;
 }
 
-/** Zeichenflaeche: volle Breite der Diagrammhuelle (mindestens 640 px, darunter
- * scrollt nur die Huelle, nie die Seite); die Hoehe folgt der Breite. */
+/** Zeichenflaeche: volle Breite der Diagrammhuelle; die Hoehe folgt der Breite.
+ * Auf dem Handy wird das Diagramm auf die Bildschirmbreite gezeichnet (mindestens
+ * 320 px, darunter scrollt nur die Huelle) -- Schrift und Linien bleiben unskaliert. */
+function innenBreite(huelle) {
+  const cs = getComputedStyle(huelle);
+  return huelle.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+}
 function diagrammMasse(svg) {
-  const huelle = svg.parentElement, cs = getComputedStyle(huelle);
-  const innen = huelle.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-  const W = innen > 0 ? Math.max(640, Math.floor(innen)) : 900;
-  const H = Math.min(460, Math.max(300, Math.round(W * .34)));
+  const innen = innenBreite(svg.parentElement);
+  const W = innen > 0 ? Math.max(320, Math.floor(innen)) : 900;
+  const H = Math.min(460, Math.max(W < 600 ? 280 : 300, Math.round(W * .34)));
   return { W, H };
 }
 
@@ -1242,9 +1304,7 @@ function zeichneBereich(bereich) {
     return;
   }
 
-  const initDatum = lauf.init.slice(0, 10).split("-").reverse().join(".");
   $(`#laufinfoZeile-${bereich.id}`).innerHTML = laufinfoHtml(lauf, modellInfo);
-  if (bereich.id === "niederschlag") $("#standDatum").textContent = "Lauf vom " + initDatum;
 
   const daten = datenAusLauf(bereich, lauf);
   warnzeile.innerHTML = statusHtml(lauf, daten);
@@ -1255,7 +1315,6 @@ function zeichneBereich(bereich) {
     return;
   }
 
-  const horizont = lauf.horizont_tage;
   const punkte = daten.zeiten.length;
   const L = 46, R = 18, O = 28, U = 40;
   const iw = W - L - R, ih = H - O - U;
@@ -1316,7 +1375,7 @@ function zeichneBereich(bereich) {
   });
   if (bezug != null) {
     svg.appendChild(el("line", { x1: L, y1: y(bezug), x2: W - R, y2: y(bezug),
-      stroke: "var(--ink)", "stroke-width": 2.4, opacity: .72, "data-serie": "temperatur-referenz" }));
+      stroke: "var(--ink-3)", "stroke-width": 2.2, opacity: .55, "data-serie": "temperatur-referenz" }));
   }
   svg.appendChild(el("text", { x: L - 8, y: O - 14, "text-anchor": "end", class: "axl" }, bereich.einheit));
 
@@ -1385,7 +1444,8 @@ function zeichneBereich(bereich) {
   // Feste Tafel ganz rechts oben im freien Rand ueber dem Diagramm: sie liegt nie
   // auf den Kurven und wandert nicht, wenn sich Niveau oder Bezugslinie aendern.
   if (niveau) {
-    const t1 = `Temperaturniveau: ${nf(niveau.niveau, 1)} °C`;
+    // Auf schmalen Diagrammen kuerzer, damit die Tafel nicht in die Achsenbeschriftung laeuft
+    const t1 = `${W < 600 ? "Niveau" : "Temperaturniveau"}: ${nf(niveau.niveau, 1)} °C`;
     const t2 = bezug != null ? `Bezugslinie: ${nf(bezug, 0)} °C` : "";
     const zeichen = t1.length + (t2 ? t2.length + 3 : 0);
     const breite = zeichen * 6.4 + 16, hoehe = 20, xRechts = W - R;
@@ -1407,7 +1467,7 @@ function zeichneBereich(bereich) {
   };
   const werteZeilen = i => [
     `Ensemble-Mittel: ${nf(daten.mittel[i])} ${bereich.einheit}`,
-    `Band 10–90 %: ${nf(daten.p10[i])}–${nf(daten.p90[i])} ${bereich.einheit}`,
+    `10.–90. Perzentil: ${nf(daten.p10[i])}–${nf(daten.p90[i])} ${bereich.einheit}`,
     daten.kontrolllauf ? `Kontrolllauf: ${nf(daten.kontrolllauf[i])} ${bereich.einheit}` : null,
     daten.hauptlauf ? `Hauptlauf: ${nf(daten.hauptlauf[i])} ${bereich.einheit}` : null,
     `Mitglieder mit Daten: ${daten.n[i]}/${lauf.mitglieder_n}`,
@@ -1441,23 +1501,25 @@ function zeichneBereich(bereich) {
     xWerte.forEach((u, i) => {
       const [tx, tw] = trefferGrenzen(i);
       const zusatz = bereich.akkumuliert ? ", aufsummiert seit Laufbeginn" : "";
-      treffer(svg, tx, O, tw, ih, `${ortsDatumUhr(u)} (Ortszeit${zusatz})\n` + werteZeilen(i).join("\n"));
+      const vorlauf = Math.round((u - Date.parse(lauf.init) / 1000) / 3600);
+      treffer(svg, tx, O, tw, ih, `${ortsDatumUhr(u)} (Ortszeit${zusatz})\nVorlauf +${vorlauf} h\n` + werteZeilen(i).join("\n"));
     });
     svg.appendChild(el("text", { x: L, y: H - 4, class: "ax" },
-      bereich.akkumuliert
-        ? "Zeitpunkt (Ortszeit, 3-/6-h-Mengen seit Initialisierung aufsummiert)"
+      W < 600 ? "Zeitpunkt (Ortszeit)"
+      : bereich.akkumuliert
+        ? "Zeitpunkt (Ortszeit, 3-/6-h-Mengen seit Laufbeginn aufsummiert)"
         : "Zeitpunkt (Ortszeit, modellnahe 3-/6-h-Schritte)"));
   }
 
   $(`#leg-${bereich.id}`).innerHTML = legendeHtml(legendeEintraege(modellInfo, modellFarbe, daten, z.mitglieder));
 
-  const kontrolleKopf = daten.kontrolllauf ? "<th>Kontrolllauf</th>" : "";
+  const kontrolleKopf = daten.kontrolllauf ? `<th>Kontrolllauf (${bereich.einheit})</th>` : "";
   const tabellenZeile = (u, i) =>
     `<tr><td>${datumKurz(ortsTeile(u).iso)}</td><td>${ortsUhrzeit(u)}</td>
       <td>${nf(daten.mittel[i])}</td><td>${nf(daten.p10[i])}–${nf(daten.p90[i])}</td>
       ${daten.kontrolllauf ? `<td>${nf(daten.kontrolllauf[i])}</td>` : ""}<td>${daten.hauptlauf ? nf(daten.hauptlauf[i]) : "–"}</td></tr>`;
   $(`#tab-${bereich.id}`).innerHTML =
-    `<thead><tr><th>Tag</th><th>Uhrzeit</th><th>Mittel</th><th>Band 10–90</th>${kontrolleKopf}<th>Hauptlauf</th></tr></thead><tbody>`
+    `<thead><tr><th>Tag</th><th>Uhrzeit</th><th>Mittel (${bereich.einheit})</th><th>10.–90. Perz. (${bereich.einheit})</th>${kontrolleKopf}<th>Hauptlauf (${bereich.einheit})</th></tr></thead><tbody>`
     + xWerte.map(tabellenZeile).join("") + `</tbody>`;
 }
 
@@ -1495,25 +1557,38 @@ function serienNachLead(quelle, maxLead) {
   })).filter(s => s.punkte.length);
 }
 
+/** Breite fuer die Analyse-Diagramme: tatsaechliche Breite der Huelle, hoechstens
+ * "max" (Desktop wie bisher 900 px), mindestens 320 px. Ist die Seite gerade
+ * ausgeblendet, gilt "max"; beim Einblenden wird neu gezeichnet (analyseLayouten). */
+function analyseBreite(svg, max = 900) {
+  const innen = svg.parentElement ? innenBreite(svg.parentElement) : 0;
+  return innen > 0 ? Math.max(320, Math.min(max, Math.floor(innen))) : max;
+}
+
 function linienChart(svgSel, serien, feld, { nulllinie = false, einheit = "mm" } = {}) {
-  const W = 900, H = 270, L = 46, R = 90, O = 20, U = 44;
+  const svg = $(svgSel);
+  const W = analyseBreite(svg), schmal = W < 600;
+  // Auf schmalen Diagrammen entfallen die Namen am Linienende (sie stehen in der Legende).
+  const H = schmal ? 240 : 270, L = 46, R = schmal ? 16 : 90, O = 20, U = 44;
   const iw = W - L - R, ih = H - O - U;
   const alleWerte = serien.flatMap(s => s.punkte.map(p => p[feld])).filter(v => v != null);
   if (!alleWerte.length) return false;
-  let max = Math.max(...alleWerte), min = nulllinie ? Math.min(0, ...alleWerte) : 0;
-  max = Math.ceil(max * 1.15 * 10) / 10; if (nulllinie) min = Math.floor(min * 1.15 * 10) / 10;
+  // Runde Achsenschritte (0,1 / 0,2 / 0,25 / 0,5 / 1 / 2 ... mm) statt krummer Fuenftel
+  let max = Math.max(...alleWerte) * 1.1, min = nulllinie ? Math.min(0, ...alleWerte) * 1.1 : 0;
+  if (!(max > min)) max = min + 1;
+  const roh = (max - min) / 5, p10 = Math.pow(10, Math.floor(Math.log10(roh)));
+  const schritt = [1, 2, 2.5, 5, 10].map(f => f * p10).find(v => v >= roh - 1e-12);
+  max = Math.ceil(max / schritt - 1e-9) * schritt; min = Math.floor(min / schritt + 1e-9) * schritt;
+  const stellen = schritt >= 1 ? 0 : Number.isInteger(Math.round(schritt * 1e6) / 1e5) ? 1 : 2;
   const maxLead = Math.max(...serien.flatMap(s => s.punkte.map(p => p.lead)));
   const x = l => L + ((l - 1) / Math.max(1, maxLead - 1)) * iw;
   const y = v => O + ih - ((v - min) / (max - min)) * ih;
 
-  const svg = $(svgSel);
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = "";
-  const schritte = 5;
-  for (let i = 0; i <= schritte; i++) {
-    const v = min + (max - min) * i / schritte;
+  for (let v = min; v <= max + schritt / 1e6; v += schritt) {
     svg.appendChild(el("line", { x1: L, y1: y(v), x2: W - R, y2: y(v), class: "gitter" }));
-    svg.appendChild(el("text", { x: L - 8, y: y(v) + 3.5, "text-anchor": "end", class: "ax" }, nf(v, 1)));
+    svg.appendChild(el("text", { x: L - 8, y: y(v) + 3.5, "text-anchor": "end", class: "ax" }, nf(Math.abs(v) < 1e-9 ? 0 : v, stellen)));
   }
   svg.appendChild(el("text", { x: L - 8, y: O - 7, "text-anchor": "end", class: "axl" }, einheit));
   if (nulllinie && min < 0) svg.appendChild(el("line", { x1: L, y1: y(0), x2: W - R, y2: y(0), stroke: "var(--ink-3)", "stroke-width": 1.5 }));
@@ -1531,7 +1606,7 @@ function linienChart(svgSel, serien, feld, { nulllinie = false, einheit = "mm" }
       svg.appendChild(el("circle", { cx: x(p.lead), cy: y(p[feld]), r: 4, fill: s.gestrichelt ? "var(--panel)" : s.modell.farbe, stroke: s.modell.farbe, "stroke-width": 2 }));
     });
     const letzter = pts[pts.length - 1];
-    svg.appendChild(el("text", { x: x(letzter.lead) + 10, y: y(letzter[feld]) + 4, class: "wert", fill: s.modell.farbe }, s.modell.name + (s.gestrichelt ? " Ens" : "")));
+    if (!schmal) svg.appendChild(el("text", { x: x(letzter.lead) + 10, y: y(letzter[feld]) + 4, class: "wert", fill: s.modell.farbe }, s.modell.name + (s.gestrichelt ? " Ens" : "")));
   });
 
   for (let l = 1; l <= maxLead; l++) {
@@ -1595,6 +1670,8 @@ function zeichneBias() {
 }
 
 const SCHWELLE_5MM = 5;
+// Anteil als ganze Prozent; ohne Grundlage (kein Regenfall) "–" statt einer irrefuehrenden 0 %.
+const prozent = q => q == null ? "–" : Math.round(q * 100) + " %";
 function kontingenz(modell, quelle, leads) {
   let tp = 0, fp = 0, fn = 0, tn = 0;
   leads.forEach(lead => paare(modell, lead, quelle).forEach(p => {
@@ -1612,8 +1689,8 @@ function zeichneSchwelle() {
 
   $("#kacheln-schwelle").innerHTML = k.map(x => `
     <div class="kachel k-${x.m.id}">
-      <div class="k-label">${x.m.name} · Treffer bei Regen</div>
-      <div class="k-zahl">${Math.round(x.k.ts * 100)} %</div>
+      <div class="k-label">${x.m.name} Hauptlauf · Treffer bei Regen</div>
+      <div class="k-zahl">${prozent(x.k.ts)}</div>
       <div class="k-fuss">${x.k.tp} von ${x.k.tp + x.k.fp + x.k.fn} Tagen richtig, an denen Regen angesagt war oder fiel</div>
     </div>`).join("") + `
     <div class="kachel">
@@ -1628,7 +1705,7 @@ function zeichneSchwelle() {
       const besser = x.k.quote > basis;
       return `<tr><td>${x.m.name} Hauptlauf</td><td>${x.k.tp}</td><td>${x.k.fp}</td><td>${x.k.fn}</td><td>${x.k.tn}</td>
         <td><span class="pill ${besser ? "pill-gut" : "pill-warn"}">${Math.round(x.k.quote * 100)} %</span></td>
-        <td class="besser">${Math.round(x.k.ts * 100)} %</td></tr>`;
+        <td class="besser">${prozent(x.k.ts)}</td></tr>`;
     }).join("") +
     `<tr><td>Immer „trocken"</td><td>0</td><td>0</td><td>${k[0].k.tp + k[0].k.fn}</td><td>${k[0].k.tn + k[0].k.fp}</td>
       <td><span class="pill pill-warn">${Math.round(basis * 100)} %</span></td><td>0 %</td></tr></tbody>`;
@@ -1636,27 +1713,30 @@ function zeichneSchwelle() {
   const besserAlsBasis = k.filter(x => x.k.quote > basis).map(x => x.m.name);
   const beste = k.slice().sort((a, b) => b.k.ts - a.k.ts)[0];
   $("#befund-schwelle").innerHTML =
-    `<p>Wer stur „trocken" sagt, liegt an <strong>${Math.round(basis * 100)} %</strong> der Tage richtig, weil so selten mehr als ${SCHWELLE_5MM} mm fallen.
+    `<p>Wer stur „trocken" sagt, liegt an <strong>${Math.round(basis * 100)} %</strong> der Tage richtig, weil so selten ${SCHWELLE_5MM} mm oder mehr fallen.
      ${besserAlsBasis.length === 0
       ? "Beide Modelle liegen mit ihrer Trefferquote <strong>nicht über</strong> dieser Marke."
       : `Darüber ${besserAlsBasis.length > 1 ? "kommen" : "kommt"} <strong>${besserAlsBasis.join(" und ")}</strong>.`}</p>
      <p>Aussagekräftig ist die Regen-Trefferrate: von allen Tagen, an denen Regen angesagt war oder tatsächlich fiel,
-     wurden ${beste ? `bei <strong>${beste.m.name}</strong> ${Math.round(beste.k.ts * 100)} %` : "–"} korrekt getroffen.</p>`;
+     wurden ${beste ? `bei <strong>${beste.m.name}</strong> ${prozent(beste.k.ts)}` : "–"} korrekt getroffen.</p>`;
 }
 
 function zeichneRueckblick() {
   const m = mess();
   const tage = Object.keys(m).sort().slice(-10);
   if (!tage.length) return;
-  const W = 900, H = 270, L = 44, R = 16, O = 22, U = 42;
+  const svg = $("#chart-rueck");
+  const W = analyseBreite(svg), H = W < 600 ? 240 : 270, L = 44, R = 16, O = 22, U = 42;
   const iw = W - L - R, ih = H - O - U;
   const reihen = [{ lead: 1, offen: false }, { lead: 5, offen: true }];
   const werte = tage.flatMap(t => [m[t], ...MODELLE.flatMap(mm => reihen.map(r => hist(mm.id)[t]?.[r.lead]))]).filter(v => v != null);
   const obergrenze = Math.max(5, Math.ceil(Math.max(...werte, 0) / 5) * 5);
   const y = v => O + ih - (v / obergrenze) * ih;
   const bw = iw / tage.length;
+  // Punkte und Beschriftung an die Spaltenbreite anpassen (Handy: rund 30 px je Tag)
+  const versatz = [Math.min(7, bw * .14), Math.min(20, bw * .36)], radius = bw < 45 ? 3.4 : 4.5;
+  const jedesZweite = bw < 60;
 
-  const svg = $("#chart-rueck");
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = "";
   for (let t = 0; t <= obergrenze; t += obergrenze / 4) {
@@ -1671,10 +1751,11 @@ function zeichneRueckblick() {
     if (hoehe > 0) svg.appendChild(el("rect", { x: x0 + bw * 0.24, y: y(m[t]), width: bw * 0.52, height: Math.max(2, hoehe), fill: "var(--mess)", opacity: .42, rx: 2 }));
     MODELLE.forEach((mm, mi) => reihen.forEach((r, ri) => {
       const v = hist(mm.id)[t]?.[r.lead]; if (v == null) return;
-      const cx = mitte + (mi === 0 ? -1 : 1) * (ri === 0 ? 7 : 20);
-      svg.appendChild(el("circle", { cx, cy: y(v), r: 4.5, fill: r.offen ? "var(--panel)" : mm.farbe, stroke: mm.farbe, "stroke-width": 2 }));
+      const cx = mitte + (mi === 0 ? -1 : 1) * versatz[ri];
+      svg.appendChild(el("circle", { cx, cy: y(v), r: radius, fill: r.offen ? "var(--panel)" : mm.farbe, stroke: mm.farbe, "stroke-width": 2 }));
     }));
-    svg.appendChild(el("text", { x: mitte, y: H - U + 16, "text-anchor": "middle", class: "ax" }, datumKurz(t)));
+    if (!jedesZweite || (tage.length - 1 - i) % 2 === 0)
+      svg.appendChild(el("text", { x: mitte, y: H - U + 16, "text-anchor": "middle", class: "ax" }, datumKurz(t)));
     const z = MODELLE.flatMap(mm => reihen.map(r => {
       const v = hist(mm.id)[t]?.[r.lead];
       return v == null ? null : `${mm.name} +${r.lead} Tag${r.lead > 1 ? "e" : ""}: ${nf(v)} mm`;
@@ -1725,10 +1806,10 @@ function zeichneStreuung() {
     const j = jeModell[mm.id]; if (!j.ges) return "";
     const q = Math.round(j.drin / j.ges * 100);
     return `<div class="kachel k-${mm.id}"><div class="k-label">${mm.name} · im Band</div>
-      <div class="k-zahl">${q} %</div><div class="k-fuss">${j.drin} von ${j.ges} Tagen · erwartet 80 %</div></div>`;
+      <div class="k-zahl">${q} %</div><div class="k-fuss">${j.drin} von ${j.ges} Fällen · Sollwert 80 %</div></div>`;
   }).join("") + `</div>
   <div class="befund"><p>${gesamt < 40
-      ? `Erst <strong>${gesamt} Vergleichswerte</strong> — das ist noch zu wenig für eine Aussage.`
+      ? `Erst <strong>${gesamt} Vergleichswerte</strong> — das ist noch zu wenig für eine Aussage; die Prozentwerte können sich mit jedem weiteren Tag deutlich verschieben.`
       : `Liegt der Wert deutlich unter 80 %, ist das Band zu schmal: das Ensemble gibt sich sicherer, als es ist.`}</p></div>`;
 }
 
@@ -1749,6 +1830,8 @@ const FENSTER = [
 // meteorologisch normierte Einteilung (etwa nach DWD-Wetterlagenklassen),
 // sondern ein transparenter, hier zentral aenderbarer Ausgangspunkt.
 const KATEGORIE_TAGESRATE = { trocken: 1.5, maessig: 6.0 }; // mm pro Tag im Fenster
+// Unterhalb dieser Fallzahl werden Trefferquoten nicht farbig bewertet.
+const MIN_FAELLE_BEWERTUNG = 10;
 function kategorieSchwellen(fenster) {
   const tage = fenster.bis - fenster.von + 1;
   return {
@@ -1830,7 +1913,7 @@ function zeichneWitterung() {
       const absE = k.werte.reduce((s, w) => s + Math.abs(w.E), 0) / k.werte.length;
       return `<tr><td>${k.fenster.label}</td><td>${k.modell.name}</td><td>${k.quelle === "ens" ? "Ensemble" : "Hauptlauf"}</td>
         <td>${nf(F)}</td><td>${nf(O)}</td>
-        <td class="${E >= 0 ? "" : ""}">${E >= 0 ? "+" : ""}${nf(E)}</td><td>${nf(absE)}</td><td>${k.werte.length}</td></tr>`;
+        <td>${E >= 0 ? "+" : ""}${nf(E)}</td><td>${nf(absE)}</td><td>${k.werte.length}</td></tr>`;
     }).join("") + `</tbody>`;
 
   // Kategorie-Trefferquote
@@ -1839,7 +1922,8 @@ function zeichneWitterung() {
      sondern Schwellen, die mit der Fensterlänge mitwachsen (${KATEGORIE_TAGESRATE.trocken} bzw.
      ${KATEGORIE_TAGESRATE.maessig} mm pro Tag im Fenster), damit ein 7-Tage-Fenster nicht an denselben
      absoluten Millimeterwerten gemessen wird wie ein 3-Tage-Fenster. Zentral änderbar in
-     <code>KATEGORIE_TAGESRATE</code> in der Vorlage:`
+     <code>KATEGORIE_TAGESRATE</code> in der Vorlage. Trefferquoten aus weniger als ${MIN_FAELLE_BEWERTUNG} Fällen
+     sind nicht eingefärbt, weil sie noch stark vom Zufall abhängen:`
     + `<table style="margin-top:8px"><thead><tr><th>Fenster</th><th>trocken unter</th><th>mäßig nass</th><th>sehr nass ab</th></tr></thead><tbody>`
     + FENSTER.map(f => { const s = kategorieSchwellen(f);
         return `<tr><td>${f.label}</td><td>${nf(s.trocken)} mm</td><td>${nf(s.trocken)}–${nf(s.maessig)} mm</td><td>${nf(s.maessig)} mm</td></tr>`; }).join("")
@@ -1849,8 +1933,10 @@ function zeichneWitterung() {
     kombis.map(k => {
       const treffer = k.werte.filter(w => kategorie(w.F, k.fenster) === kategorie(w.O, k.fenster)).length;
       const quote = Math.round(treffer / k.werte.length * 100);
+      // Bei wenigen Faellen keine Gut/Schlecht-Faerbung: sie taeuschte eine belastbare Bewertung vor.
+      const bewertet = k.werte.length >= MIN_FAELLE_BEWERTUNG;
       return `<tr><td>${k.fenster.label}</td><td>${k.modell.name}</td><td>${k.quelle === "ens" ? "Ensemble" : "Hauptlauf"}</td>
-        <td><span class="pill ${quote >= 70 ? "pill-gut" : quote >= 45 ? "pill-warn" : "pill-schlecht"}">${quote} %</span></td>
+        <td>${bewertet ? `<span class="pill ${quote >= 70 ? "pill-gut" : quote >= 45 ? "pill-warn" : "pill-schlecht"}">${quote} %</span>` : `${quote} %`}</td>
         <td>${k.werte.length}</td></tr>`;
     }).join("") + `</tbody>`;
 
@@ -1875,16 +1961,18 @@ function zeichneStreuungWitterung(kombis) {
   const svg = $("#chart-streu-witterung");
   const alle = kombis.flatMap(k => k.werte);
   if (!alle.length) { svg.innerHTML = ""; return; }
-  const W = 620, H = 460, L = 50, R = 20, O = 16, U = 44;
+  const W = analyseBreite(svg, 620), H = Math.round(W * .74), L = 50, R = 20, O = 16, U = 44;
   const iw = W - L - R, ih = H - O - U;
-  const maxWert = Math.max(5, ...alle.flatMap(w => [w.F, w.O]));
+  // Runde Achsenschritte (1, 2, 5, 10, 20, 25, 50 mm), Achsenende auf einem Schritt
+  const roh = Math.max(5, ...alle.flatMap(w => [w.F, w.O]));
+  const schritt = [1, 2, 5, 10, 20, 25, 50, 100].find(v => roh / v <= 6) || 200;
+  const maxWert = Math.ceil(roh / schritt) * schritt;
   const x = v => L + (v / maxWert) * iw;
   const y = v => O + ih - (v / maxWert) * ih;
 
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = "";
-  for (let i = 0; i <= 5; i++) {
-    const v = maxWert * i / 5;
+  for (let v = 0; v <= maxWert + 1e-9; v += schritt) {
     svg.appendChild(el("line", { x1: L, y1: y(v), x2: W - R, y2: y(v), class: "gitter" }));
     svg.appendChild(el("line", { x1: x(v), y1: O, x2: x(v), y2: O + ih, class: "gitter" }));
     svg.appendChild(el("text", { x: L - 8, y: y(v) + 3.5, "text-anchor": "end", class: "ax" }, nf(v, 0)));
@@ -1892,14 +1980,16 @@ function zeichneStreuungWitterung(kombis) {
   }
   // 1:1-Linie (perfekte Vorhersage)
   svg.appendChild(el("line", { x1: x(0), y1: y(0), x2: x(maxWert), y2: y(maxWert), stroke: "var(--ink-3)", "stroke-width": 1.3, "stroke-dasharray": "4 3" }));
-  svg.appendChild(el("text", { x: L, y: H - 6, class: "ax" }, "Beobachtet O (mm) → · ↑ Vorhergesagt F (mm)"));
+  svg.appendChild(el("text", { x: L, y: H - 6, class: "ax" }, "→ gemessen O (mm) · ↑ vorhergesagt F (mm)"));
 
-  const FARBEN = { "1-3": "var(--gut)", "4-7": "var(--warn)", "8-14": "var(--schlecht)" };
+  // Neutrale Abstufung von dunkel (kurzer Vorlauf) nach hell (langer Vorlauf) -- bewusst keine
+  // Ampelfarben, die als "gut/schlecht" gelesen wuerden.
+  const FARBEN = { "1-3": "var(--ink)", "4-7": "var(--ink-2)", "8-14": "var(--ink-3)" };
   kombis.forEach(k => {
     k.werte.forEach(w => {
-      const c = el("circle", { cx: x(w.O), cy: y(w.F), r: 4.2, fill: FARBEN[k.fenster.id] || k.modell.farbe, opacity: .75 });
+      const c = el("circle", { cx: x(w.O), cy: y(w.F), r: 4.2, fill: FARBEN[k.fenster.id] || k.modell.farbe, opacity: .8 });
       svg.appendChild(c);
-      treffer(svg, x(w.O) - 5, y(w.F) - 5, 10, 10, `${k.fenster.label} · ${k.modell.name} · Lauf ${w.lauf}\nVorhergesagt ${nf(w.F)} mm · Beobachtet ${nf(w.O)} mm`);
+      treffer(svg, x(w.O) - 5, y(w.F) - 5, 10, 10, `${k.fenster.label} · ${k.modell.name} Ensemble-Mittel · Lauf vom ${w.lauf.split("-").reverse().join(".")}\nVorhergesagt ${nf(w.F)} mm · gemessen ${nf(w.O)} mm`);
     });
   });
 
@@ -1907,7 +1997,14 @@ function zeichneStreuungWitterung(kombis) {
 }
 
 /* ============================ Start ============================ */
+/** Neuester Abrufzeitpunkt aller Quelldaten, in Ortszeit ("21.09., 10:56 Uhr"). */
+function datenstandText() {
+  const ms = Date.parse(DATEN.datenstand || "");
+  return Number.isFinite(ms) ? ortsDatumUhr(ms / 1000) : "–";
+}
+let analyseBreiteZuletzt = 0;
 function analyseZeichnen() {
+  analyseBreiteZuletzt = $("#seite-analyse").getBoundingClientRect().width;
   try { zeichneGuete(); } catch (e) { console.error("guete", e); }
   try { zeichneBias(); } catch (e) { console.error("bias", e); }
   try { zeichneSchwelle(); } catch (e) { console.error("schwelle", e); }
@@ -1916,11 +2013,13 @@ function analyseZeichnen() {
   try { zeichneWitterung(); } catch (e) { console.error("witterung", e); }
   const tage = Object.keys(mess()).sort();
   $("#statuszeile").textContent =
-    `Datenstand ${DATEN.datenstand || DATEN.gebaut || "–"} · Messreihe ${tage.length ? tage[0] + " bis " + tage[tage.length - 1] : "–"} · ${tage.length} Tage · `
+    `Datenstand ${datenstandText()} · Messreihe ${tage.length ? tage[0] + " bis " + tage[tage.length - 1] : "–"} · ${tage.length} Tage · `
     + `Vorhersageläufe: ${Object.keys(laeufe()).length} Tage erfasst, Hauptlauf-Historie ECMWF ${Object.keys(hist("ecmwf")).length} / GFS ${Object.keys(hist("gfs")).length} Tage`;
 }
 
 BEREICHE.forEach(bereich => { ZUSTAND[bereich.id].modell = modellMitVerfuegbaremLauf(); });
+// Kopf: ein gemeinsamer Datenstand fuer alle Muehldorf-Reiter (nicht der Lauf eines einzelnen Diagramms)
+$("#standDatum").textContent = DATEN_OK ? "Datenstand " + datenstandText() : "–";
 seiteAnzeigen();
 vorhersageLayouten();
 analyseZeichnen();
@@ -1929,7 +2028,13 @@ analyseZeichnen();
 // neu gemessen bzw. gezeichnet. Ein ResizeObserver erfasst auch Aenderungen, bei
 // denen kein resize-Ereignis entsteht. Die Zaehlgrenze verhindert Endlosschleifen.
 let layoutVersuche = 0;
+/** Analyse neu zeichnen, wenn sie sichtbar ist und sich ihre Breite geaendert hat. */
+function analyseLayouten() {
+  const seite = $("#seite-analyse");
+  if (!seite.hidden && Math.abs(seite.getBoundingClientRect().width - analyseBreiteZuletzt) >= 1) analyseZeichnen();
+}
 function breiteGeaendert() {
+  analyseLayouten();
   const seite = $("#seite-vorhersage");
   if (seite.hidden || Math.abs(seite.getBoundingClientRect().width - vorhersageBreite) < 1) return;
   if (++layoutVersuche > 6) return;
@@ -1946,7 +2051,6 @@ if (typeof ResizeObserver === "function") {
   addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(breiteGeaendert, 100); });
 }
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { kopfzoneMessen(); if (!$("#seite-vorhersage").hidden) vorhersageLayouten(); });
-/* Reine statische Seite: alle Daten sind oben eingebettet, kein Nachladen nötig. */
 
 /* Test-Hook: reine Berechnungsfunktionen fuer automatisierte Tests freigeben.
    Aendert kein Verhalten der Seite selbst, wird von keiner UI-Funktion gelesen. */
@@ -2434,6 +2538,8 @@ const nf = (v, d = 1) => v == null || Number.isNaN(v) ? "–" : v.toFixed(d).rep
 // Beides beruecksichtigen, damit der Block auch in Testseiten funktioniert.
 const D = () => (typeof DATEN !== "undefined" && DATEN) || window.DATEN || {};
 const MOD = [{ id: "ecmwf", name: "ECMWF-IFS" }, { id: "gfs", name: "GFS" }];
+// Ab diesem Alter (Stunden seit der ersten Stunde der Daten) erscheint ein Hinweis.
+const STUNDENWERTE_VERALTET_H = 12;
 let modell = "ecmwf";
 
 /* ---------- Zeit in Ortszeit ---------- */
@@ -2497,11 +2603,16 @@ function symbol(art, tag) {
 }
 
 /* ---------- Daten aufbereiten ---------- */
-function ensembleReihe(id) {
+// Ein Ensemble-Lauf, dessen Start mehr als so viele Stunden vor der ersten Stunde des
+// Diagramms liegt, wird nicht mehr als Unsicherheitsband verwendet (verspaeteter Nachschub).
+const ENSEMBLE_MAX_ALTER_H = 36;
+function ensembleReihe(id, abStunde) {
   const laeufe = (D().vorhersage || {})[id] || [];
   const lauf = laeufe[0];
   const r = lauf && lauf.temperatur_2m;
   if (!r || !r.zeitpunkte_unix) return null;
+  const start = Date.parse(lauf.init) / 1000;
+  if (Number.isFinite(start) && abStunde - start > ENSEMBLE_MAX_ALTER_H * 3600) return null;
   return { unix: r.zeitpunkte_unix, mittel: r.mittel, p10: r.p10, p90: r.p90, init: lauf.init };
 }
 /** Linear auf das Stundenraster bringen; ausserhalb des Ensemble-Zeitraums null. */
@@ -2532,7 +2643,7 @@ function aufbereiten(id) {
   const roh = (D().wetter48 || {})[id];
   if (!roh || !roh.zeitpunkte_unix || !roh.zeitpunkte_unix.length) return null;
   const stunden = roh.zeitpunkte_unix;
-  const ens = ensembleReihe(id);
+  const ens = ensembleReihe(id, stunden[0]);
   const mittel = aufStunden(ens, "mittel", stunden);
   const linie = glaetten(stunden.map((_, i) => {
     const h = roh.temperatur_2m[i], m = mittel[i];
@@ -2555,13 +2666,14 @@ function zeichnen() {
   if (!box) return;
   const d = aufbereiten(modell);
   box.innerHTML = "";
+  const tWerte = d ? [...d.linie, ...d.p10, ...d.p90, ...d.hauptlauf].filter(Number.isFinite) : [];
   $("#laufinfoZeile-wetter48").innerHTML = "";
   $("#laufwarnung-wetter48").innerHTML = "";
   $("#kacheln-wetter48").innerHTML = "";
   $("#leg-wetter48").innerHTML = "";
-  if (!d) {
-    box.innerHTML = '<p class="kurzhinweis" style="margin:8px 4px">Für dieses Modell liegen noch keine Stundenwerte vor. '
-      + 'Sie entstehen beim nächsten automatischen Lauf.</p>';
+  if (!d || !tWerte.length) {
+    box.innerHTML = '<p class="kurzhinweis" style="margin:8px 4px">Für dieses Modell liegen gerade keine Stundenwerte vor. '
+      + 'Sie werden beim nächsten automatischen Abruf ergänzt.</p>';
     return;
   }
   const W = Math.max(340, Math.round(box.clientWidth - 28)), Hh = W < 620 ? 320 : 380;
@@ -2574,7 +2686,6 @@ function zeichnen() {
   const g = el("g"); svg.appendChild(g);
 
   // Temperaturskala
-  const tWerte = [...d.linie, ...d.p10, ...d.p90, ...d.hauptlauf].filter(Number.isFinite);
   let lo = Math.min(...tWerte), hi = Math.max(...tWerte);
   const spanne = Math.max(4, hi - lo);
   lo -= spanne * 0.12; hi += spanne * 0.12;
@@ -2606,7 +2717,7 @@ function zeichnen() {
   [0, rOben / 2, rOben].forEach(v => {
     g.appendChild(el("text", { x: L + iw + 6, y: yr(v) + 3.5, class: "ax" }, nf(v, v % 1 ? 1 : 0)));
   });
-  g.appendChild(el("text", { x: L + iw + 6, y: T - 8, class: "ax" }, "mm/h"));
+  g.appendChild(el("text", { x: L + iw + 6, y: yr(rOben) - 12, class: "ax" }, "mm/h"));
   // Tagesgrenzen und Stundenbeschriftung
   const schrittStunden = W < 620 ? 6 : 3;
   d.stunden.forEach((ts, i) => {
@@ -2672,7 +2783,7 @@ function zeichnen() {
     const text = `${tagText(ts)} ${uhr(ts)}:00 Uhr\n${art.text}\n`
       + `Temperatur: ${nf(d.linie[i])} °C\n`
       + `  Hauptlauf ${nf(d.hauptlauf[i])} °C · Ensemble-Mittel ${nf(d.ensembleMittel[i])} °C\n`
-      + `Band 10–90 %: ${nf(d.p10[i])}–${nf(d.p90[i])} °C\n`
+      + `10.–90. Perzentil: ${nf(d.p10[i])}–${nf(d.p90[i])} °C\n`
       + `Niederschlag: ${nf(d.niederschlag[i], 1)} mm in dieser Stunde`;
     if (tip) { tip.textContent = text; tip.style.opacity = "1";
       const r = tip.getBoundingClientRect();
@@ -2687,9 +2798,9 @@ function zeichnen() {
 
   // Legende, Laufinfo, Kennzahlen
   $("#leg-wetter48").innerHTML =
-    `<span class="leg"><svg width="22" height="10" aria-hidden="true"><line x1="1" y1="5" x2="21" y2="5" stroke="var(--mess)" stroke-width="2.5" stroke-linecap="round"/></svg>Temperatur (Mittel aus Hauptlauf und Ensemble-Mittel)</span>`
-    + `<span class="leg"><svg width="22" height="10" aria-hidden="true"><rect x="1" y="1" width="20" height="8" rx="1.5" fill="var(--band)"/></svg>10.–90. Perzentil</span>`
-    + `<span class="leg"><svg width="14" height="10" aria-hidden="true"><rect x="1" y="1" width="12" height="8" rx="1.5" fill="var(--ecmwf)" opacity="0.55"/></svg>Niederschlag je Stunde (Skala rechts)</span>`;
+    `<span class="leg"><svg width="22" height="10" aria-hidden="true"><line x1="1" y1="5" x2="21" y2="5" stroke="var(--temp)" stroke-width="2.5" stroke-linecap="round"/></svg>Temperatur (Mittel aus Hauptlauf und Ensemble-Mittel)</span>`
+    + `<span class="leg"><svg width="22" height="10" aria-hidden="true"><rect x="1" y="1" width="20" height="8" rx="1.5" fill="var(--temp-band)"/></svg>10.–90. Perzentil</span>`
+    + `<span class="leg"><svg width="14" height="10" aria-hidden="true"><rect x="1" y="1" width="12" height="8" rx="1.5" fill="var(--regen)" opacity="0.6"/></svg>Niederschlag je Stunde (Skala rechts)</span>`;
   const utcText = iso => {
     // "2026-09-20T17:34Z" -> "20.09., 19:34 Uhr" (Ortszeit)
     const ms = Date.parse(iso);
@@ -2700,21 +2811,30 @@ function zeichnen() {
   const ensembleText = d.ensembleInit ? `Ensemble vom ${d.ensembleInit.slice(8, 10)}.${d.ensembleInit.slice(5, 7)}., ${d.ensembleInit.slice(11, 16)} UTC`
     : "ohne Ensemble (nur Hauptlauf)";
   $("#laufinfoZeile-wetter48").innerHTML =
-    `<b>${MOD.find(m => m.id === modell).name}</b> · Hauptlauf stündlich · ${ensembleText} · abgerufen ${utcText(d.abgerufen)}`;
-  if (!d.ensembleInit) {
-    $("#laufwarnung-wetter48").innerHTML =
-      '<p class="warnzeile">Für dieses Modell liegt gerade kein gespeicherter Ensemble-Lauf vor. '
-      + 'Gezeigt wird nur der Hauptlauf, ohne Unsicherheitsband.</p>';
-  }
-  const erste24 = d.stunden.map((ts, i) => i).filter(i => d.stunden[i] <= x0 + 24 * 3600);
+    `<b>${MOD.find(m => m.id === modell).name}</b> · Hauptlauf in Stundenwerten · ${ensembleText}`
+    + `<span class="neben"> · abgerufen ${utcText(d.abgerufen)}</span>`;
+  const warnungen = [];
+  if (!d.ensembleInit) warnungen.push("Für dieses Modell liegt gerade kein aktueller Ensemble-Lauf vor. "
+    + "Gezeigt wird nur der Hauptlauf, ohne Unsicherheitsband.");
+  const alterH = (Date.now() / 1000 - x0) / 3600;
+  if (alterH > STUNDENWERTE_VERALTET_H) warnungen.push(`Die Stundenwerte sind ${Math.round(alterH)} Stunden alt; `
+    + "neuere Daten sind noch nicht eingetroffen.");
+  if (warnungen.length) $("#laufwarnung-wetter48").innerHTML = `<p class="warnzeile">${warnungen.join(" ")}</p>`;
+  // "Jetzt" ist die laufende Stunde (die Daten beginnen mit der Stunde des Abrufs und
+  // koennen beim Ansehen schon einige Stunden alt sein). Liegt jetzt ausserhalb der Daten: "–".
+  const jetztTs = Date.now() / 1000;
+  const iJetzt = jetztTs < x0 || jetztTs > x1 + 3600 ? -1
+    : d.stunden.reduce((b, ts, k) => (ts <= jetztTs ? k : b), 0);
+  const ab = iJetzt < 0 ? x0 : d.stunden[iJetzt];
+  const erste24 = d.stunden.map((ts, i) => i).filter(i => d.stunden[i] >= ab && d.stunden[i] <= ab + 24 * 3600);
   const temps24 = erste24.map(i => d.linie[i]).filter(Number.isFinite);
   const regenSumme = d.niederschlag.filter(Number.isFinite).reduce((s, v) => s + v, 0);
   const regenStunden = d.niederschlag.filter(v => Number.isFinite(v) && v >= 0.1).length;
   $("#kacheln-wetter48").innerHTML = [
-    { l: "Jetzt", z: nf(d.linie[0]) + " °C", f: wetterArt(d.wettercode[0]).text },
+    { l: "Jetzt", z: iJetzt < 0 ? "–" : nf(d.linie[iJetzt]) + " °C", f: iJetzt < 0 ? "keine aktuelle Stunde" : "Vorhersage · " + wetterArt(d.wettercode[iJetzt]).text },
     { l: "Höchstwert 24 h", z: temps24.length ? nf(Math.max(...temps24)) + " °C" : "–", f: "nächste 24 Stunden" },
     { l: "Tiefstwert 24 h", z: temps24.length ? nf(Math.min(...temps24)) + " °C" : "–", f: "nächste 24 Stunden" },
-    { l: "Niederschlag 48 h", z: nf(regenSumme, 1) + " mm", f: `${regenStunden} Stunden mit Niederschlag` },
+    { l: "Niederschlag 48 h", z: nf(regenSumme, 1) + " mm", f: `Hauptlauf · ${regenStunden} Stunden mit mind. 0,1 mm` },
   ].map(k => `<div class="kachel"><div class="k-label">${k.l}</div><div class="k-zahl">${k.z}</div><div class="k-fuss">${k.f}</div></div>`).join("");
 }
 

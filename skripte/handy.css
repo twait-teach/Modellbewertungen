@@ -58,8 +58,8 @@ body.handy .kachel .k-fuss{ font-size:11px; line-height:1.3 }
 /* Bleibt in der letzten Reihe Platz, wird die letzte Kachel breiter (statt einer grauen Luecke). */
 body.handy .kacheln > .kachel:last-child:nth-child(3n+1){ grid-column:span 3 }
 body.handy .kacheln > .kachel:last-child:nth-child(3n+2){ grid-column:span 2 }
-body.handy #kacheln-wetter48{ margin-bottom:10px }
-[id^="seite-station"] .kacheln{ margin-bottom:10px }
+/* Die Vorlage setzt fuer diese Kennzahlen einen eigenen Abstand (per id) -- hier angleichen */
+body.handy #kacheln-wetter48, body.handy [id^="seite-station"] .kacheln{ margin-bottom:10px }
 
 /* ---------- Diagramme: randlos, gross, gut lesbar ---------- */
 body.handy .diagrammtitel{ margin:10px 0 4px; font-size:13px }
@@ -71,7 +71,6 @@ body.handy .plot{
 body.handy .st-plot{ padding:8px 10px 2px }
 body.handy .st-plot svg{ touch-action:pan-y }     /* Wischen erlaubt Tooltip, Zwei-Finger-Zoom laeuft ueber Skript */
 body.handy .st-plot .ax{ font-size:11.5px }
-body.handy #plot-wetter48{ margin-inline:-12px; border-radius:0; border-inline:none; box-shadow:none; padding:10px 8px 4px }
 body.handy .laufinfo{ font-size:11.5px }
 body.handy .legende{ margin-bottom:8px }
 body.handy .leg{ font-size:12px }

@@ -562,7 +562,7 @@ def test_tabelle_legende_und_analyse_funktionieren_weiter(browser, reich):
     fehler = list(seite.fehler)
     seite.close()
     assert zeilen == punkte
-    assert "Operationeller Hauptlauf" in legende and "Kontrolllauf" not in legende      # ECMWF: kein Kontrolllauf
+    assert "Hauptlauf (deterministisch)" in legende and "Kontrolllauf" not in legende   # ECMWF: kein Kontrolllauf
     assert "Kontrolllauf" in legende_gfs
     assert sichtbar == ["seite-analyse"] and analyse_breite <= 980
     assert nach_rueckkehr > 1200

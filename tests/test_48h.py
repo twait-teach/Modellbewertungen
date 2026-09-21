@@ -119,7 +119,7 @@ def test_fehlende_48h_daten_sind_kein_fehler(tmp_path, monkeypatch):
 
 def test_reiter_und_erklaerung_stehen_in_der_vorlage():
     seite = (WURZEL / "skripte" / "vorlage.html").read_text(encoding="utf-8")
-    assert '<a href="#wetter48" data-seite="wetter48">48h Wetter</a>' in seite
+    assert '<a href="#wetter48" data-seite="wetter48" data-kurz="48 Std.">48h Wetter</a>' in seite
     assert '<main id="seite-wetter48" hidden>' in seite
     assert '"vorhersage", "wetter48"' in seite
     assert "WMO-Wettercode" in seite

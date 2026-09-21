@@ -99,8 +99,8 @@ Erfasst werden:
 
 | Modell | Datensatz (Ensemble) | erlaubte Läufe | Horizont |
 |---|---|---|---|
-| GFS | `gfs_seamless` (GEFS, 31 Läufe) | 00, 06, 12, 18 UTC | 16 Tage |
-| ECMWF-IFS | `ecmwf_ifs025` (51 Läufe) | **nur** 00 und 12 UTC | 15 Tage |
+| GFS | `gfs_seamless` (GEFS, 31 Mitglieder inkl. Kontrolllauf) | 00, 06, 12, 18 UTC | 16 Tage |
+| ECMWF-IFS | `ecmwf_ifs025` (51 Mitglieder inkl. Kontrolllauf) | **nur** 00 und 12 UTC | 15 Tage |
 
 Die 06- und 18-UTC-Ensembleläufe von ECMWF-IFS reichen offiziell nur rund sechs Tage weit und
 werden deshalb absichtlich **nicht** als 15-Tage-Lauf erfasst — ein Live-Test während der
@@ -218,8 +218,10 @@ mit ihnen kollidieren. Wer lokal testet und `bauen.py` laufen lässt, verwirft d
 
 **Vorhersage-Ansicht.** Der Inhalt ist auf 1400 px Breite begrenzt und nutzt diese Breite voll aus; die
 Diagramme werden auf die tatsächliche Breite gezeichnet (Schrift und Linien bleiben unskaliert) und beim
-Ändern der Fenstergröße neu gezeichnet. Unter 640 px Diagrammbreite scrollt nur der Diagrammrahmen, nie
-die Seite. Die Analyse-Seite bleibt bei ihrer bisherigen Breite von 980 px.
+Ändern der Fenstergröße neu gezeichnet. Auf dem Handy werden sie ebenfalls auf die Bildschirmbreite gezeichnet
+(mindestens 320 px, dann kürzere Achsentitel und Niveautafel); erst darunter scrollt der Diagrammrahmen, nie
+die Seite. Die Analyse-Seite bleibt bei höchstens 980 px Breite; ihre Diagramme werden ebenfalls auf die
+tatsächliche Breite (höchstens 900 px, Streudiagramm 620 px) gezeichnet und beim Einblenden neu vermessen.
 
 **Niederschlagsachse.** Auch die aufsummierte Niederschlagsmenge verwendet für GFS und ECMWF-IFS
 dieselbe Achse: Sie endet 20 % über dem höchsten Wert des 90.-Perzentil-Bands **beider** Modelle
@@ -235,7 +237,9 @@ Breite (`clamp`), die Zeilen sind auf `nowrap` gesetzt — auch bei 320 px bleib
 die Höhen von Kopf und Einleitungszeile und reserviert jeweils die größte; Hinweise (Datenfehler,
 veraltete Stationsdaten) stehen unter der Reiterleiste. Damit die Messung vor und nach dem Füllen der
 Zeitangaben gleich ausfällt, reservieren die Standangaben ihre Breite (`min-width` in `ch`), und die
-Wetterstation misst nach dem Laden noch einmal nach. Der Kopf ist bewusst knapp gehalten (Standangabe
+Wetterstation misst nach dem Laden noch einmal nach. Rechts im Kopf steht auf den Mühldorf-Reitern ein
+gemeinsamer **Datenstand** (neuester Abruf aller Quelldaten, Ortszeit) — nicht der Lauf eines einzelnen
+Diagramms. Der Kopf ist bewusst knapp gehalten (Standangabe
 zweizeilig inklusive „406 m ü. NN", weniger Abstände), damit die Diagramme möglichst weit oben stehen.
 
 Die beiden Temperaturdiagramme verwenden je Bereich und ausgewähltem Laufindex dieselbe
@@ -251,6 +255,10 @@ und 6-Stunden-Schritte richtig gewichtet) der beiden Ensemble-Mittelkurven über
 Zeitraum beider Modelle, GFS und ECMWF gleich gewichtet. Die „Bezugslinie" ist die nächstgelegene
 5-°C-Gitterlinie zu diesem Niveau (bei Gleichstand die höhere); enthält die Achse keine 5-°C-Linie,
 wird nur das Niveau genannt. Sie ist kein Grenzwert und enthält keine Bewertung wie „mild" oder „kalt".
+Sie ist grau gezeichnet, damit sie nicht mit dem schwarzen Hauptlauf verwechselt wird.
+
+**Verspätete Läufe.** Ist der neueste gespeicherte Lauf eines Modells älter als 36 Stunden (Konstante
+`LAUF_VERALTET_H`), nennt die Statuszeile über dem Diagramm sein Alter.
 
 **Kein Layoutsprung.** Höhe von Bedienleiste, Laufinfo, Statusmeldung und Legende werden beim Start und bei
 jeder Breitenänderung für alle Varianten (beide Modelle, alle Läufe, Mitglieder ein/aus) unsichtbar
@@ -301,7 +309,7 @@ Fensters liegen, bleiben dadurch erhalten; nur Tage, die der aktuelle Abruf tats
 werden aktualisiert (etwa bei nachträglichen DWD-Korrekturen).
 
 **Vorhersagen:** [open-meteo.com](https://open-meteo.com) — Hauptläufe `ecmwf_ifs025` und
-`gfs_seamless`, Ensembles `ecmwf_ifs025` (51 Läufe) und `gfs_seamless` (31 Läufe — `gfs025` allein
+`gfs_seamless`, Ensembles `ecmwf_ifs025` (51 Mitglieder) und `gfs_seamless` (31 Mitglieder — `gfs025` allein
 liefert Mitgliederdaten nur bis Tag 10). Open-Meteo interpoliert Ensemblewerte auf ein
 Stundenraster. Für die Meteogramme werden daraus wieder modellnahe Zeitpunkte gewählt: GFS
 3-stündlich bis +240 Stunden und danach 6-stündlich, ECMWF durchgehend 3-stündlich. Die
@@ -359,7 +367,13 @@ linear auf das Stundenraster gebracht. Fehlt für ein Modell ein Ensemble-Lauf, 
 Hauptlauf allein und weist darauf hin.
 
 **Kurve.** Angezeigt wird der Mittelwert aus Hauptlauf und Ensemble-Mittel, anschließend mit der
-Gewichtung 1-2-1 über benachbarte Stunden geglättet. Messlücken bleiben Lücken.
+Gewichtung 1-2-1 über benachbarte Stunden geglättet. Messlücken bleiben Lücken. Farben wie bei der
+Wetterstation: Temperatur rötlich, Niederschlag blau.
+
+**Kennzahlen und veraltete Daten.** „Jetzt" ist der vorhergesagte Wert der laufenden Stunde (nicht die erste
+Stunde der Datei); Höchst- und Tiefstwert gelten für die 24 Stunden ab jetzt. Ein Ensemble-Lauf, der mehr als
+36 Stunden vor der ersten Stunde begann, wird nicht als Band verwendet. Sind die Stundenwerte älter als
+12 Stunden, erscheint ein Hinweis.
 
 **Zwei Skalen in einem Diagramm.** Temperatur links, Niederschlag rechts — bewusst gegen die sonstige
 Regel dieses Projekts, weil der Reiter den schnellen Gesamtüberblick liefern soll. Die Balken bleiben
@@ -502,8 +516,8 @@ Kennzahlen in drei Spalten; Diagramme randlos, die der Wetterstation etwas höhe
   Rahmen seitlich wischen. Doppeltippen setzt zurück.
 - Ein kleiner Hinweis unter den Diagrammen verschwindet, sobald einmal gezoomt wurde.
 
-**Bekannte Grenze.** Die Diagramme der Analyse-Seite sind für 900 px Breite gezeichnet; auf dem Handy
-ist ihre Schrift klein und nur mit Zoom gut lesbar.
+**Analyse auf dem Handy.** Die Diagramme der Analyse-Seite werden auf die Bildschirmbreite gezeichnet;
+Namen am Linienende entfallen dort (sie stehen in der Legende), im Rückblick steht nur jedes zweite Datum.
 
 **Dienst.** `docs/handy-sw.js` leitet jede Anfrage direkt ins Netz und speichert nichts zwischen —
 die App zeigt also immer den aktuellen Stand. Er ist nur da, weil Chrome eine Seite erst dann als App

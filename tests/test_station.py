@@ -294,7 +294,7 @@ def test_seitenbau_ist_deterministisch(gebaut):
 def test_stationsreiter_sind_in_die_hauptseite_eingebaut():
     import re
     seite = (WURZEL / "skripte" / "vorlage.html").read_text(encoding="utf-8")
-    reiter = re.findall(r'<a href="#([a-z-]+)" data-seite="\1">([^<]+)</a>', seite)
+    reiter = re.findall(r'<a href="#([a-z-]+)" data-seite="\1" data-kurz="[^"]+">([^<]+)</a>', seite)
     assert reiter == [("vorhersage", "Vorhersage Mühldorf"), ("station-heute", "Station heute"),
                       ("station-verlauf", "Station Verlauf"), ("analyse", "Niederschlagsanalyse")]
     assert '<main id="seite-station-heute" hidden>' in seite and '<main id="seite-station-verlauf" hidden>' in seite
