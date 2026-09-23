@@ -1,6 +1,6 @@
 {
  "lauf": "2026-09-23",
- "abgerufen": "2026-09-23T06:56+02:00",
+ "abgerufen": "2026-09-23T07:29+02:00",
  "erfasste_modelle": [
   "ecmwf",
   "gfs"
@@ -12,19 +12,19 @@
  "modelllaeufe": {
   "gfs/hl": {
    "lauf": "2026-09-22T18:00Z",
-   "verfuegbar_seit": "2026-09-23T00:53Z"
+   "verfuegbar_seit": "2026-09-23T00:47Z"
   },
   "gfs/ens": {
    "lauf": "2026-09-22T18:00Z",
-   "verfuegbar_seit": "2026-09-22T23:46Z"
+   "verfuegbar_seit": "2026-09-22T23:44Z"
   },
   "ecmwf/hl": {
    "lauf": "2026-09-22T18:00Z",
-   "verfuegbar_seit": "2026-09-23T01:14Z"
+   "verfuegbar_seit": "2026-09-23T01:05Z"
   },
   "ecmwf/ens": {
    "lauf": "2026-09-22T18:00Z",
-   "verfuegbar_seit": "2026-09-23T02:40Z"
+   "verfuegbar_seit": "2026-09-23T02:44Z"
   }
  },
  "lauf_wie_erwartet": false,
