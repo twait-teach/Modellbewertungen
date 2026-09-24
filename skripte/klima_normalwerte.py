@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Holt die amtlichen Klima-Normalwerte 1991-2020 einer DWD-Station.
+"""Holt die amtlichen Klima-Normalwerte einer DWD-Station: 1991-2020 und 1961-1990.
 
 Quelle: Deutscher Wetterdienst, Climate Data Center, frei zugaengliche Dateien
 unter opendata.dwd.de (Monatsmittel der Lufttemperatur und Monatssummen des
-Niederschlags, Bezugszeitraum 1991-2020).
+Niederschlags). Gespeichert werden zwei Bezugszeitraeume: 1991-2020 als aktuelles
+Klimamittel und 1961-1990 als aeltere Normalperiode zum Vergleich.
 
 Diese Werte aendern sich erst mit der naechsten Normalperiode (2021-2050).
 Das Skript laeuft deshalb NICHT im Workflow, sondern nur von Hand:
@@ -26,10 +27,12 @@ from gemeinsam import atomar_schreiben_json, hole  # noqa: E402
 WURZEL = Path(__file__).resolve().parent.parent
 ZIEL = WURZEL / "daten" / "klima" / "normalwerte.json"
 BASIS = ("https://opendata.dwd.de/climate_environment/CDC/observations_germany/"
-         "climate/multi_annual/mean_91-20/")
-DATEIEN = {"temperatur_c": "Temperatur_1991-2020.txt",
-           "niederschlag_mm": "Niederschlag_1991-2020.txt"}
-STATIONSLISTE = "Temperatur_1991-2020_Stationsliste.txt"
+         "climate/multi_annual/")
+# Reihenfolge: zuerst das aktuelle Klimamittel, danach die Vergleichsperiode.
+PERIODEN = [("1991-2020", "mean_91-20"), ("1961-1990", "mean_61-90")]
+DATEIEN = {"temperatur_c": "Temperatur_{zeitraum}.txt",
+           "niederschlag_mm": "Niederschlag_{zeitraum}.txt"}
+STATIONSLISTE = "Temperatur_{zeitraum}_Stationsliste.txt"
 
 
 def zeile_der_station(text, station):
@@ -56,6 +59,11 @@ def stationsangaben(text, station):
             "hoehe_m": float(felder[4].replace(",", ".")) if len(felder) > 4 else None}
 
 
+def datei_stationsliste(laden, periode):
+    zeitraum, ordner = periode
+    return laden(f"{ordner}/" + STATIONSLISTE.format(zeitraum=zeitraum))
+
+
 def main(argv=None, laden=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--station", default="3366", help="DWD-Stationskennung (Vorgabe: 3366, Mühldorf)")
@@ -63,19 +71,29 @@ def main(argv=None, laden=None):
     a = p.parse_args(argv)
     laden = laden or (lambda datei: hole(BASIS + datei, roh=True).decode("latin-1"))
 
+    def periode(zeitraum, ordner):
+        """Monatswerte und Jahreswerte eines Bezugszeitraums."""
+        datei = lambda name: laden(f"{ordner}/" + name.format(zeitraum=zeitraum))
+        teil = {"zeitraum": zeitraum, "jahr": {}}
+        for feld, name in DATEIEN.items():
+            monate, jahr = werte_der_station(datei(name), a.station)
+            teil[feld] = monate
+            teil["jahr"][feld] = jahr
+        return teil
+
+    aktuell, alt = PERIODEN[0], PERIODEN[1]
+    # Die Felder des aktuellen Klimamittels stehen weiterhin oben (die Seite liest sie dort);
+    # die aeltere Periode kommt als "vergleich" dazu.
     ergebnis = {"quelle": "Deutscher Wetterdienst (DWD), Climate Data Center, opendata.dwd.de",
-                "zeitraum": "1991-2020",
-                "station": stationsangaben(laden(STATIONSLISTE), a.station),
-                "jahr": {}}
-    for feld, datei in DATEIEN.items():
-        monate, jahr = werte_der_station(laden(datei), a.station)
-        ergebnis[feld] = monate
-        ergebnis["jahr"][feld] = jahr
+                "station": stationsangaben(datei_stationsliste(laden, aktuell), a.station),
+                **periode(*aktuell),
+                "vergleich": periode(*alt)}
     atomar_schreiben_json(Path(a.ziel), ergebnis)
     s = ergebnis["station"]
-    print(f"Normalwerte 1991-2020 fuer {s['name']} ({s['id']}, {s['hoehe_m']} m) gespeichert: {a.ziel}")
-    print(f"  Temperatur:   {ergebnis['jahr']['temperatur_c']} °C im Jahr")
-    print(f"  Niederschlag: {ergebnis['jahr']['niederschlag_mm']} mm im Jahr")
+    print(f"Normalwerte fuer {s['name']} ({s['id']}, {s['hoehe_m']} m) gespeichert: {a.ziel}")
+    for teil in (ergebnis, ergebnis["vergleich"]):
+        print(f"  {teil['zeitraum']}: {teil['jahr']['temperatur_c']} °C und "
+              f"{teil['jahr']['niederschlag_mm']} mm im Jahr")
     return 0
 
 

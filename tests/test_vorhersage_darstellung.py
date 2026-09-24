@@ -27,7 +27,7 @@ VORLAGE = Path(__file__).resolve().parent.parent / "skripte" / "vorlage.html"
 UTC = dt.timezone.utc
 BERLIN = ZoneInfo("Europe/Berlin")
 H = 3600
-BEREICH_IDS = ("temp2m", "temp850", "niederschlag")
+BEREICH_IDS = ("temp850", "niederschlag")
 
 
 # ------------------------------------------------------------------ Testdaten
@@ -131,7 +131,7 @@ def _oeffnen(browser, datei, breite, hoehe=1000):
     seite = browser.new_page(viewport={"width": breite, "height": hoehe})
     seite.fehler = []
     seite.on("pageerror", lambda e: seite.fehler.append(str(e)))
-    seite.goto(f"file://{datei}")
+    seite.goto(f"file://{datei}#vorhersage-analyse")
     seite.wait_for_timeout(300)
     return seite
 
@@ -176,10 +176,10 @@ def test_temperaturskala_grenzen_und_gitter_sind_getrennt(browser, reich):
     assert all(t % skala["schritt"] == 0 for t in skala["ticks"])
 
 
-@pytest.mark.parametrize("bereich", ["temp2m", "temp850"])
+@pytest.mark.parametrize("bereich", ["temp850"])
 def test_beide_modelle_teilen_die_achse_und_nichts_wird_abgeschnitten(browser, reich, bereich):
     d = reich["daten"]["vorhersage"]
-    feld = "temperatur_2m" if bereich == "temp2m" else "temperatur_850hpa"
+    feld = "temperatur_850hpa"
     werte = []
     for modell in ("gfs", "ecmwf"):
         f = d[modell][0][feld]
@@ -263,8 +263,8 @@ def test_niveau_gewichtet_beide_modelle_gleich_und_nutzt_nur_den_gemeinsamen_zei
     # ECMWF (3-h-Punkte) konstant 10 ueber Tag 0-10, GFS (6-h-Punkte) konstant 20 ueber Tag 2-12:
     # gleiche Gewichtung -> 15, unabhaengig von Punktzahl und Schrittweite
     seite = _niveau_seite(browser, tmp_path, 10.0, 20.0, (0, 10), (2, 12), "niveau1.html")
-    info = seite.evaluate("b => window.__TEST__.temperaturNiveau(window.__TEST__.BEREICHE.find(x => x.id === b))", "temp2m")
-    svg = seite.evaluate("() => ({n: document.querySelector('#chart-temp2m').dataset.niveau, b: document.querySelector('#chart-temp2m').dataset.bezug})")
+    info = seite.evaluate("b => window.__TEST__.temperaturNiveau(window.__TEST__.BEREICHE.find(x => x.id === b))", "temp850")
+    svg = seite.evaluate("() => ({n: document.querySelector('#chart-temp850').dataset.niveau, b: document.querySelector('#chart-temp850').dataset.bezug})")
     seite.close()
     assert info["niveau"] == pytest.approx(15.0)
     assert info["von"] == int(dt.datetime(2026, 9, 23, tzinfo=UTC).timestamp())      # gemeinsamer Zeitraum: Tag 2 ...
@@ -274,7 +274,7 @@ def test_niveau_gewichtet_beide_modelle_gleich_und_nutzt_nur_den_gemeinsamen_zei
 
 def test_niveau_beschriftung_ist_neutral_und_bezugslinie_liegt_auf_der_gitterlinie(browser, tmp_path):
     seite = _niveau_seite(browser, tmp_path, 12.8, 12.8, (0, 10), (0, 10), "niveau2.html")
-    r = seite.evaluate("""() => { const s = document.querySelector('#chart-temp2m');
+    r = seite.evaluate("""() => { const s = document.querySelector('#chart-temp850');
         const ref = s.querySelector('[data-serie=temperatur-referenz]');
         const gitter = [...s.querySelectorAll('line.gitter')].filter(l => l.getAttribute('x1') === l.getAttribute('x2') ? false : true);
         const tickY = [...s.querySelectorAll('text.ax')].filter(t => t.getAttribute('text-anchor') === 'end' && t.textContent === '15')[0];
@@ -282,7 +282,7 @@ def test_niveau_beschriftung_ist_neutral_und_bezugslinie_liegt_auf_der_gitterlin
                  linie: s.querySelector('[data-serie=referenz-linie]').textContent,
                  refBreite: +ref.getAttribute('stroke-width'), gitterBreite: parseFloat(getComputedStyle(gitter[0]).strokeWidth),
                  refY: +ref.getAttribute('y1'), tickY: +tickY.getAttribute('y') - 3.5 }; }""")
-    text = seite.evaluate("document.querySelector('#chart-temp2m').textContent")
+    text = seite.evaluate("document.querySelector('#chart-temp850').textContent")
     seite.close()
     assert r["niveau"] == "Temperaturniveau: 12,8 °C" and r["linie"] == "Bezugslinie: 15 °C"
     assert r["refBreite"] > 2 * r["gitterBreite"]                 # deutlich dicker als das Gitter
@@ -293,9 +293,9 @@ def test_niveau_beschriftung_ist_neutral_und_bezugslinie_liegt_auf_der_gitterlin
 
 def test_niveau_gilt_auch_beim_wechsel_des_modells_unveraendert(browser, reich):
     seite = _oeffnen(browser, reich["datei"], 1366)
-    lesen = lambda: seite.evaluate("() => { const s = document.querySelector('#chart-temp2m'); return [s.dataset.niveau, s.dataset.bezug, s.dataset.unten, s.dataset.oben]; }")
+    lesen = lambda: seite.evaluate("() => { const s = document.querySelector('#chart-temp850'); return [s.dataset.niveau, s.dataset.bezug, s.dataset.unten, s.dataset.oben]; }")
     ecmwf = lesen()
-    _modell(seite, "temp2m", "GFS")
+    _modell(seite, "temp850", "GFS")
     gfs = lesen()
     seite.close()
     assert ecmwf == gfs and ecmwf[0] is not None
@@ -361,11 +361,11 @@ def test_inhalt_ist_auf_1400_px_begrenzt_und_diagramme_nutzen_die_volle_breite(b
     for breite in (800, 1366, 1920):
         seite = _oeffnen(browser, reich["datei"], breite)
         gemessen[breite] = seite.evaluate("""() => { const w = document.querySelector('.wrap').getBoundingClientRect().width;
-            const p = document.querySelector('#s-temp2m .plot'), s = document.querySelector('#chart-temp2m');
+            const p = document.querySelector('#s-temp850 .plot'), s = document.querySelector('#chart-temp850');
             const cs = getComputedStyle(p); const innen = p.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2;
             return { wrap: w, plot: p.getBoundingClientRect().width, svg: s.getBoundingClientRect().width, innen,
-                     viewBox: s.viewBox.baseVal.width, info: document.querySelector('#laufinfoZeile-temp2m').getBoundingClientRect().width,
-                     leiste: document.querySelector('#bedienleiste-temp2m').getBoundingClientRect().width, hoehe: s.getBoundingClientRect().height }; }""")
+                     viewBox: s.viewBox.baseVal.width, info: document.querySelector('#laufinfoZeile-temp850').getBoundingClientRect().width,
+                     leiste: document.querySelector('#bedienleiste-temp850').getBoundingClientRect().width, hoehe: s.getBoundingClientRect().height }; }""")
         seite.close()
     assert gemessen[1920]["wrap"] == 1400                           # nie breiter
     assert gemessen[1366]["wrap"] == 1366 - 40
@@ -380,13 +380,13 @@ def test_inhalt_ist_auf_1400_px_begrenzt_und_diagramme_nutzen_die_volle_breite(b
 
 def test_groessenaenderung_zeichnet_das_diagramm_neu(browser, reich):
     seite = _oeffnen(browser, reich["datei"], 1920)
-    breit = seite.evaluate("document.querySelector('#chart-temp2m').viewBox.baseVal.width")
+    breit = seite.evaluate("document.querySelector('#chart-temp850').viewBox.baseVal.width")
     seite.set_viewport_size({"width": 800, "height": 1000})
     seite.wait_for_timeout(400)
-    schmal = seite.evaluate("[document.querySelector('#chart-temp2m').viewBox.baseVal.width, document.querySelector('#chart-niederschlag').viewBox.baseVal.width, document.documentElement.scrollWidth]")
+    schmal = seite.evaluate("[document.querySelector('#chart-temp850').viewBox.baseVal.width, document.querySelector('#chart-niederschlag').viewBox.baseVal.width, document.documentElement.scrollWidth]")
     seite.set_viewport_size({"width": 1920, "height": 1000})
     seite.wait_for_timeout(400)
-    wieder = seite.evaluate("document.querySelector('#chart-temp2m').viewBox.baseVal.width")
+    wieder = seite.evaluate("document.querySelector('#chart-temp850').viewBox.baseVal.width")
     assert not seite.fehler, seite.fehler
     seite.close()
     assert breit > 1300 and schmal[0] < 800 and schmal[1] < 800 and schmal[2] <= 800 and wieder == breit
@@ -509,7 +509,7 @@ def test_letzte_beschriftung_ist_vorhanden_und_sichtbar_wenn_das_ende_kurz_nach_
     init = dt.datetime(2026, 9, 20, 0, tzinfo=UTC)
     daten = _daten([], [_lauf("ecmwf", init, 15, mitglieder=4)])
     seite = _oeffnen(browser, _seite(tmp_path, daten, "ende.html"), 1920)
-    r = seite.evaluate("""() => { const s = document.querySelector('#chart-temp2m'); const B = s.viewBox.baseVal.width;
+    r = seite.evaluate("""() => { const s = document.querySelector('#chart-temp850'); const B = s.viewBox.baseVal.width;
         const l = [...s.querySelectorAll('[data-serie=tagesbeschriftung]')]; const z = l[l.length - 1];
         const b = z.getBBox(); const linien = [...s.querySelectorAll('[data-serie=tageslinie]')];
         return { text: z.textContent, rechts: b.x + b.width, B, letzteLinie: +linien[linien.length - 1].getAttribute('x1') }; }""")
@@ -523,11 +523,11 @@ def test_tooltip_und_tabelle_zeigen_ortszeit_aus_der_unixzeit_auch_in_der_doppel
     daten = _daten([], [_lauf("ecmwf", init, 3, mitglieder=4)])
     unix = daten["vorhersage"]["ecmwf"][0]["temperatur_2m"]["zeitpunkte_unix"]
     seite = _oeffnen(browser, _seite(tmp_path, daten, "doppel.html"), 1366)
-    tabelle = seite.evaluate("[...document.querySelectorAll('#tab-temp2m tbody tr')].map(r => [r.cells[0].textContent, r.cells[1].textContent])")
+    tabelle = seite.evaluate("[...document.querySelectorAll('#tab-temp850 tbody tr')].map(r => [r.cells[0].textContent, r.cells[1].textContent])")
     ortsteile = seite.evaluate("u => u.map(x => { const t = window.__TEST__.ortsTeile(x); return [t.iso, t.stunde, t.minute]; })", unix)
     # Ortszeit 02:00 kommt an diesem Tag zweimal vor -- beide Zeilen sind eindeutige, verschiedene Zeitpunkte
     zwei_uhr = [i for i, u in enumerate(unix) if dt.datetime.fromtimestamp(u, BERLIN).strftime("%H:%M") == "02:00"]
-    seite.locator("#chart-temp2m rect.treffer").nth(zwei_uhr[0]).hover(force=True)
+    seite.locator("#chart-temp850 rect.treffer").nth(zwei_uhr[0]).hover(force=True)
     tip = seite.locator("#tip").inner_text()
     seite.close()
     erwartet = [dt.datetime.fromtimestamp(u, BERLIN).strftime("%H:%M") for u in unix]
@@ -549,18 +549,18 @@ def test_ortsmitternacht_hilfsfunktion_an_den_umstelltagen(browser, reich):
 # ------------------------------------------------------------------ Unveraendert: Tabellen, Analyse, Legende
 def test_tabelle_legende_und_analyse_funktionieren_weiter(browser, reich):
     seite = _oeffnen(browser, reich["datei"], 1366)
-    zeilen = seite.locator("#tab-temp2m tbody tr").count()
+    zeilen = seite.locator("#tab-temp850 tbody tr").count()
     punkte = len(reich["daten"]["vorhersage"]["ecmwf"][0]["temperatur_2m"]["zeitpunkte_unix"])
-    legende = seite.locator("#leg-temp2m").inner_text()
-    _modell(seite, "temp2m", "GFS")
-    legende_gfs = seite.locator("#leg-temp2m").inner_text()
+    legende = seite.locator("#leg-temp850").inner_text()
+    _modell(seite, "temp850", "GFS")
+    legende_gfs = seite.locator("#leg-temp850").inner_text()
     seite.locator('#hauptnav a[data-seite="analyse"]').click()
     seite.wait_for_timeout(200)
     sichtbar = seite.evaluate("[...document.querySelectorAll('main[id^=seite-]')].filter(m => !m.hidden).map(m => m.id)")
     analyse_breite = seite.evaluate("document.querySelector('#seite-analyse').getBoundingClientRect().width")
     seite.locator('#hauptnav a[data-seite="vorhersage"]').click()
     seite.wait_for_timeout(300)
-    nach_rueckkehr = seite.evaluate("document.querySelector('#chart-temp2m').viewBox.baseVal.width")
+    nach_rueckkehr = seite.evaluate("document.querySelector('#chart-temp850').viewBox.baseVal.width")
     fehler = list(seite.fehler)
     seite.close()
     assert zeilen == punkte
@@ -575,10 +575,10 @@ def test_seite_startet_auch_bei_analyse_hash_und_zeichnet_die_vorhersage_beim_ei
     seite = browser.new_page(viewport={"width": 1920, "height": 1000})
     seite.goto(f"file://{reich['datei']}#analyse")
     seite.wait_for_timeout(300)
-    seite.evaluate("location.hash = '#vorhersage'")
+    seite.evaluate("location.hash = '#vorhersage-analyse'")
     seite.wait_for_timeout(400)
-    r = seite.evaluate("""() => { const s = document.querySelector('#chart-temp2m'); return [s.viewBox.baseVal.width, s.getBoundingClientRect().width,
-        document.querySelector('#bedienleiste-temp2m').style.minHeight]; }""")
+    r = seite.evaluate("""() => { const s = document.querySelector('#chart-temp850'); return [s.viewBox.baseVal.width, s.getBoundingClientRect().width,
+        document.querySelector('#bedienleiste-temp850').style.minHeight]; }""")
     seite.close()
     assert r[0] > 1300 and r[0] == pytest.approx(r[1], abs=2)
     assert r[2] not in ("", "0px")            # Mindesthoehen wurden nach dem Einblenden gemessen
@@ -587,13 +587,13 @@ def test_seite_startet_auch_bei_analyse_hash_und_zeichnet_die_vorhersage_beim_ei
 # ------------------------------------------------------------------ Korrekturen (Rueckmeldung nach dem ersten Einsatz)
 def test_einleitungstext_nutzt_die_volle_breite(browser, reich):
     seite = _oeffnen(browser, reich["datei"], 1366)
-    r = seite.evaluate("""() => ({ text: document.querySelector('.unterzeile').getBoundingClientRect().width,
+    r = seite.evaluate("""() => ({ text: document.querySelector('.unterzeile[data-fuer~="vorhersage-analyse"]').getBoundingClientRect().width,
         kopf: document.querySelector('header.kopf').getBoundingClientRect().width })""")
     seite.close()
     assert r["text"] == pytest.approx(r["kopf"], abs=2) and r["text"] > 1000
 
 
-def _tafel(seite, bereich="temp2m"):
+def _tafel(seite, bereich="temp850"):
     return seite.evaluate("""b => { const s = document.querySelector('#chart-' + b);
         const r = s.querySelector('[data-serie=referenz-tafel]');
         return { rechts: +r.getAttribute('x') + +r.getAttribute('width'), oben: +r.getAttribute('y'),
@@ -605,9 +605,9 @@ def _tafel(seite, bereich="temp2m"):
 def test_niveautafel_sitzt_fest_oben_rechts_ausserhalb_der_kurven(browser, reich, breite):
     seite = _oeffnen(browser, reich["datei"], breite)
     a = _tafel(seite)                                   # ECMWF
-    _modell(seite, "temp2m", "GFS")
+    _modell(seite, "temp850", "GFS")
     b = _tafel(seite)
-    seite.locator("#laufwahl-temp2m button").nth(3).click()   # anderer Lauf -> anderes Niveau
+    seite.locator("#laufwahl-temp850 button").nth(3).click()   # anderer Lauf -> anderes Niveau
     seite.wait_for_timeout(60)
     c = _tafel(seite)
     seite.close()

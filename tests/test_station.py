@@ -295,8 +295,9 @@ def test_stationsreiter_sind_in_die_hauptseite_eingebaut():
     import re
     seite = (WURZEL / "skripte" / "vorlage.html").read_text(encoding="utf-8")
     reiter = re.findall(r'<a href="#([a-z-]+)" data-seite="\1" data-kurz="[^"]+">([^<]+)</a>', seite)
-    assert reiter == [("vorhersage", "Vorhersage Mühldorf"), ("station-heute", "Station heute"),
-                      ("station-verlauf", "Station Verlauf"), ("analyse", "Niederschlagsanalyse")]
+    assert reiter == [("vorhersage", "Vorhersage"), ("station-heute", "Station heute"),
+                      ("station-verlauf", "Station Verlauf"), ("vorhersage-analyse", "Vorhersage Analyse"),
+                      ("analyse", "Niederschlag Analyse")]
     assert '<main id="seite-station-heute" hidden>' in seite and '<main id="seite-station-verlauf" hidden>' in seite
     assert "<title>Vorhersage und Analyse Mühldorf</title>" in seite
     assert "Wetterstation Stefanskirchen" in seite and "Stephanskirchen" not in seite
@@ -343,9 +344,20 @@ NIEDERSCHLAG = ("Stations_id;Bezugszeitraum;Datenquelle;Jan.;Feb.;März;Apr.;Mai
                 "    101.4;     93.3;     68.1;       58;     51.8;     54.5;      809;\n")
 
 
+TEMPERATUR_ALT = ("Stations_id;Bezugszeitraum;Datenquelle;Jan.;Feb.;März;Apr.;Mai;Jun.;Jul.;Aug.;Sept.;Okt.;Nov.;Dez.;Jahr;\n"
+                  "       3366;1961-1990;        51;      -2.1;       -.3;      3.2;      7.6;     12.2;     15.7;"
+                  "     17.4;     16.7;       13;        8;      2.9;      -.8;      7.9;\n")
+NIEDERSCHLAG_ALT = ("Stations_id;Bezugszeitraum;Datenquelle;Jan.;Feb.;März;Apr.;Mai;Jun.;Jul.;Aug.;Sept.;Okt.;Nov.;Dez.;Jahr;\n"
+                    "       3366;1961-1990;        43;     51.8;     48.3;     54.6;     63.1;     92.1;    125.2;"
+                    "    103.2;    113.3;     74.1;     54.2;     61.1;     56.1;    897.2;\n")
+
+
 def test_normalwerte_werden_aus_den_dwd_dateien_gelesen(tmp_path):
-    dateien = {"Temperatur_1991-2020_Stationsliste.txt": STATIONSLISTE,
-               "Temperatur_1991-2020.txt": TEMPERATUR, "Niederschlag_1991-2020.txt": NIEDERSCHLAG}
+    dateien = {"mean_91-20/Temperatur_1991-2020_Stationsliste.txt": STATIONSLISTE,
+               "mean_91-20/Temperatur_1991-2020.txt": TEMPERATUR,
+               "mean_91-20/Niederschlag_1991-2020.txt": NIEDERSCHLAG,
+               "mean_61-90/Temperatur_1961-1990.txt": TEMPERATUR_ALT,
+               "mean_61-90/Niederschlag_1961-1990.txt": NIEDERSCHLAG_ALT}
     ziel = tmp_path / "normalwerte.json"
     assert klima_normalwerte.main(["--ziel", str(ziel)], laden=lambda d: dateien[d]) == 0
     d = json.loads(ziel.read_text(encoding="utf-8"))
@@ -353,6 +365,11 @@ def test_normalwerte_werden_aus_den_dwd_dateien_gelesen(tmp_path):
     assert d["zeitraum"] == "1991-2020" and "DWD" in d["quelle"]
     assert d["temperatur_c"][:2] == [-0.7, 0.3] and d["niederschlag_mm"][6] == 101.4
     assert d["jahr"] == {"temperatur_c": 8.8, "niederschlag_mm": 809.0}
+    # aeltere Normalperiode als Vergleich
+    v = d["vergleich"]
+    assert v["zeitraum"] == "1961-1990" and v["temperatur_c"][:2] == [-2.1, -0.3]
+    assert v["jahr"] == {"temperatur_c": 7.9, "niederschlag_mm": 897.2}
+    assert v["jahr"]["temperatur_c"] < d["jahr"]["temperatur_c"]
 
 
 def test_normalwerte_landen_in_der_seite(gebaut):

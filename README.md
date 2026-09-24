@@ -1,18 +1,34 @@
 # Vorhersage und Analyse Mühldorf
 
 Ensemble-Meteogramm und Modellvergleich für die DWD-Station Mühldorf am Inn sowie die Messwerte der
-eigenen Wetterstation Stefanskirchen. Die Seite hat vier Reiter: **Vorhersage Mühldorf**, **Station
-heute**, **Station Verlauf** und **Niederschlagsanalyse** (Adressen `#vorhersage`, `#station-heute`,
-`#station-verlauf`, `#analyse`). Die beiden Stationsreiter sind unten unter „Wetterstation
-Stefanskirchen" beschrieben. Zu den beiden Mühldorf-Bereichen:
+eigenen Wetterstation Stefanskirchen. Die Seite hat sechs Reiter, in dieser Reihenfolge:
+**48h Wetter**, **Vorhersage**, **Station heute**, **Station Verlauf**, **Vorhersage Analyse** und
+**Niederschlag Analyse** (Adressen `#wetter48`, `#vorhersage`, `#station-heute`, `#station-verlauf`,
+`#vorhersage-analyse`, `#analyse`). Beim Aufruf ohne Hash öffnet **48h Wetter**. Die beiden
+Stationsreiter sind unten unter „Wetterstation Stefanskirchen" beschrieben. Zu den vier
+Mühldorf-Reitern:
 
-- **Vorhersage** — drei Ensemble-Meteogramme untereinander: **2-m-Temperatur**,
-  **850-hPa-Temperatur** und **aufsummierter Niederschlag**, jeweils für **GFS** und **ECMWF-IFS** (das klassische
-  physikalische Modell, nicht die KI-Variante AIFS). Jeder Bereich hat eine eigene, voneinander
-  unabhängige Bedienleiste: Modellumschaltung, Auswahl eines gespeicherten Laufs (mit echtem Datum
-  und Uhrzeit, z. B. „aktuell · 18.09., 12 UTC"), eigene Haken (siehe „Haken im Meteogramm“), eigene
-  Legende, eigenes Diagramm und eigene Zahlentabelle. Unter jeder Überschrift steht ein Satz Kurzhinweis;
-  die ausführliche Erklärung (Mitglieder, Mittel, Perzentilband, Kontroll-/Hauptlauf, Aufsummierung,
+- **48h Wetter** — ein Diagramm für die nächsten 48 Stunden: Temperaturkurve (Mittel aus Hauptlauf und
+  Ensemble-Mittel, leicht geglättet) mit dem 10.–90.-Perzentil-Band, stündlicher Niederschlag als Balken
+  mit eigener Skala rechts, Wettersymbole im 3-Stunden-Abstand (6 auf schmalen Bildschirmen) und grau
+  hinterlegte Nachtstunden. Umschaltbar zwischen GFS und ECMWF-IFS.
+- **Vorhersage** — die Mittelfrist bis Tag 15 in einem Bild, bewusst ohne Einzelmitglieder: oben die
+  **2-m-Temperatur** als Ensemble-Mittel mit dem 10.–90.-Perzentilband, darunter der **Niederschlag**
+  in 3-Stunden-Schritten, darüber je Tag ein **Wettersymbol**. Die Höhe einer Niederschlagsfläche ist
+  die mittlere Menge (mm/3 h), ihre Einfärbung die Wahrscheinlichkeit: Anteil der Mitglieder mit
+  mindestens **0,1 mm** im jeweiligen Schritt — je wahrscheinlicher, desto kräftiger blau, je
+  unwahrscheinlicher, desto transparenter. Bedienung: Modellumschaltung GFS/ECMWF-IFS, Haken für den
+  **Hauptlauf** und Haken für das **andere Modell**. Beim Modellvergleich werden Hauptlauf und
+  Tagessymbole ausgeblendet, damit nur die beiden Ensembles nebeneinander stehen; das zweite Modell
+  wird gestrichelt gezeichnet (Mittel, p10/p90 und Niederschlag als Linie).
+- **Vorhersage Analyse** (früher „Vorhersage Mühldorf") — das ausführliche Ensemble-Meteogramm für
+  Fachleser, mit zwei Bereichen untereinander: **850-hPa-Temperatur** und **aufsummierter
+  Niederschlag**, jeweils für **GFS** und **ECMWF-IFS** (das klassische physikalische Modell, nicht die
+  KI-Variante AIFS). Jeder Bereich hat eine eigene, voneinander unabhängige Bedienleiste:
+  Modellumschaltung, Auswahl eines gespeicherten Laufs (mit echtem Datum und Uhrzeit, z. B.
+  „aktuell · 18.09., 12 UTC"), eigene Haken (siehe „Haken im Meteogramm“), eigene Legende, eigenes
+  Diagramm und eigene Zahlentabelle. Unter jeder Überschrift steht ein Satz Kurzhinweis; die
+  ausführliche Erklärung (Mitglieder, Mittel, Perzentilband, Kontroll-/Hauptlauf, Aufsummierung,
   Skala und Bezugslinie) liegt einklappbar unter dem Diagramm („Erklärung und Darstellung").
   Wichtig zur Methodik: Der **Niederschlag** wird zuerst je Mitglied über die Zeit aufsummiert, erst
   danach werden Mittel und Perzentile aus den akkumulierten Kurven gebildet. **Temperaturen werden
@@ -20,11 +36,7 @@ Stefanskirchen" beschrieben. Zu den beiden Mühldorf-Bereichen:
   Modellstart bis zum Vorhersagehorizont als durchgehendes Meteogramm gezeigt. Mittel und Perzentile
   werden für jeden einzelnen Zeitpunkt direkt aus den vorhandenen Mitgliedswerten berechnet;
   fehlende Mitgliedswerte werden ausgeschlossen, nie als 0 °C gewertet.
-- **48h Wetter** — ein Diagramm für die nächsten 48 Stunden: Temperaturkurve (Mittel aus Hauptlauf und
-  Ensemble-Mittel, leicht geglättet) mit dem 10.–90.-Perzentil-Band, stündlicher Niederschlag als Balken
-  mit eigener Skala rechts, Wettersymbole im 3-Stunden-Abstand (6 auf schmalen Bildschirmen) und grau
-  hinterlegte Nachtstunden. Umschaltbar zwischen GFS und ECMWF-IFS.
-- **Niederschlagsanalyse** (früher „Analyse") — wie genau frühere Vorhersagen waren: tagesgenaue Güte (Tag 1–5), Bias, 5-mm-Schwelle,
+- **Niederschlag Analyse** (früher „Analyse") — wie genau frühere Vorhersagen waren: tagesgenaue Güte (Tag 1–5), Bias, 5-mm-Schwelle,
   Rückblick, Ensemble-Spannweite, und ein Witterungs-/Summenvergleich über die Zeitfenster Tag 1–3,
   4–7 und 8–14 gegen die tatsächlich gemessenen Tagessummen der DWD-Station.
 
@@ -192,7 +204,8 @@ tests/                        automatisierte Tests (pytest)
   test_zeitverarbeitung.py      Sommerzeit-Tests der Zeitverarbeitung (ohne Browser)
   test_handy.py                 Handy-Fassung: Bau, Trennung von app.html, Manifest, Symbole (ohne Browser)
   test_handy_browser.py         Handy-Fassung im Browser: Start, schlanke Ansicht, Zwei-Finger-Zoom (Playwright)
-  test_vergleichskurven.py      Haken im Meteogramm: gleitendes Mittel, Vorläufe, anderes Modell (Playwright)
+  test_vergleichskurven.py      Haken im Meteogramm: Vorläufe, anderes Modell (Playwright)
+  test_mittelfrist.py           Reiter „Vorhersage": Niederschlagsfläche, Tagessymbole, Modellvergleich (Playwright)
   die übrigen Dateien           schnelle Tests ohne Browser
 .github/workflows/
   aktualisieren.yml             halbstündlicher Daten-Workflow (nur schnelle Tests, kein Chromium)
@@ -242,8 +255,9 @@ dieselbe Achse: Sie endet 20 % über dem höchsten Wert des 90.-Perzentil-Bands 
 (mindestens 5 mm). Ohne das änderte sich beim Modellwechsel die Skala, und beide Modelle sähen gleich
 nass aus. Einzelne Mitglieder darüber laufen bewusst aus dem Bild.
 
-**Kopf je Reiter.** Jeder Reiter hat eine eigene, stets einzeilige Überschrift („Vorhersage Mühldorf",
-„48 Stunden Mühldorf", „Niederschlagsanalyse", „Wetterstation Stefanskirchen") und eine eigene, kurze
+**Kopf je Reiter.** Jeder Reiter hat eine eigene, stets einzeilige Überschrift („48 Stunden Mühldorf",
+„Vorhersage Mühldorf", „Vorhersage-Analyse Mühldorf", „Niederschlagsanalyse", „Wetterstation
+Stefanskirchen") und eine eigene, kurze
 Einleitungszeile; gesteuert über `[data-fuer]` und `body[data-seite]`. Die Schriftgröße skaliert mit der
 Breite (`clamp`), die Zeilen sind auf `nowrap` gesetzt — auch bei 320 px bleibt es eine Zeile.
 
@@ -256,7 +270,7 @@ gemeinsamer **Datenstand** (neuester Abruf aller Quelldaten, Ortszeit) — nicht
 Diagramms. Der Kopf ist bewusst knapp gehalten (Standangabe
 zweizeilig inklusive „406 m ü. NN", weniger Abstände), damit die Diagramme möglichst weit oben stehen.
 
-Die beiden Temperaturdiagramme verwenden je Bereich und ausgewähltem Laufindex dieselbe
+Das Temperaturdiagramm der Vorhersage-Analyse verwendet je ausgewähltem Laufindex dieselbe
 Y-Achse für GFS und ECMWF. Die Grenzen folgen den kleinsten und größten dargestellten Werten beider
 Modelle (alle Mitglieder, Mittel, Perzentilband, Kontroll- und Hauptlauf) mit einem Rand von 5 % der
 Spannweite (mindestens 1, höchstens 1,5 °C) und sind ganzzahlig, aber keine Vielfachen von 5.
@@ -271,22 +285,23 @@ Zeitraum beider Modelle, GFS und ECMWF gleich gewichtet. Die „Bezugslinie" ist
 wird nur das Niveau genannt. Sie ist kein Grenzwert und enthält keine Bewertung wie „mild" oder „kalt".
 Sie ist grau gezeichnet, damit sie nicht mit dem schwarzen Hauptlauf verwechselt wird.
 
-**Haken im Meteogramm.** Jeder Bereich hat eigene Haken; die Einzelmitglieder sind immer zu sehen.
+**Haken im Meteogramm** (Reiter „Vorhersage Analyse"). Jeder Bereich hat eigene Haken; die Einzelmitglieder
+sind immer zu sehen.
 - *Haupt-/Kontrolllauf zeigen* (an): die schwarzen Linien (GFS: Hauptlauf und Kontrolllauf, ECMWF-IFS: Hauptlauf).
-- *Gleitendes 24-h-Mittel zeigen* (nur 2-m-Temperatur): Ensemble-Mittel, zentriert über 24 Stunden zeitgewichtet
-  gemittelt; die ersten und letzten 12 Stunden bleiben leer.
 - *Vorläufe zeigen*: die drei vorangegangenen Läufe desselben Modells (GFS 6/12/18 h, ECMWF-IFS 12/24/36 h
   älter; durchgezogen, gestrichelt, gepunktet), nach Gültigkeitszeit übereinandergelegt. Verglichen wird nur
   innerhalb eines Modells, die unterschiedlichen Abstände sind deshalb gewollt.
 - *„anderes Modell“ zeigen*: der Lauf des anderen Modells zur selben Startzeit (zu GFS 06/18 UTC der 6 Stunden
   ältere ECMWF-Lauf). Bei 850 hPa vollständig in seiner Farbe (Mittel dick, Mitglieder dünn, 10.–90.-Perzentil nur
-  als gestrichelte Grenzen), bei 2 m und Niederschlag nur seine Vergleichskurve.
+  als gestrichelte Grenzen), beim Niederschlag nur seine Vergleichskurve.
 
-Verglichen wird je Bereich immer dieselbe **Vergleichskurve**: 2-m-Temperatur das gleitende 24-h-Mittel,
-850 hPa das ungeglättete Ensemble-Mittel, Niederschlag das Ensemble-Mittel aufsummiert erst ab Beginn des
-gewählten Laufs (davor keine Kurve). Bei der 2-m-Temperatur ist das 24-h-Mittel deshalb angehakt und gesperrt,
-solange Vorläufe oder das andere Modell gezeigt werden; danach bleibt es angehakt, bis man es abwählt. Die
+Verglichen wird je Bereich immer dieselbe **Vergleichskurve**: 850 hPa das ungeglättete Ensemble-Mittel,
+Niederschlag das Ensemble-Mittel aufsummiert erst ab Beginn des gewählten Laufs (davor keine Kurve). Die
 Temperaturachse berücksichtigt alle Vergleichskurven von vornherein, damit sie beim Anhaken nicht springt.
+
+**Legende auf schmalen Bildschirmen.** Unter 600 px Diagrammbreite stehen die Einträge für Vorläufe und das
+andere Modell in einer kleinen Tafel im Diagramm (oben links) statt über dem Diagramm; sonst schöbe die Legende
+das Diagramm weit nach unten. Die Grundeinträge (Mittel, Band, Mitglieder, Hauptlauf) bleiben oben.
 
 **Verspätete Läufe.** Ist der neueste gespeicherte Lauf eines Modells älter als 36 Stunden (Konstante
 `LAUF_VERALTET_H`), nennt die Statuszeile über dem Diagramm sein Alter.
@@ -389,8 +404,11 @@ open-meteo.com (CC BY 4.0), Modelldaten von NOAA/NCEP und ECMWF.
 (`api.open-meteo.com/v1/forecast`, Datensatz `gfs_seamless` bzw. `ecmwf_ifs025`) mit den Stundenwerten
 des Hauptlaufs: Temperatur, Niederschlag, **WMO-Wettercode** und Tag/Nacht-Kennzeichen. Der Wettercode
 ist die Quelle der Symbole und stammt damit immer aus demselben Modell wie die Kurve — eine zweite
-Wetterquelle braucht es nicht. Ergebnis: `daten/48h/<modell>.json`, eingebettet von `bauen.py` als
-`wetter48`. Geschrieben wird nur bei fachlicher Änderung.
+Wetterquelle braucht es nicht. Derselbe Abruf liefert zusätzlich den **Tageswettercode** für 16 Tage
+(`daily=weather_code`, Felder `tage_unix` und `tageswettercode`); daraus stammen die Tagessymbole im
+Reiter „Vorhersage". Fehlt der Tagesteil einmal, bleibt der Stundenteil trotzdem gültig. Ergebnis:
+`daten/48h/<modell>.json`, eingebettet von `bauen.py` als `wetter48`. Geschrieben wird nur bei
+fachlicher Änderung.
 
 **Ensemble-Band.** Mittel, 10. und 90. Perzentil kommen **nicht** aus einem zusätzlichen Abruf, sondern
 aus dem jüngsten gespeicherten Ensemble-Lauf (`daten/vorhersage/*.json`, 3-stündlich). Die Werte werden
@@ -411,7 +429,43 @@ stünde sonst einfach der Wert von jetzt da. Ein Ensemble-Lauf, der mehr als
 **Zwei Skalen in einem Diagramm.** Temperatur links, Niederschlag rechts — bewusst gegen die sonstige
 Regel dieses Projekts, weil der Reiter den schnellen Gesamtüberblick liefern soll. Die Balken bleiben
 deshalb zurückhaltend gezeichnet, nehmen höchstens 42 % der Höhe ein und stehen immer unten. Für den
-genauen Mengenvergleich zwischen den Modellen ist der Reiter „Vorhersage Mühldorf" gedacht.
+genauen Mengenvergleich zwischen den Modellen ist der Reiter „Vorhersage Analyse" gedacht.
+
+---
+
+## Reiter „Vorhersage" (Mittelfrist)
+
+Der Reiter zeigt die Mittelfrist bis zum Vorhersagehorizont (Tag 15) so, wie man sie im Alltag liest:
+**kein Mitglied wird gezeichnet**, nur Mittel, Band, Niederschlag und ein Symbol je Tag. Er liegt als
+eigenständiger Skriptblock am Ende von `skripte/vorlage.html` und benutzt dieselben gespeicherten
+Ensemble-Läufe wie die Vorhersage-Analyse — es wird nichts zusätzlich abgerufen.
+
+**Temperatur.** Ensemble-Mittel des jüngsten Laufs als kräftige Linie, dazu das 10.–90.-Perzentilband
+als Fläche in der Modellfarbe (ECMWF-IFS `#b77900`, GFS `#c1500f`). Der Haken *Hauptlauf zeigen*
+legt den deterministischen Lauf schwarz darüber.
+
+**Niederschlag.** Aus den gespeicherten, je Mitglied **aufsummierten** Reihen wird die Menge je
+Zeitschritt zurückgerechnet und auf **3 Stunden** normiert (`BEZUG_STUNDEN`), damit die 6-Stunden-Schritte
+ab +240 h nicht doppelt so hoch aussehen. Für jeden Schritt ergibt das zwei Zahlen:
+- die **Höhe** der Fläche: das Mittel der Mitgliedsmengen in mm/3 h,
+- die **Einfärbung**: der Anteil der Mitglieder mit mindestens **0,1 mm** (`REGEN_SCHWELLE`) in diesem
+  Schritt, umgesetzt als Deckkraft `0,12 + 0,68 × Anteil`. Ein Schritt, den nur wenige Mitglieder
+  bringen, steht also blass da, ein einhelliger Schritt kräftig blau. Die Deckkraft ist bewusst nie 0
+  und nie 1, damit auch ein seltener Fall sichtbar bleibt und ein sicherer nicht wie ein Balken wirkt.
+
+**Tagessymbole.** Ein Symbol je Tag, gesetzt zur örtlichen Mittagszeit, aus dem Tageswettercode des
+Hauptlaufs (`tageswettercode` aus `daten/48h/<modell>.json`, gezeichnet über `window.WW_SYMBOL` des
+48-h-Blocks). Die Tagesgrenzen werden als **echte Ortsmitternächte** berechnet und nicht aus dem
+3-Stunden-Raster abgeleitet — ein 12-UTC-Lauf trifft 00:00 Ortszeit nie.
+
+**Modellvergleich.** Der Haken *anderes Modell zeigen* legt das zweite Ensemble gestrichelt darüber
+(Mittel durchgezogen in seiner Farbe, p10/p90 als gestrichelte Grenzen statt Fläche, Niederschlag als
+gestrichelte Linie). Solange er gesetzt ist, sind Hauptlauf und Tagessymbole ausgeblendet und der
+Hauptlauf-Haken gesperrt: Zwei Ensembles plus Hauptlauf plus Symbole wären nicht mehr lesbar.
+
+Getestet wird der Reiter von `tests/test_mittelfrist.py` (Playwright): Normierung und Wahrscheinlichkeit
+der Niederschlagsschritte, Monotonie und Grenzen der Deckkraft, mindestens vier Tagessymbole, das
+Ausblenden beim Modellvergleich und der Hinweis bei fehlenden Daten.
 
 ---
 
@@ -433,10 +487,12 @@ Messwerte: `daten/station/station_JJJJ-MM.json` (Rohwerte etwa alle 5 Minuten, M
 tiefsten bis zum höchsten dargestellten Wert; beschriftet werden nur runde Werte dazwischen (z. B. −15 bis 36 °C mit
 Marken bei −10, 0, 10, 20, 30). Die Niederschlagsachse beginnt weiter bei 0.
 
-**Langjähriges Mittel.** In der Jahresansicht liegt über den Messwerten das amtliche Klimamittel
-1991–2020 des DWD (Station Mühldorf am Inn, 3366): bei der Temperatur eine weiche Jahreskurve aus den
-zwölf Monatsmitteln, beim Niederschlag eine waagrechte Marke je Monat. Die Werte stehen in
-`daten/klima/normalwerte.json` und kommen über `skripte/klima_normalwerte.py` von opendata.dwd.de.
+**Langjähriges Mittel.** Über den Messwerten liegen die amtlichen DWD-Normalwerte der Station Mühldorf am Inn
+(3366) für **zwei** Bezugszeiträume: 1991–2020 durchgezogen, 1961–1990 gestrichelt (8,8 gegen 7,9 °C im Jahr,
+809 gegen 897 mm). Jahresansicht: bei der Temperatur je eine weiche Jahreskurve aus den zwölf Monatsmitteln, beim
+Niederschlag je eine waagrechte Marke pro Monat. Monatsansicht: bei der Temperatur je eine waagrechte Marke für
+das Monatsmittel. Die Werte stehen in `daten/klima/normalwerte.json` (Felder des aktuellen Mittels oben, die
+ältere Periode unter `vergleich`) und kommen über `skripte/klima_normalwerte.py` von opendata.dwd.de.
 Das Skript läuft **nicht** im Workflow — die Normalwerte ändern sich erst mit der nächsten
 Normalperiode. Andere Station: `python3 skripte/klima_normalwerte.py --station 4261`. Fehlt die Datei,
 entfällt der Vergleich ohne Fehler. Einordnung: Die Normalwerte stammen von einer amtlichen Station in
@@ -539,7 +595,7 @@ bricht der Bau mit einer Meldung ab. Ohne die eingesetzten Teile ist `handy-app.
 `app.html` (Test `test_handy_fassung_ist_sonst_die_normale_seite`). Änderungen am Handy-Aussehen gehören
 in `handy.css`/`handy.js`, nicht in `vorlage.html`.
 
-**Was anders ist.** Untere Leiste statt Reiter oben (Heute, Verlauf, 48 Std., Vorhersage, Analyse);
+**Was anders ist.** Untere Leiste statt Reiter oben (Heute, Verlauf, 48 Std., Vorher., Ensemble, Regen);
 Untertitel, Erklärungen, Fußtexte, Koordinaten und „Letzte Aktualisierung" sind ausgeblendet;
 Kennzahlen in drei Spalten; Diagramme randlos, die der Wetterstation etwas höher und mit größerer Schrift.
 
@@ -549,7 +605,7 @@ Kennzahlen in drei Spalten; Diagramme randlos, die der Wetterstation etwas höhe
   Ausschnitt. Ein Finger schiebt den Ausschnitt. Doppeltippen oder der Knopf „Ganzer Zeitraum" setzt
   zurück; ein anderer Zeitraum (Gestern, Monat, blättern) auch. Dafür ruft `diagramm()` vor dem Zeichnen
   `window.WW_ZOOM.anwenden(ziel, o)` auf, und `window.WW_NEU()` lässt neu zeichnen.
-- *48 Std., Vorhersage, Analyse:* Das Diagramm wird beim Pinch bis zu viermal breiter und lässt sich im
+- *48 Std., Vorhersage-Analyse, Niederschlagsanalyse:* Das Diagramm wird beim Pinch bis zu viermal breiter und lässt sich im
   Rahmen seitlich wischen. Doppeltippen setzt zurück.
 - Ein kleiner Hinweis unter den Diagrammen verschwindet, sobald einmal gezoomt wurde.
 

@@ -30,7 +30,8 @@ def _antwort(n=49, fehlend=None):
     }
     for f in fehlend or []:
         reihen.pop(f)
-    return {"hourly": reihen}
+    tage = {"time": [START + i * 86400 for i in range(16)], "weather_code": [3] * 15 + [61]}
+    return {"hourly": reihen, "daily": tage}
 
 
 def _hole(antwort):
@@ -49,6 +50,8 @@ def test_abruf_liefert_alle_vier_reihen():
     for feld in ("temperatur_2m", "niederschlag", "wettercode", "tag"):
         assert len(d[feld]) == 49
     assert d["wettercode"][0] == 61 and d["tag"][0] == 0
+    # Tageswettercodes (16 Tage) kommen aus demselben Abruf
+    assert len(d["tage_unix"]) == 16 and d["tageswettercode"][-1] == 61
 
 
 @pytest.mark.parametrize("kaputt", [{"fehlend": ["weather_code"]}, {"n": 0}])
@@ -121,5 +124,13 @@ def test_reiter_und_erklaerung_stehen_in_der_vorlage():
     seite = (WURZEL / "skripte" / "vorlage.html").read_text(encoding="utf-8")
     assert '<a href="#wetter48" data-seite="wetter48" data-kurz="48 Std.">48h Wetter</a>' in seite
     assert '<main id="seite-wetter48" hidden>' in seite
-    assert '"vorhersage", "wetter48"' in seite
+    assert '"wetter48", "vorhersage"' in seite
     assert "WMO-Wettercode" in seite
+
+
+def test_fehlende_tageswettercodes_machen_den_abruf_nicht_ungueltig():
+    """Die Tagessymbole sind ein Zusatz; der 48-Stunden-Teil zaehlt fuer sich."""
+    antwort = _antwort()
+    antwort.pop("daily")
+    d = s48.abrufen("gfs", [], hole_=_hole(antwort))
+    assert d and "tageswettercode" not in d and len(d["zeitpunkte_unix"]) == 49

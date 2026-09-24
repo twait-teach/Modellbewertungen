@@ -78,7 +78,7 @@ def test_witterungsvergleich_schliesst_unvollstaendiges_fenster_aus():
         page = browser.new_page()
         fehler = []
         page.on("pageerror", lambda exc: fehler.append(str(exc)))
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(200)
         assert not fehler, f"JS-Laufzeitfehler: {fehler}"
 
@@ -120,7 +120,7 @@ def test_mae_und_bias_grundrechenarten():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(200)
         ergebnis = page.evaluate("""() => {
             const t = window.__TEST__;
@@ -181,7 +181,7 @@ def test_laufvalidierung_schliesst_falsche_initialisierung_pro_modell_und_quelle
         page = browser.new_page()
         fehler = []
         page.on("pageerror", lambda exc: fehler.append(str(exc)))
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(200)
         assert not fehler, f"JS-Laufzeitfehler: {fehler}"
 
@@ -225,7 +225,7 @@ def test_fensterauswertung_schliesst_kontaminierten_lauf_pro_quelle_aus():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(200)
         ergebnis = page.evaluate("""() => {
             const t = window.__TEST__;
@@ -250,7 +250,7 @@ def test_kategorie_schwellen_skalieren_mit_fensterlaenge():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(200)
         ergebnis = page.evaluate("""() => {
             const t = window.__TEST__;
@@ -279,7 +279,7 @@ def test_kategorie_grenzfaelle_je_fenster():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(200)
         ergebnis = page.evaluate("""() => {
             const t = window.__TEST__;
@@ -370,14 +370,18 @@ def _seite_vorhersage(name="_test_vorhersage.html", daten=None):
     return _seite_mit_testdaten(daten or DATEN_VORHERSAGE, name)
 
 
-def test_drei_bereiche_haben_unabhaengige_zustaende():
+# Die Meteogramme stehen im Reiter "Vorhersage Analyse" -- Testseiten werden mit diesem Hash geoeffnet.
+HASH_ANALYSE = "#vorhersage-analyse"
+
+
+def test_beide_bereiche_haben_unabhaengige_zustaende():
     testdatei = _seite_vorhersage("_test_bereiche.html")
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
         fehler = []
         page.on("pageerror", lambda exc: fehler.append(str(exc)))
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(250)
         assert not fehler, f"JS-Laufzeitfehler: {fehler}"
 
@@ -385,10 +389,10 @@ def test_drei_bereiche_haben_unabhaengige_zustaende():
             const t = window.__TEST__;
             return {
                 bereiche: t.BEREICHE.map(b => b.id),
-                dom_reihenfolge: Array.from(document.querySelectorAll('#seite-vorhersage > section'))
+                dom_reihenfolge: Array.from(document.querySelectorAll('#seite-vorhersage-analyse > section'))
                     .map(s => s.id),
                 // Zustaende muessen getrennte Objekte sein, nicht dasselbe
-                getrennt: t.ZUSTAND.temp2m !== t.ZUSTAND.niederschlag
+                getrennt: t.ZUSTAND.temp850 !== t.ZUSTAND.niederschlag
                           && t.ZUSTAND.niederschlag !== t.ZUSTAND.temp850,
                 // je Bereich existieren eigene Bedienelemente
                 eigene_elemente: t.BEREICHE.every(b =>
@@ -406,8 +410,8 @@ def test_drei_bereiche_haben_unabhaengige_zustaende():
         }""")
         browser.close()
     testdatei.unlink()
-    assert ergebnis["bereiche"] == ["temp2m", "temp850", "niederschlag"]  # geforderte Reihenfolge
-    assert ergebnis["dom_reihenfolge"] == ["s-temp2m", "s-temp850", "s-niederschlag"]
+    assert ergebnis["bereiche"] == ["temp850", "niederschlag"]            # geforderte Reihenfolge
+    assert ergebnis["dom_reihenfolge"] == ["s-temp850", "s-niederschlag"]
     assert ergebnis["getrennt"] is True
     assert ergebnis["eigene_elemente"] is True
 
@@ -419,7 +423,7 @@ def test_laufauswahl_und_haken_wirken_nur_im_eigenen_bereich():
         page = browser.new_page()
         fehler = []
         page.on("pageerror", lambda exc: fehler.append(str(exc)))
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(250)
 
         # im Niederschlagsbereich den zweiten Lauf waehlen, Haupt-/Kontrolllauf ausschalten
@@ -430,15 +434,15 @@ def test_laufauswahl_und_haken_wirken_nur_im_eigenen_bereich():
         z = page.evaluate("""() => {
             const Z = window.__TEST__.ZUSTAND;
             return {
-                t2_lauf: Z.temp2m.laufIndex, regen_lauf: Z.niederschlag.laufIndex, t850_lauf: Z.temp850.laufIndex,
-                t2_mit: Z.temp2m.hauptlauf, regen_mit: Z.niederschlag.hauptlauf, t850_mit: Z.temp850.hauptlauf,
+                regen_lauf: Z.niederschlag.laufIndex, t850_lauf: Z.temp850.laufIndex,
+                regen_mit: Z.niederschlag.hauptlauf, t850_mit: Z.temp850.hauptlauf,
             };
         }""")
         browser.close()
         assert not fehler, f"JS-Laufzeitfehler: {fehler}"
     testdatei.unlink()
-    assert z["regen_lauf"] == 1 and z["t2_lauf"] == 0 and z["t850_lauf"] == 0
-    assert z["regen_mit"] is False and z["t2_mit"] is True and z["t850_mit"] is True
+    assert z["regen_lauf"] == 1 and z["t850_lauf"] == 0
+    assert z["regen_mit"] is False and z["t850_mit"] is True
 
 
 def test_alter_lauf_ohne_modellraster_zeigt_meldung_statt_fehler():
@@ -448,13 +452,13 @@ def test_alter_lauf_ohne_modellraster_zeigt_meldung_statt_fehler():
         page = browser.new_page()
         fehler = []
         page.on("pageerror", lambda exc: fehler.append(str(exc)))
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(250)
 
         # dritter Lauf (Index 2) ist der alte ohne Temperaturdaten
-        page.locator("#laufwahl-temp2m button").nth(2).click()
+        page.locator("#laufwahl-temp850 button").nth(2).click()
         page.wait_for_timeout(200)
-        text = page.locator("#laufwarnung-temp2m").inner_text()
+        text = page.locator("#laufwarnung-temp850").inner_text()
         # Auch Niederschlag darf nicht mehr aus dem alten Tagesformat stammen.
         page.locator("#laufwahl-niederschlag button").nth(2).click()
         page.wait_for_timeout(200)
@@ -473,13 +477,13 @@ def test_negative_temperaturen_werden_dargestellt():
         page = browser.new_page()
         fehler = []
         page.on("pageerror", lambda exc: fehler.append(str(exc)))
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(250)
         # Achsenbeschriftungen des 2m-Diagramms einsammeln
-        labels = page.evaluate("""() => Array.from(document.querySelectorAll('#chart-temp2m text.ax'))
+        labels = page.evaluate("""() => Array.from(document.querySelectorAll('#chart-temp850 text.ax'))
             .map(t => t.textContent).filter(s => /^-?\\d/.test(s.replace(',', '.')))""")
-        pfade = page.evaluate("() => document.querySelectorAll('#chart-temp2m path').length")
-        referenzen = page.evaluate("() => document.querySelectorAll('#chart-temp2m [data-serie=\"temperatur-referenz\"]').length")
+        pfade = page.evaluate("() => document.querySelectorAll('#chart-temp850 path').length")
+        referenzen = page.evaluate("() => document.querySelectorAll('#chart-temp850 [data-serie=\"temperatur-referenz\"]').length")
         browser.close()
         assert not fehler, f"JS-Laufzeitfehler: {fehler}"
     testdatei.unlink()
@@ -507,15 +511,15 @@ def test_fester_statusraum_verhindert_springen_beim_modellwechsel():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page(viewport={"width": 1280, "height": 900})
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(200)
-        ecmwf_top = page.locator("#chart-temp2m").bounding_box()["y"]
-        statushoehe = page.locator("#laufwarnung-temp2m").bounding_box()["height"]
-        page.locator('#modellwahl-temp2m button', has_text="GFS").click()
+        ecmwf_top = page.locator("#chart-temp850").bounding_box()["y"]
+        statushoehe = page.locator("#laufwarnung-temp850").bounding_box()["height"]
+        page.locator('#modellwahl-temp850 button', has_text="GFS").click()
         page.wait_for_timeout(100)
-        gfs_top = page.locator("#chart-temp2m").bounding_box()["y"]
-        gfs_statushoehe = page.locator("#laufwarnung-temp2m").bounding_box()["height"]
-        meldung = page.locator("#laufwarnung-temp2m").inner_text()
+        gfs_top = page.locator("#chart-temp850").bounding_box()["y"]
+        gfs_statushoehe = page.locator("#laufwarnung-temp850").bounding_box()["height"]
+        meldung = page.locator("#laufwarnung-temp850").inner_text()
         browser.close()
     testdatei.unlink()
     # Der Statusraum ist fuer die laengste Meldung beider Modelle reserviert
@@ -541,12 +545,12 @@ def test_temperaturachse_ist_fuer_beide_modelle_gemeinsam_und_maximal_fuenf_grad
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(200)
-        labels = lambda: page.evaluate("""() => Array.from(document.querySelectorAll('#chart-temp2m text.ax'))
+        labels = lambda: page.evaluate("""() => Array.from(document.querySelectorAll('#chart-temp850 text.ax'))
             .map(x => Number(x.textContent.replace(',', '.'))).filter(Number.isFinite)""")
         ecmwf_labels = labels()
-        page.locator('#modellwahl-temp2m button', has_text="GFS").click()
+        page.locator('#modellwahl-temp850 button', has_text="GFS").click()
         gfs_labels = labels()
         browser.close()
     testdatei.unlink()
@@ -560,9 +564,9 @@ def test_laufbeschriftung_zeigt_datum_und_uhrzeit():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(250)
-        labels = page.evaluate("() => Array.from(document.querySelectorAll('#laufwahl-temp2m button')).map(b => b.textContent)")
+        labels = page.evaluate("() => Array.from(document.querySelectorAll('#laufwahl-temp850 button')).map(b => b.textContent)")
         via_funktion = page.evaluate("""() => {
             const t = window.__TEST__;
             return [
@@ -587,9 +591,9 @@ def test_laeufe_sind_chronologisch_absteigend_ueber_tagesgrenze():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(250)
-        inits = page.evaluate("() => (window.DATEN ? null : null) || Array.from(document.querySelectorAll('#laufwahl-temp2m button')).map(b => b.textContent)")
+        inits = page.evaluate("() => (window.DATEN ? null : null) || Array.from(document.querySelectorAll('#laufwahl-temp850 button')).map(b => b.textContent)")
         browser.close()
     testdatei.unlink()
     # Fixture: 02.02. 00 UTC, dann 01.02. 18 UTC, dann 01.02. 12 UTC
@@ -605,7 +609,7 @@ def test_temperatur_wird_nicht_akkumuliert_dargestellt():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(250)
         ergebnis = page.evaluate("""() => {
             const t = window.__TEST__;
@@ -624,7 +628,7 @@ def test_temperatur_wird_nicht_akkumuliert_dargestellt():
                                  kontrolllauf: [0, 3, 6], mitglieder: [[0, 3, 6]], hauptlauf: null,
                                  mittel: [0, 3, 6], p10: [0, 3, 6], p90: [0, 3, 6], n: [1, 1, 1] },
             };
-            const bTemp = t.BEREICHE.find(b => b.id === 'temp2m');
+            const bTemp = t.BEREICHE.find(b => b.id === 'temp850');
             const bRegen = t.BEREICHE.find(b => b.id === 'niederschlag');
             const b850 = t.BEREICHE.find(b => b.id === 'temp850');
             // Ein Lauf, dem in EINEM Bereich die Zeitachse fehlt, ist als Ganzes
@@ -673,24 +677,24 @@ def test_modellfarben_und_haupt_kontrolllauf_linien():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(250)
 
         ecmwf_stand = page.evaluate("""() => ({
-            temp: document.querySelector('#chart-temp2m [data-serie="ensemble-mittel"]')?.getAttribute('stroke'),
+            temp: document.querySelector('#chart-temp850 [data-serie="ensemble-mittel"]')?.getAttribute('stroke'),
             regen: document.querySelector('#chart-niederschlag [data-serie="ensemble-mittel"]')?.getAttribute('stroke'),
-            kontrolle: !!document.querySelector('#chart-temp2m [data-serie="kontrolllauf"]'),
-            hauptFarbe: document.querySelector('#chart-temp2m [data-serie="hauptlauf"]')?.getAttribute('stroke'),
-            hauptGestrichelt: document.querySelector('#chart-temp2m [data-serie="hauptlauf"]')?.hasAttribute('stroke-dasharray'),
-            legende: document.querySelector('#leg-temp2m').textContent,
+            kontrolle: !!document.querySelector('#chart-temp850 [data-serie="kontrolllauf"]'),
+            hauptFarbe: document.querySelector('#chart-temp850 [data-serie="hauptlauf"]')?.getAttribute('stroke'),
+            hauptGestrichelt: document.querySelector('#chart-temp850 [data-serie="hauptlauf"]')?.hasAttribute('stroke-dasharray'),
+            legende: document.querySelector('#leg-temp850').textContent,
         })""")
-        page.locator('#modellwahl-temp2m button', has_text="GFS").click()
+        page.locator('#modellwahl-temp850 button', has_text="GFS").click()
         gfs_stand = page.evaluate("""() => ({
-            temp: document.querySelector('#chart-temp2m [data-serie="ensemble-mittel"]')?.getAttribute('stroke'),
-            kontrolleFarbe: document.querySelector('#chart-temp2m [data-serie="kontrolllauf"]')?.getAttribute('stroke'),
-            kontrolleGestrichelt: document.querySelector('#chart-temp2m [data-serie="kontrolllauf"]')?.getAttribute('stroke-dasharray'),
-            hauptFarbe: document.querySelector('#chart-temp2m [data-serie="hauptlauf"]')?.getAttribute('stroke'),
-            hauptGestrichelt: document.querySelector('#chart-temp2m [data-serie="hauptlauf"]')?.hasAttribute('stroke-dasharray'),
+            temp: document.querySelector('#chart-temp850 [data-serie="ensemble-mittel"]')?.getAttribute('stroke'),
+            kontrolleFarbe: document.querySelector('#chart-temp850 [data-serie="kontrolllauf"]')?.getAttribute('stroke'),
+            kontrolleGestrichelt: document.querySelector('#chart-temp850 [data-serie="kontrolllauf"]')?.getAttribute('stroke-dasharray'),
+            hauptFarbe: document.querySelector('#chart-temp850 [data-serie="hauptlauf"]')?.getAttribute('stroke'),
+            hauptGestrichelt: document.querySelector('#chart-temp850 [data-serie="hauptlauf"]')?.hasAttribute('stroke-dasharray'),
         })""")
         browser.close()
     testdatei.unlink()
@@ -721,32 +725,32 @@ def test_laufwahl_markiert_genau_den_gewaehlten_lauf_und_laesst_andere_bereiche_
         page = browser.new_page()
         fehler = []
         page.on("pageerror", lambda exc: fehler.append(str(exc)))
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(250)
 
-        vorher = {b: _gedrueckt(page, b) for b in ("temp2m", "temp850", "niederschlag")}
-        info_vorher = {b: page.locator(f"#laufinfoZeile-{b}").inner_text() for b in ("temp850", "niederschlag")}
+        vorher = {b: _gedrueckt(page, b) for b in ("temp850", "niederschlag")}
+        info_vorher = {b: page.locator(f"#laufinfoZeile-{b}").inner_text() for b in ("niederschlag",)}
 
-        page.locator("#laufwahl-temp2m button").nth(1).click()
+        page.locator("#laufwahl-temp850 button").nth(1).click()
         page.wait_for_timeout(150)
-        nach_klick = _gedrueckt(page, "temp2m")
-        info_2m = page.locator("#laufinfoZeile-temp2m").inner_text()
-        text_button = page.locator('#laufwahl-temp2m button[aria-pressed="true"]').inner_text()
+        nach_klick = _gedrueckt(page, "temp850")
+        info_2m = page.locator("#laufinfoZeile-temp850").inner_text()
+        text_button = page.locator('#laufwahl-temp850 button[aria-pressed="true"]').inner_text()
 
-        page.locator("#laufwahl-temp2m button").nth(0).click()   # und wieder zurueck
+        page.locator("#laufwahl-temp850 button").nth(0).click()   # und wieder zurueck
         page.wait_for_timeout(150)
-        zurueck = _gedrueckt(page, "temp2m")
+        zurueck = _gedrueckt(page, "temp850")
 
-        andere_nachher = {b: _gedrueckt(page, b) for b in ("temp850", "niederschlag")}
-        info_nachher = {b: page.locator(f"#laufinfoZeile-{b}").inner_text() for b in ("temp850", "niederschlag")}
+        andere_nachher = {b: _gedrueckt(page, b) for b in ("niederschlag",)}
+        info_nachher = {b: page.locator(f"#laufinfoZeile-{b}").inner_text() for b in ("niederschlag",)}
         browser.close()
         assert not fehler, f"JS-Laufzeitfehler: {fehler}"
     testdatei.unlink()
-    assert vorher["temp2m"] == ["true", "false", "false"]
+    assert vorher["temp850"] == ["true", "false", "false"]
     assert nach_klick == ["false", "true", "false"]          # genau EIN Button, und zwar der gewaehlte
     assert "18 UTC" in info_2m and "18 UTC" in text_button    # Diagramm und Hervorhebung passen zusammen
     assert zurueck == ["true", "false", "false"]
-    for b in ("temp850", "niederschlag"):                    # andere Bereiche unveraendert
+    for b in ("niederschlag",):                              # andere Bereiche unveraendert
         assert andere_nachher[b] == vorher[b] == ["true", "false", "false"]
         assert info_nachher[b] == info_vorher[b]
 
@@ -779,7 +783,7 @@ def test_formatpruefung_in_python_und_javascript_liefert_dieselben_ergebnisse():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(f"file://{testdatei}")
+        page.goto(f"file://{testdatei}" + HASH_ANALYSE)
         page.wait_for_timeout(200)
         js = page.evaluate("(faelle) => faelle.map(f => window.__TEST__.formatAktuell(f))", faelle)
         browser.close()
@@ -790,7 +794,7 @@ def test_formatpruefung_in_python_und_javascript_liefert_dieselben_ergebnisse():
 
 def test_html_reihenfolge_der_vorhersagebereiche():
     text = SEITE.read_text(encoding="utf-8")
-    positionen = [text.index(f'<section id="s-{b}">') for b in ("temp2m", "temp850", "niederschlag")]
+    positionen = [text.index(f'<section id="s-{b}">') for b in ("temp850", "niederschlag")]
     assert positionen == sorted(positionen)
 
 
@@ -834,16 +838,16 @@ def _sichtbare_seite(page):
 
 
 def _diagramm_gezeichnet(page):
-    return page.evaluate("document.querySelectorAll('#chart-temp2m path').length > 0")
+    return page.evaluate("document.querySelectorAll('#chart-temp850 path').length > 0")
 
 
 @pytest.mark.parametrize("pfad, seite, hash_", [
-    ("", "seite-vorhersage", ""),
-    ("index.html", "seite-vorhersage", ""),
+    ("", "seite-wetter48", ""),                    # Startreiter ist "48h Wetter"
+    ("index.html", "seite-wetter48", ""),
     ("#analyse", "seite-analyse", "#analyse"),
     ("index.html#analyse", "seite-analyse", "#analyse"),
-    ("#vorhersage", "seite-vorhersage", "#vorhersage"),
-    ("app.html", "seite-vorhersage", ""),          # direkter Aufruf der Anwendung
+    ("#vorhersage-analyse", "seite-vorhersage-analyse", "#vorhersage-analyse"),
+    ("app.html", "seite-wetter48", ""),            # direkter Aufruf der Anwendung
     ("app.html#analyse", "seite-analyse", "#analyse"),
 ])
 def test_loader_leitet_hash_weiter_und_zeigt_die_normale_adresse(gebaute_seite, pfad, seite, hash_):
@@ -928,7 +932,7 @@ def test_fehlende_oder_kaputte_daten_js_zeigt_sichtbare_meldung(gebaute_seite, a
         banner = page.locator("#datenfehler")
         sichtbar = banner.is_visible()
         text = banner.inner_text() if sichtbar else ""
-        info = page.locator("#laufinfoZeile-temp2m").inner_text()
+        info = page.locator("#laufinfoZeile-temp850").inner_text()
         # Seitenrahmen und Navigation muessen weiter funktionieren
         page.locator('#hauptnav a[data-seite="analyse"]').click()
         page.wait_for_timeout(200)

@@ -40,6 +40,7 @@ body.handy section:first-of-type{ margin-top:6px }
 body.handy section > h2{ font-size:17px; margin:0 0 8px }
 /* Der Name des Reiters steht schon in der unteren Leiste */
 body.handy #seite-station-verlauf > section > h2,
+body.handy #seite-vorhersage > section > h2,
 body.handy #seite-wetter48 > section > h2{ display:none }
 /* Station heute: Datum und Heute/Gestern in einer Zeile */
 body.handy #seite-station-heute > section{ display:grid; grid-template-columns:1fr auto; align-items:center; column-gap:10px }
@@ -101,7 +102,7 @@ body.handy nav.hauptnav a{
   background:transparent; border:none; border-top:3px solid transparent; border-radius:0;
 }
 /* Kurze Beschriftungen (die langen bleiben fuer Screenreader im Text) */
-body.handy nav.hauptnav a::after{ font-size:12px; line-height:1.2 }
+body.handy nav.hauptnav a::after{ font-size:11px; line-height:1.2 }
 body.handy nav.hauptnav a[data-seite="station-heute"]{ order:1 }
 body.handy nav.hauptnav a[data-seite="station-heute"]::after{ content:"Heute" }
 body.handy nav.hauptnav a[data-seite="station-verlauf"]{ order:2 }
@@ -109,9 +110,11 @@ body.handy nav.hauptnav a[data-seite="station-verlauf"]::after{ content:"Verlauf
 body.handy nav.hauptnav a[data-seite="wetter48"]{ order:3 }
 body.handy nav.hauptnav a[data-seite="wetter48"]::after{ content:"48 Std." }
 body.handy nav.hauptnav a[data-seite="vorhersage"]{ order:4 }
-body.handy nav.hauptnav a[data-seite="vorhersage"]::after{ content:"Vorhersage" }
-body.handy nav.hauptnav a[data-seite="analyse"]{ order:5 }
-body.handy nav.hauptnav a[data-seite="analyse"]::after{ content:"Analyse" }
+body.handy nav.hauptnav a[data-seite="vorhersage"]::after{ content:"Vorher." }
+body.handy nav.hauptnav a[data-seite="vorhersage-analyse"]{ order:5 }
+body.handy nav.hauptnav a[data-seite="vorhersage-analyse"]::after{ content:"Ensemble" }
+body.handy nav.hauptnav a[data-seite="analyse"]{ order:6 }
+body.handy nav.hauptnav a[data-seite="analyse"]::after{ content:"Regen" }
 body.handy nav.hauptnav a[aria-current="page"]{
   color:var(--ink); background:transparent; border:none; border-top:3px solid var(--sonne);
 }

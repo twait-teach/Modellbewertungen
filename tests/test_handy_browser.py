@@ -123,7 +123,8 @@ def test_start_zeigt_station_heute_in_schlanker_ansicht(browser, docs):
     ctx.close()
     assert not fehler, fehler
     assert a["seite"] == "station-heute" and a["nav"] == "fixed" and a["kopfzone"] == "none"
-    assert a["reihenfolge"] == ["station-heute", "station-verlauf", "wetter48", "vorhersage", "analyse"]
+    assert a["reihenfolge"] == ["station-heute", "station-verlauf", "wetter48", "vorhersage",
+                                "vorhersage-analyse", "analyse"]
     assert a["erklaerung"] and a["fuss"] == "none"
     assert a["breite"] <= 390                       # nie breiter als das Handy
     assert a["hoehe"] >= 240                        # Diagramm ist in der App hoeher als am Desktop (220)

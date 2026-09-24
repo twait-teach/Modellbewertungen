@@ -1,11 +1,11 @@
 {
  "quelle": "Deutscher Wetterdienst (DWD), Climate Data Center, opendata.dwd.de",
- "zeitraum": "1991-2020",
  "station": {
   "id": "3366",
   "name": "Mühldorf",
   "hoehe_m": 405.6
  },
+ "zeitraum": "1991-2020",
  "jahr": {
   "temperatur_c": 8.8,
   "niederschlag_mm": 809.0
@@ -37,5 +37,40 @@
   58.0,
   51.8,
   54.5
- ]
+ ],
+ "vergleich": {
+  "zeitraum": "1961-1990",
+  "jahr": {
+   "temperatur_c": 7.9,
+   "niederschlag_mm": 897.2
+  },
+  "temperatur_c": [
+   -2.1,
+   -0.3,
+   3.2,
+   7.6,
+   12.2,
+   15.7,
+   17.4,
+   16.7,
+   13.0,
+   8.0,
+   2.9,
+   -0.8
+  ],
+  "niederschlag_mm": [
+   51.8,
+   48.3,
+   54.6,
+   63.1,
+   92.1,
+   125.2,
+   103.2,
+   113.3,
+   74.1,
+   54.2,
+   61.1,
+   56.1
+  ]
+ }
 }

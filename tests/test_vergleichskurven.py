@@ -1,4 +1,4 @@
-"""Browsertests fuer die Haken im Meteogramm: Haupt-/Kontrolllauf, gleitendes 24-h-Mittel,
+"""Browsertests fuer die Haken im Reiter "Vorhersage Analyse": Haupt-/Kontrolllauf,
 Vorlaeufe (die drei vorangegangenen Laeufe desselben Modells) und das jeweils andere Modell."""
 import datetime as dt
 
@@ -23,36 +23,17 @@ def _serien(seite, bereich):
     return seite.evaluate("b => [...document.querySelectorAll('#chart-' + b + ' [data-serie]')].map(e => e.dataset.serie)", bereich)
 
 
-def test_gleitendes_mittel_nimmt_den_tagesgang_heraus_und_laesst_die_raender_leer(browser, vergleich):
+def test_vorlaeufe_erscheinen_als_eigene_kurven_mit_abstand_in_der_legende(browser, vergleich):
     seite = _oeffnen(browser, vergleich, 1366)
-    r = seite.evaluate("""() => { const T = window.__TEST__;
-        const u = [], w = []; for (let h = 0; h <= 96; h += 3) { u.push(1792800000 + h * 3600); w.push(10 + 5 * Math.sin(2 * Math.PI * h / 24)); }
-        const g = T.gleitendesMittel(u, w);
-        return { leer: [g[0], g[3], g[g.length - 1]], mitte: g.filter(v => v != null) }; }""")
-    seite.close()
-    assert r["leer"] == [None, None, None]                   # erste und letzte 12 h ohne volles Fenster
-    assert all(abs(v - 10) < 1e-6 for v in r["mitte"])       # reiner Tagesgang mittelt sich exakt weg
-
-
-def test_vorlaeufe_sperren_das_gleitende_mittel_bei_der_2m_temperatur(browser, vergleich):
-    seite = _oeffnen(browser, vergleich, 1366)
-    seite.locator("#modellwahl-temp2m button", has_text="GFS").click()
-    seite.locator("#laufwahl-temp2m button").nth(1).click()          # GFS 25.10., 00 UTC
-    glatt = lambda: seite.evaluate("() => { const g = document.querySelector('#glattEin-temp2m'); return [g.checked, g.disabled]; }")
-    vorher = glatt()
-    seite.locator("#vorlaeufeEin-temp2m").check()
-    gesperrt = glatt()
-    serien = _serien(seite, "temp2m")
-    legende = seite.locator("#leg-temp2m").inner_text()
-    seite.locator("#vorlaeufeEin-temp2m").uncheck()
-    danach = glatt()
+    seite.locator("#modellwahl-temp850 button", has_text="GFS").click()
+    seite.locator("#laufwahl-temp850 button").nth(1).click()          # GFS 25.10., 00 UTC
+    seite.locator("#vorlaeufeEin-temp850").check()
+    serien = _serien(seite, "temp850")
+    legende = seite.locator("#leg-temp850").inner_text()
     fehler = list(seite.fehler)
     seite.close()
-    assert vorher == [False, False]
-    assert gesperrt == [True, True]
-    assert danach == [True, False]                           # bleibt angehakt, ist aber wieder frei
-    assert serien.count("gleitendes-mittel") == 1 and serien.count("vorlauf") == 3
-    for text in ("Vorlauf 24.10., 00 UTC (−24 h)", "23.10., 00 UTC (−48 h)", "22.10., 00 UTC (−72 h)"):
+    assert serien.count("vorlauf") == 3
+    for text in ("Vorlauf 24.10., 00 UTC (−24 h)", "Vorlauf 23.10., 00 UTC (−48 h)", "Vorlauf 22.10., 00 UTC (−72 h)"):
         assert text in legende                               # die drei vorangegangenen Laeufe, mit Abstand
     assert not fehler, fehler
 
@@ -107,11 +88,11 @@ def test_haken_haupt_kontrolllauf_und_anderes_modell(browser, vergleich):
 
 def test_ohne_gespeicherte_vorlaeufe_steht_ein_hinweis_in_der_legende(browser, vergleich):
     seite = _oeffnen(browser, vergleich, 1366)
-    seite.locator("#modellwahl-temp2m button", has_text="GFS").click()
-    seite.locator("#laufwahl-temp2m button").last.click()               # aeltester GFS-Lauf: nichts davor
-    seite.locator("#vorlaeufeEin-temp2m").check()
-    legende = seite.locator("#leg-temp2m").inner_text()
-    serien = _serien(seite, "temp2m")
+    seite.locator("#modellwahl-temp850 button", has_text="GFS").click()
+    seite.locator("#laufwahl-temp850 button").last.click()               # aeltester GFS-Lauf: nichts davor
+    seite.locator("#vorlaeufeEin-temp850").check()
+    legende = seite.locator("#leg-temp850").inner_text()
+    serien = _serien(seite, "temp850")
     seite.close()
     assert "keine gespeichert" in legende and "vorlauf" not in serien
 
@@ -119,13 +100,43 @@ def test_ohne_gespeicherte_vorlaeufe_steht_ein_hinweis_in_der_legende(browser, v
 def test_850_hpa_zeigt_das_andere_modell_vollstaendig(browser, vergleich):
     seite = _oeffnen(browser, vergleich, 1366)
     seite.locator("#anderesEin-temp850").check()
-    seite.locator("#anderesEin-temp2m").check()
-    s850, s2m = _serien(seite, "temp850"), _serien(seite, "temp2m")
+    seite.locator("#anderesEin-niederschlag").check()
+    s850, sRegen = _serien(seite, "temp850"), _serien(seite, "niederschlag")
     legende = seite.locator("#leg-temp850").inner_text()
     fehler = list(seite.fehler)
     seite.close()
     assert s850.count("anderes-band") == 2 and "anderes-mitglied" in s850 and s850.count("anderes-modell") == 1
-    assert "anderes-mitglied" not in s2m and "anderes-band" not in s2m          # 2 m: nur die Vergleichskurve
+    assert "anderes-mitglied" not in sRegen and "anderes-band" not in sRegen    # Niederschlag: nur die Vergleichskurve
     for text in ("ECMWF-IFS 10.–90. Perzentil", "GFS 10.–90. Perzentil", "GFS Einzelmitglieder", "Hauptlauf (deterministisch)"):
         assert text in legende
     assert not fehler, fehler
+
+
+def test_auf_schmalen_bildschirmen_steht_die_vergleichslegende_im_diagramm(browser, vergleich):
+    """Sonst schoebe die Legende der Vorlaeufe das Diagramm weit nach unten."""
+    seite = _oeffnen(browser, vergleich, 390)
+    seite.locator("#modellwahl-temp850 button", has_text="GFS").click()
+    seite.locator("#laufwahl-temp850 button").nth(1).click()          # GFS 25.10., 00 UTC (drei Vorlaeufe)
+    oben = lambda: seite.evaluate("document.querySelector('#chart-temp850').getBoundingClientRect().top + scrollY")
+    vorher = oben()
+    seite.locator("#vorlaeufeEin-temp850").check()
+    seite.locator("#anderesEin-temp850").check()
+    seite.wait_for_timeout(120)
+    r = seite.evaluate("""() => ({ legende: document.querySelector('#leg-temp850').innerText,
+        tafel: [...document.querySelectorAll('#chart-temp850 [data-serie=legendentafel] text')].map(t => t.textContent) })""")
+    nachher = oben()
+    seite.close()
+    assert abs(nachher - vorher) < 1                       # Diagramm bleibt an derselben Stelle
+    assert "Vorlauf" not in r["legende"] and "ECMWF" not in r["legende"]     # Vergleiche stehen nicht mehr oben
+    assert any("Vorlauf" in t for t in r["tafel"]) and any(t.startswith("ECMWF") for t in r["tafel"])
+
+
+def test_auf_breiten_bildschirmen_bleibt_die_legende_ueber_dem_diagramm(browser, vergleich):
+    seite = _oeffnen(browser, vergleich, 1366)
+    seite.locator("#modellwahl-temp850 button", has_text="GFS").click()
+    seite.locator("#laufwahl-temp850 button").nth(1).click()
+    seite.locator("#vorlaeufeEin-temp850").check()
+    r = seite.evaluate("""() => ({ legende: document.querySelector('#leg-temp850').innerText,
+        tafeln: document.querySelectorAll('#chart-temp850 [data-serie=legendentafel]').length })""")
+    seite.close()
+    assert "Vorlauf" in r["legende"] and r["tafeln"] == 0

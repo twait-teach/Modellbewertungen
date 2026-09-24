@@ -125,7 +125,7 @@ summary:focus-visible{outline:2px solid var(--ecmwf); outline-offset:3px; border
 .laufinfo b{color:var(--ink); font-weight:500}
 /* Technische Nebenangaben (Verfuegbarkeit, Abrufzeit) treten optisch zurueck. */
 .laufinfo .neben{color:var(--ink-3)}
-/* Haken rechts in der Bedienleiste (Haupt-/Kontrolllauf, gleitendes Mittel, Vorlaeufe, anderes Modell) */
+/* Haken rechts in der Bedienleiste (Haupt-/Kontrolllauf, Vorlaeufe, anderes Modell) */
 .schalterliste{display:flex; flex-wrap:wrap; gap:4px 16px; margin-left:auto; justify-content:flex-end}
 .schalter{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-2); cursor:pointer; white-space:nowrap}
 .schalter input{accent-color:var(--ink); margin:0}
@@ -233,12 +233,13 @@ footer a{color:var(--ink-2)}
    [data-fuer] listet die Reiter, auf denen ein Element sichtbar ist. */
 [data-fuer]{display:none!important}
 body[data-seite="vorhersage"] [data-fuer~="vorhersage"],
+body[data-seite="vorhersage-analyse"] [data-fuer~="vorhersage-analyse"],
 body[data-seite="wetter48"] [data-fuer~="wetter48"],
 body[data-seite="analyse"] [data-fuer~="analyse"],
 body[data-seite="station-heute"] [data-fuer~="station-heute"],
 body[data-seite="station-verlauf"] [data-fuer~="station-verlauf"]{display:revert!important}
 /* Vor dem ersten Skriptlauf (body ohne data-seite) zeigt die Seite den Startreiter. */
-body:not([data-seite]) [data-fuer~="vorhersage"]{display:revert!important}
+body:not([data-seite]) [data-fuer~="wetter48"]{display:revert!important}
 /* Jede Ueberschrift bleibt einzeilig; die Schrift skaliert dafuer mit der Breite. */
 .kopf h1 span{white-space:nowrap}
 /* Die Kopfzone (Einleitungstext und Hinweise) ist je Reiter unterschiedlich hoch.
@@ -314,8 +315,6 @@ nav.hauptnav a{white-space:nowrap; flex:none}
   nav.hauptnav a{grid-column:span 2; text-align:center; border:1px solid var(--rule); border-radius:3px; margin:0;
     padding:8px 4px; background:var(--panel); font-size:0}
   nav.hauptnav a::after{content:attr(data-kurz); font-size:11.5px}
-  nav.hauptnav a[data-seite="analyse"]{order:1}
-  nav.hauptnav a[data-seite^="station"]{order:2; grid-column:span 3}
   nav.hauptnav a[aria-current="page"]{background:var(--ink); color:var(--panel); border-color:var(--ink)}
 }
 </style>
@@ -327,7 +326,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
 
   <header class="kopf">
     <h1>
-      <span data-fuer="vorhersage">Vorhersage Mühldorf</span><span data-fuer="wetter48">48 Stunden Mühldorf</span><span data-fuer="analyse">Niederschlagsanalyse</span><span data-fuer="station-heute station-verlauf">Wetterstation Stefanskirchen</span>
+      <span data-fuer="vorhersage">Vorhersage Mühldorf</span><span data-fuer="wetter48">48 Stunden Mühldorf</span><span data-fuer="vorhersage-analyse">Vorhersage-Analyse Mühldorf</span><span data-fuer="analyse">Niederschlagsanalyse</span><span data-fuer="station-heute station-verlauf">Wetterstation Stefanskirchen</span>
     </h1>
     <div class="stand nur-haupt">
       <b id="standDatum">–</b>
@@ -340,6 +339,9 @@ nav.hauptnav a{white-space:nowrap; flex:none}
   </header>
   <div class="kopfzone" id="kopfzone">
   <p class="unterzeile" data-fuer="vorhersage">
+    Temperatur und Niederschlag der nächsten zwei Wochen aus dem Ensemble von <strong>GFS</strong> oder <strong>ECMWF-IFS</strong>.
+  </p>
+  <p class="unterzeile" data-fuer="vorhersage-analyse">
     Ensemble-Meteogramme von <strong>GFS</strong> und <strong>ECMWF-IFS</strong> für die DWD-Station Mühldorf am Inn.
   </p>
   <p class="unterzeile" data-fuer="wetter48">
@@ -353,11 +355,12 @@ nav.hauptnav a{white-space:nowrap; flex:none}
   </p>
   </div>
   <nav class="hauptnav" id="hauptnav">
-    <a href="#vorhersage" data-seite="vorhersage" data-kurz="Vorhersage">Vorhersage Mühldorf</a>
     <a href="#wetter48" data-seite="wetter48" data-kurz="48 Std.">48h Wetter</a>
+    <a href="#vorhersage" data-seite="vorhersage" data-kurz="Vorhersage">Vorhersage</a>
     <a href="#station-heute" data-seite="station-heute" data-kurz="Station heute">Station heute</a>
     <a href="#station-verlauf" data-seite="station-verlauf" data-kurz="Station Verlauf">Station Verlauf</a>
-    <a href="#analyse" data-seite="analyse" data-kurz="Analyse">Niederschlagsanalyse</a>
+    <a href="#vorhersage-analyse" data-seite="vorhersage-analyse" data-kurz="Vorhersage-A.">Vorhersage Analyse</a>
+    <a href="#analyse" data-seite="analyse" data-kurz="Niederschlag-A.">Niederschlag Analyse</a>
   </nav>
 
   <!-- Hinweise stehen unter der Reiterleiste, damit deren Position nie springt. -->
@@ -369,64 +372,50 @@ nav.hauptnav a{white-space:nowrap; flex:none}
     Die Wetterstationsdaten konnten nicht geladen werden. Bitte die Seite neu laden oder später erneut versuchen.
   </div>
 
-  <!-- ======================================================= SEITE: VORHERSAGE ======================================================= -->
+  <!-- ======================================================= SEITE: VORHERSAGE (Mittelfrist) ======================================================= -->
   <main id="seite-vorhersage">
 
-    <section id="s-temp2m">
-      <p class="dachzeile">Ensemble-Meteogramm</p>
-      <h2>2-m-Temperatur</h2>
-      <p class="kurzhinweis">
-        Bodennahe Lufttemperatur (2 m) als Ensemble-Meteogramm, für GFS und ECMWF-IFS auf derselben Temperaturskala.
-      </p>
-
-      <div class="bedienleiste" id="bedienleiste-temp2m">
-        <div class="schaltergruppe" id="modellwahl-temp2m" role="group" aria-label="Modell"></div>
-        <div class="schaltergruppe" id="laufwahl-temp2m" role="group" aria-label="Modelllauf"></div>
-        <div class="schalterliste" id="schalter-temp2m">
-          <label class="schalter"><input type="checkbox" id="hauptlaufEin-temp2m" checked> Haupt-/Kontrolllauf zeigen</label>
-          <label class="schalter"><input type="checkbox" id="glattEin-temp2m"> Gleitendes 24-h-Mittel zeigen</label>
-          <label class="schalter"><input type="checkbox" id="vorlaeufeEin-temp2m"> Vorläufe zeigen</label>
-          <label class="schalter"><input type="checkbox" id="anderesEin-temp2m"><span><span class="anderes-name">GFS</span> zeigen</span></label>
+    <section id="s-mittelfrist">
+      <p class="dachzeile">Nächste zwei Wochen</p>
+      <h2>Temperatur und Niederschlag aus dem Ensemble</h2>
+      <p class="kurzhinweis">Ensemble-Mittel mit 10.–90.-Perzentil-Band, dazu die Niederschlagsmenge je 3 Stunden, eingefärbt nach der Regenwahrscheinlichkeit.</p>
+      <div class="bedienleiste" id="bedienleiste-mittelfrist">
+        <div class="schaltergruppe" id="modellwahl-mittelfrist" role="group" aria-label="Modell"></div>
+        <div class="schalterliste" id="schalter-mittelfrist">
+          <label class="schalter"><input type="checkbox" id="hauptlaufEin-mittelfrist"> Hauptlauf zeigen</label>
+          <label class="schalter"><input type="checkbox" id="anderesEin-mittelfrist"><span><span class="anderes-name">GFS</span> zeigen</span></label>
         </div>
       </div>
-      <div class="laufinfo" id="laufinfoZeile-temp2m"></div>
-      <div class="laufstatus" id="laufwarnung-temp2m"></div>
-
-      <div class="legende" id="leg-temp2m"></div>
-      <div class="plot gross"><svg id="chart-temp2m" role="img" aria-label="Ensemble-Meteogramm der 2-Meter-Temperatur"></svg></div>
-      <details class="erklaerung" id="erklaerung-temp2m">
+      <div class="laufinfo" id="laufinfoZeile-mittelfrist"></div>
+      <div class="laufstatus" id="laufwarnung-mittelfrist"></div>
+      <div class="legende" id="leg-mittelfrist"></div>
+      <div class="plot" id="plot-mittelfrist"></div>
+      <details class="erklaerung" id="erklaerung-mittelfrist">
         <summary>Erklärung und Darstellung</summary>
         <div class="erklaerungstext">
-          <p>Die bodennahe Lufttemperatur in rund zwei Metern Höhe — die im Alltag gemeinte „Temperatur draußen".
-          Jede dünne Linie ist ein einzelnes Ensemblemitglied, dargestellt an den modellnahen
-          3-Stunden-Zeitpunkten — der Tagesgang ist dadurch direkt ablesbar, ohne künstliche Stundeninterpolation.
-          Das Band zeigt das 10.–90.-Perzentil (80 % der Mitglieder liegen darin), die dicke Linie das Ensemble-Mittel.
-          Kontrolllauf (nur GFS) und deterministischer Hauptlauf sind schwarz hervorgehoben. Anders als beim Niederschlag wird hier
-          <strong>nicht</strong> aufsummiert — jeder Zeitpunkt steht für sich.</p>
-          <p><strong>Skala und Bezugslinie:</strong> GFS und ECMWF-IFS verwenden dieselbe Temperaturskala. Sie reicht knapp über den
-          tiefsten und höchsten dargestellten Wert beider Modelle (alle Mitglieder, Mittel, Band, Kontroll- und Hauptlauf).
-          Die graue waagerechte Bezugslinie ist kein Grenzwert: Sie liegt auf der nächstgelegenen 5-°C-Gitterlinie zum
-          angegebenen Temperaturniveau. Dieses Niveau ist der über die Zeit gewichtete Mittelwert der beiden
-          Ensemble-Mittelkurven, gemittelt über den Zeitraum, den beide Modelle gemeinsam abdecken; GFS und ECMWF-IFS
-          zählen gleich stark.</p>
-          <p><strong>Gleitendes 24-h-Mittel:</strong> das Ensemble-Mittel, an jedem Zeitpunkt über die 24 Stunden davor und
-          danach gemittelt (je 12 Stunden, nach Zeit gewichtet). Der Tagesgang fällt dadurch heraus; übrig bleibt, ob es
-          insgesamt wärmer oder kälter wird. Um Mitternacht entspricht der Wert dem Tagesmittel. An Anfang und Ende des Laufs
-          fehlen je 12 Stunden, weil dort kein volles Fenster vorliegt.</p>
-          <p><strong>Vorläufe und anderes Modell:</strong> Verglichen wird immer das gleitende 24-h-Mittel — deshalb ist es
-          angehakt, solange einer dieser Vergleiche gezeigt wird. Vorläufe sind die drei vorangegangenen Läufe desselben Modells (GFS: 6, 12, 18 Stunden älter; ECMWF-IFS: 12, 24, 36
-          Stunden; durchgezogen, gestrichelt, gepunktet). Liegen
-          die Kurven eng beieinander, ist die Vorhersage von Lauf zu Lauf stabil; springen sie, ist sie es nicht. Das andere
-          Modell ist dessen Lauf zur selben Startzeit (beim ECMWF-IFS gibt es nur 00 und 12 UTC; zu einem 06- oder 18-UTC-Lauf
-          des GFS wird der 6 Stunden ältere gezeigt).</p>
-          <p>Zeitachse: Die senkrechten Linien markieren Mitternacht in Ortszeit (Europa/Berlin).</p>
+          <p><strong>Temperatur:</strong> die dicke Linie ist das Ensemble-Mittel der 2-m-Temperatur, das Band das
+          10.–90.-Perzentil (80 % der Mitglieder liegen darin). Einzelne Mitglieder werden hier bewusst nicht gezeigt —
+          dafür ist der Reiter „Vorhersage Analyse“ da. Der Hauptlauf lässt sich zuschalten.</p>
+          <p><strong>Niederschlag:</strong> Die Höhe der Fläche ist die mittlere Menge je 3 Stunden über alle Mitglieder
+          (bei 6-Stunden-Schritten in der Langfrist auf 3 Stunden umgerechnet, sonst sähen sie doppelt so nass aus).
+          Die <strong>Färbung</strong> zeigt, wie einig sich das Ensemble ist: Der Anteil der Mitglieder mit mindestens
+          0,1 mm in diesem Zeitschritt bestimmt die Deckkraft — kräftiges Blau heißt, fast alle Mitglieder bringen Regen,
+          blass heißt, nur wenige. Eine hohe, blasse Fläche bedeutet also: wenige Mitglieder mit viel Regen.</p>
+          <p><strong>Wettersymbole:</strong> ein Symbol je Kalendertag aus dem WMO-Wettercode des <strong>Hauptlaufs</strong>
+          (open-meteo). Kurve und Wahrscheinlichkeit stammen dagegen aus dem <strong>Ensemble</strong>; in der zweiten Woche
+          können beide auseinanderlaufen. Beim Vergleich beider Modelle entfallen die Symbole.</p>
+          <p><strong>Beide Modelle:</strong> Mit dem Haken erscheint das andere Modell in seiner Farbe — Temperatur als
+          Mittel mit gestrichelten Bandgrenzen, Niederschlag als Linie ohne Füllung. Die Hauptläufe entfallen dabei,
+          sonst wären es zu viele Linien.</p>
+          <p>Alle Zeiten in Ortszeit. Die senkrechten Linien markieren Mitternacht.</p>
         </div>
       </details>
-      <details>
-        <summary>Zahlen als Tabelle</summary>
-        <div class="tabellenhuelle"><table id="tab-temp2m"></table></div>
-      </details>
     </section>
+
+  </main>
+
+  <!-- ======================================================= SEITE: VORHERSAGE ANALYSE ======================================================= -->
+  <main id="seite-vorhersage-analyse" hidden>
 
     <section id="s-temp850">
       <p class="dachzeile">Ensemble-Meteogramm</p>
@@ -633,7 +622,7 @@ nav.hauptnav a{white-space:nowrap; flex:none}
         <summary>Erklärung</summary>
         <div class="erklaerungstext">
           <p>In der <strong>Wochenansicht</strong> sind Stundenwerte zu sehen. In der <strong>Monats- und Jahresansicht</strong> zeigt das Band je Tag die Spanne vom Tiefst- zum Höchstwert, die Linie das Tagesmittel (Mittel der Stundenmittel). Ein Tagesmittel gibt es nur für vollständige Tage, also nicht für den laufenden Tag.</p>
-          <p><strong>Langjähriges Mittel</strong> (nur Jahresansicht): die schwarze Linie zeigt die amtlichen Normalwerte 1991–2020 des Deutschen Wetterdienstes, Station Mühldorf am Inn — bei der Temperatur als weiche Jahreskurve aus den zwölf Monatsmitteln, beim Niederschlag als waagrechte Marke je Monat. Die Werte stammen von einer anderen Station als dem eigenen Garten; Höhenlage und Aufstellung erklären einen Teil jeder Abweichung.</p>
+          <p><strong>Langjähriges Mittel:</strong> die amtlichen Normalwerte des Deutschen Wetterdienstes für die Station Mühldorf am Inn. Durchgezogen das aktuelle Klimamittel <strong>1991–2020</strong>, gestrichelt die ältere Normalperiode <strong>1961–1990</strong> (Jahresmittel 8,8 gegen 7,9 °C, Jahresniederschlag 809 gegen 897 mm). In der Jahresansicht als weiche Jahreskurve aus den zwölf Monatsmitteln, beim Niederschlag als waagrechte Marke je Monat; in der Monatsansicht als waagrechte Marke für das Monatsmittel der Temperatur. Die Werte stammen von einer anderen Station als dem eigenen Garten; Höhenlage und Aufstellung erklären einen Teil jeder Abweichung.</p>
           <p><strong>Niederschlag</strong>: Balken je Stunde (Woche), je Tag (Monat) bzw. je Monat (Jahr). Die Summe des gewählten Zeitraums steht oben in der Kachel. Als Regentag zählt ein Tag mit mindestens 1 mm.</p>
           <p>Ein Tag gilt als unvollständig, wenn für weniger als 20 Stunden Außenwerte vorliegen; er ist in der Tabelle grau. Summen über Lücken sind dann zu niedrig, nicht geschätzt.</p>
         </div>
@@ -861,11 +850,11 @@ function kopfzoneMessen() {
 }
 
 /* ============================ Navigation zwischen den Seiten ============================ */
-const SEITEN = ["vorhersage", "wetter48", "station-heute", "station-verlauf", "analyse"];
+const SEITEN = ["wetter48", "vorhersage", "station-heute", "station-verlauf", "vorhersage-analyse", "analyse"];
 const TITEL = { haupt: "Vorhersage und Analyse Mühldorf", station: "Wetterstation Stefanskirchen" };
 function seiteAnzeigen() {
-  const hash = (location.hash || "#vorhersage").slice(1);
-  const seite = SEITEN.includes(hash) ? hash : "vorhersage";
+  const hash = (location.hash || "#wetter48").slice(1);
+  const seite = SEITEN.includes(hash) ? hash : "wetter48";
   SEITEN.forEach(s => {
     $("#seite-" + s).hidden = s !== seite;
   });
@@ -885,8 +874,8 @@ function seiteAnzeigen() {
 addEventListener("hashchange", () => {
   seiteAnzeigen();
   // Beim Einblenden neu messen: waehrend die Seite ausgeblendet war, hatte sie keine Breite.
-  if (typeof vorhersageLayouten === "function" && !$("#seite-vorhersage").hidden
-      && Math.abs($("#seite-vorhersage").getBoundingClientRect().width - vorhersageBreite) >= 1) vorhersageLayouten();
+  if (typeof vorhersageLayouten === "function" && !$("#seite-vorhersage-analyse").hidden
+      && Math.abs($("#seite-vorhersage-analyse").getBoundingClientRect().width - vorhersageBreite) >= 1) vorhersageLayouten();
   if (typeof analyseLayouten === "function") analyseLayouten();
 });
 
@@ -945,7 +934,6 @@ const bias = p => p.length ? p.reduce((s, x) => s + (x.vor - x.ist), 0) / p.leng
 // Ein Bereich je Diagramm, in Anzeige-Reihenfolge. "feld" verweist auf das
 // zugehoerige Unterobjekt im modellnativen Laufdokument.
 const BEREICHE = [
-  { id: "temp2m", einheit: "°C", akkumuliert: false, nullbasiert: false, referenz: 10, feld: "temperatur_2m", bezeichnung: "2-m-Temperatur" },
   { id: "temp850", einheit: "°C", akkumuliert: false, nullbasiert: false, referenz: 0, feld: "temperatur_850hpa", bezeichnung: "850-hPa-Temperatur" },
   { id: "niederschlag", einheit: "mm", akkumuliert: true, nullbasiert: true, feld: "niederschlag", bezeichnung: "Niederschlag" },
 ];
@@ -956,16 +944,16 @@ const bereichsfarbe = (modell, bereich) =>
   bereich.akkumuliert ? modell.niederschlagFarbe : modell.temperaturFarbe;
 
 // Die Reihenfolge der Abschnitte im HTML entspricht BEREICHE:
-// 2-m-Temperatur, 850-hPa-Temperatur, aufsummierter Niederschlag.
+// 850-hPa-Temperatur, aufsummierter Niederschlag. Die 2-m-Temperatur steht im
+// Reiter "Vorhersage" (eigener Skriptblock weiter unten).
 
 // Eigener, unabhaengiger Auswahlzustand je Bereich -- Modell, Laufindex und die
 // Haken duerfen sich zwischen den drei Diagrammen unterscheiden:
 //   hauptlauf  Haupt- und Kontrolllauf zeigen
-//   glatt      gleitendes 24-h-Mittel zeigen (nur 2-m-Temperatur)
 //   vorlaeufe  Vergleichskurven der Laeufe 24/48/72 h davor zeigen
 //   anderes    Vergleichskurve des jeweils anderen Modells zeigen
 const ZUSTAND = {};
-BEREICHE.forEach(b => { ZUSTAND[b.id] = { modell: "ecmwf", laufIndex: 0, hauptlauf: true, glatt: false, vorlaeufe: false, anderes: false }; });
+BEREICHE.forEach(b => { ZUSTAND[b.id] = { modell: "ecmwf", laufIndex: 0, hauptlauf: true, vorlaeufe: false, anderes: false }; });
 
 function laeufeFuer(modell) { return DATEN.vorhersage?.[modell] || []; }
 
@@ -1153,27 +1141,18 @@ function zeitgewichteterMittelwert(unix, werte, von, bis, vollstaendig = false) 
   return dauer > 0 ? flaeche / dauer : null;
 }
 
-/* ---------- Vergleichskurven: gleitendes Mittel, Vorlaeufe, anderes Modell ----------
+/* ---------- Vergleichskurven: Vorlaeufe und anderes Modell ----------
    Jedes Diagramm hat genau EINE Vergleichskurve, mit der aktueller Lauf, Vorlaeufe und
    das andere Modell verglichen werden:
-     2-m-Temperatur   gleitendes 24-h-Mittel des Ensemble-Mittels (Tagesgang herausgemittelt)
      850 hPa          Ensemble-Mittel, ungeglaettet
      Niederschlag     Ensemble-Mittel, aufsummiert ab Beginn des GEWAEHLTEN Laufs (aeltere
                       Laeufe hatten bis dahin schon Regen "auf dem Konto"; davor keine Kurve) */
-const GLEITFENSTER_S = 24 * 3600;
 const VORLAUF_ANZAHL = 3;                          // so viele direkt vorangegangene Laeufe desselben Modells
 const VORLAUF_STIL = ["", "7 4", "2 3"];            // Strichmuster je Alter (durchgezogen, gestrichelt, gepunktet)
 const PARTNER_MAX_ABSTAND_H = 12;                  // anderes Modell: Lauf hoechstens so viel aelter als der gewaehlte
 const initUnix = lauf => Date.parse(lauf.init) / 1000;
 const kurzLauf = lauf => `${lauf.init.slice(8, 10)}.${lauf.init.slice(5, 7)}., ${lauf.init.slice(11, 13)} UTC`;
 const anderesModell = id => MODELLE.find(m => m.id !== id);
-
-/** Gleitendes, zeitgewichtetes Mittel ueber ein zentriertes Fenster. Nur wo das Fenster
- * vollstaendig in den Daten liegt -- an den Raendern (je 12 h) bleibt die Kurve leer. */
-function gleitendesMittel(unix, werte, fensterS = GLEITFENSTER_S) {
-  const h = fensterS / 2, a = unix[0], b = unix[unix.length - 1];
-  return unix.map(t => (t - h < a || t + h > b) ? null : zeitgewichteterMittelwert(unix, werte, t - h, t + h, true));
-}
 
 /** Wert einer Kurve zu einem beliebigen Zeitpunkt (linear zwischen Stuetzstellen). */
 function wertBei(unix, werte, t) {
@@ -1192,7 +1171,6 @@ function vergleichsreihe(bereich, lauf, startUnix) {
   const daten = datenAusLauf(bereich, lauf);
   if (!daten.verfuegbar) return null;
   const unix = daten.zeitpunkte_unix;
-  if (bereich.id === "temp2m") return { unix, werte: gleitendesMittel(unix, daten.mittel) };
   if (bereich.akkumuliert) {
     // Die Summe beginnt bei 0 zur eigenen Initialisierung; bis startUnix Gefallenes abziehen.
     const u = [initUnix(lauf), ...unix], w = [0, ...daten.mittel];
@@ -1344,10 +1322,7 @@ function statusHtml(lauf, daten) {
 }
 /** Was die Haken im Bereich gerade bewirken (fuer Zeichnen, Legende und Tooltip). */
 function ansicht(bereich, z = ZUSTAND[bereich.id]) {
-  const vergleich = z.vorlaeufe || z.anderes;
-  // 2-m-Temperatur: Vergleiche laufen ueber das 24-h-Mittel, das dann mit angezeigt wird.
-  return { hauptlauf: z.hauptlauf, vorlaeufe: z.vorlaeufe, anderes: z.anderes,
-           glatt: bereich.id === "temp2m" && (z.glatt || vergleich) };
+  return { hauptlauf: z.hauptlauf, vorlaeufe: z.vorlaeufe, anderes: z.anderes };
 }
 /** 850 hPa: Das andere Modell wird vollstaendig gezeigt (Mittel, Band, Mitglieder), sonst nur
  * seine Vergleichskurve. Bei 2 m und Niederschlag wuerden zwei Mitgliederwolken unlesbar. */
@@ -1355,8 +1330,7 @@ const anderesVollstaendig = bereich => bereich.id === "temp850";
 
 function legendeEintraege(bereich, modellInfo, modellFarbe, daten, lauf, a) {
   const eintraege = [
-    { mark: markLinie(modellFarbe, false, a.glatt ? 1.5 : 3, a.glatt ? .75 : null), text: modellInfo.name + " Ensemble-Mittel" },
-    ...(a.glatt ? [{ mark: markLinie(modellFarbe, false, 3.2), text: "Gleitendes 24-h-Mittel" }] : []),
+    { mark: markLinie(modellFarbe, false, 3), text: modellInfo.name + " Ensemble-Mittel" },
     { mark: markFlaeche(modellFarbe, .18), text: "10.–90. Perzentil" },
     { mark: markLinie(modellFarbe, false, .8), text: "Einzelne Ensemblemitglieder" },
     ...(a.hauptlauf && daten.kontrolllauf ? [{ mark: markLinie("var(--ink)", true), text: "Kontrolllauf" }] : []),
@@ -1364,23 +1338,24 @@ function legendeEintraege(bereich, modellInfo, modellFarbe, daten, lauf, a) {
   ];
   if (a.vorlaeufe) {
     const da = vorlaeufeVon(lauf).filter(v => v.lauf);
-    da.forEach(v => eintraege.push({ mark: markLinie(modellFarbe, v.strich, 1.8, .9),
-      text: `Vorlauf ${kurzLauf(v.lauf)} (−${v.stunden} h)` }));
-    if (!da.length) eintraege.push({ mark: "", text: "Vorläufe: keine gespeichert" });
+    da.forEach(v => eintraege.push({ mark: markLinie(modellFarbe, v.strich, 1.8, .9), vergleich: true,
+      stift: { farbe: modellFarbe, breite: 1.8, strich: v.strich }, text: `Vorlauf ${kurzLauf(v.lauf)} (−${v.stunden} h)` }));
+    if (!da.length) eintraege.push({ mark: "", vergleich: true, text: "Vorläufe: keine gespeichert" });
   }
   if (a.anderes) {
     const p = partnerLauf(lauf), pm = anderesModell(modellInfo.id), pf = bereichsfarbe(pm, bereich);
-    if (!p) eintraege.push({ mark: "", text: `${pm.name}: kein passender Lauf gespeichert` });
+    if (!p) eintraege.push({ mark: "", vergleich: true, text: `${pm.name}: kein passender Lauf gespeichert` });
     else if (anderesVollstaendig(bereich)) {
       // 850 hPa: beide Modelle vollstaendig -- Band und Mitglieder brauchen dann den Modellnamen
       eintraege.forEach(e => {
         if (e.text === "10.–90. Perzentil") e.text = `${modellInfo.name} 10.–90. Perzentil`;
         if (e.text === "Einzelne Ensemblemitglieder") e.text = `${modellInfo.name} Einzelmitglieder`;
       });
-      eintraege.push({ mark: markLinie(pf, false, 3), text: `${pm.name} Ensemble-Mittel, Lauf ${kurzLauf(p)}` },
-                     { mark: markLinie(pf, "4 3", 1.4), text: `${pm.name} 10.–90. Perzentil` },
-                     { mark: markLinie(pf, false, .8), text: `${pm.name} Einzelmitglieder` });
-    } else eintraege.push({ mark: markLinie(pf, false, 2.6), text: `${pm.name}, Lauf ${kurzLauf(p)}` });
+      eintraege.push({ mark: markLinie(pf, false, 3), vergleich: true, stift: { farbe: pf, breite: 3 }, text: `${pm.name} Ensemble-Mittel, Lauf ${kurzLauf(p)}`, kurz: `${pm.name} Mittel (${kurzLauf(p)})` },
+                     { mark: markLinie(pf, "4 3", 1.4), vergleich: true, stift: { farbe: pf, breite: 1.4, strich: "4 3" }, text: `${pm.name} 10.–90. Perzentil`, kurz: `${pm.name} 10.–90. Perz.` },
+                     { mark: markLinie(pf, false, .8), vergleich: true, stift: { farbe: pf, breite: .8 }, text: `${pm.name} Einzelmitglieder`, kurz: `${pm.name} Mitglieder` });
+    } else eintraege.push({ mark: markLinie(pf, false, 2.6), vergleich: true, stift: { farbe: pf, breite: 2.6 },
+      text: `${pm.name}, Lauf ${kurzLauf(p)}`, kurz: `${pm.name} (${kurzLauf(p)})` });
   }
   return eintraege;
 }
@@ -1431,9 +1406,11 @@ function reserviereHoehen(bereich) {
 
   const leg = $(`#leg-${bereich.id}`);
   // Die laengste Legende entsteht mit allen Haken gesetzt; sie bestimmt die Mindesthoehe.
-  const alleAn = ansicht(bereich, { hauptlauf: true, glatt: true, vorlaeufe: true, anderes: true });
+  const alleAn = ansicht(bereich, { hauptlauf: true, vorlaeufe: true, anderes: true });
+  const schmal = diagrammMasse($(`#chart-${bereich.id}`)).W < LEGENDE_INS_DIAGRAMM_AB;
   const legendenVarianten = alleLaeufe.filter(v => v.daten.verfuegbar).map(v =>
-    legendeHtml(legendeEintraege(bereich, v.m, bereichsfarbe(v.m, bereich), v.daten, v.lauf, alleAn)));
+    legendeHtml(legendeEintraege(bereich, v.m, bereichsfarbe(v.m, bereich), v.daten, v.lauf, alleAn)
+      .filter(e => !(schmal && e.vergleich))));
   leg.style.minHeight = messeHoehe(leg, [""].concat(legendenVarianten), (probe, h) => { probe.innerHTML = h; }) + "px";
   return true;
 }
@@ -1450,6 +1427,30 @@ function diagrammMasse(svg) {
   const W = innen > 0 ? Math.max(320, Math.floor(innen)) : 900;
   const H = Math.min(460, Math.max(W < 600 ? 280 : 300, Math.round(W * .34)));
   return { W, H };
+}
+
+// Ab dieser Diagrammbreite passt die Legende ueber das Diagramm; darunter stehen die
+// Vergleichseintraege in einer kleinen Tafel im Diagramm selbst.
+const LEGENDE_INS_DIAGRAMM_AB = 600;
+
+/** Kleine Legendentafel im Diagramm (nur schmale Ansicht). */
+function legendentafel(svg, eintraege, x, y, rechterRand) {
+  if (!eintraege.length) return;
+  const zeile = 13, probe = 18, rand = 6;
+  const text = e => e.kurz || e.text;
+  const zeichen = Math.max(...eintraege.map(e => text(e).length));
+  const breite = Math.min(rechterRand - x, zeichen * 5.4 + probe + 3 * rand);
+  const hoehe = eintraege.length * zeile + 2 * rand - 3;
+  const g = el("g", { "data-serie": "legendentafel" });
+  g.appendChild(el("rect", { x, y, width: breite, height: hoehe, rx: 2, fill: "var(--panel)",
+    opacity: .85, stroke: "var(--rule)" }));
+  eintraege.forEach((e, i) => {
+    const zy = y + rand + i * zeile + 4;
+    if (e.stift) g.appendChild(el("line", { x1: x + rand, y1: zy, x2: x + rand + probe, y2: zy,
+      stroke: e.stift.farbe, "stroke-width": e.stift.breite, "stroke-dasharray": e.stift.strich || null, "stroke-linecap": "round" }));
+    g.appendChild(el("text", { x: x + rand + probe + 5, y: zy + 3.5, class: "ax" }, text(e)));
+  });
+  svg.appendChild(g);
 }
 
 function zeichneBereich(bereich) {
@@ -1486,7 +1487,6 @@ function zeichneBereich(bereich) {
   const a = ansicht(bereich, z);
   const t0 = initUnix(lauf);
   // Vergleichskurven (nur berechnet, wenn der jeweilige Haken sie braucht)
-  const eigeneReihe = a.glatt ? vergleichsreihe(bereich, lauf, t0) : null;
   const vorlaufReihen = a.vorlaeufe ? vorlaeufeVon(lauf).filter(v => v.lauf)
     .map(v => ({ ...v, reihe: vergleichsreihe(bereich, v.lauf, t0) })).filter(v => v.reihe) : [];
   const partner = a.anderes ? partnerLauf(lauf) : null;
@@ -1625,10 +1625,10 @@ function zeichneBereich(bereich) {
     if (d) svg.appendChild(el("path", { d, fill: "none", stroke: modellFarbe, "stroke-width": .8, opacity: .22, "stroke-linejoin": "round", "data-serie": "mitglied", ...klemme }));
   });
 
-  // Ensemble-Mittel; mit gleitendem Mittel tritt es zurueck
+  // Ensemble-Mittel
   const dMittel = pfad(daten.mittel);
-  if (dMittel) svg.appendChild(el("path", { d: dMittel, fill: "none", stroke: modellFarbe, "stroke-width": a.glatt ? 1.5 : 3,
-    opacity: a.glatt ? .75 : null, "stroke-linejoin": "round", "stroke-linecap": "round", "data-serie": "ensemble-mittel", ...klemme }));
+  if (dMittel) svg.appendChild(el("path", { d: dMittel, fill: "none", stroke: modellFarbe, "stroke-width": 3,
+    "stroke-linejoin": "round", "stroke-linecap": "round", "data-serie": "ensemble-mittel", ...klemme }));
 
   // Vorlaeufe (gleiche Modellfarbe, Strichmuster nach Alter) und das andere Modell
   vorlaufReihen.forEach(v => linie(v.reihe, { stroke: modellFarbe, "stroke-width": 1.8, opacity: .9,
@@ -1637,8 +1637,6 @@ function zeichneBereich(bereich) {
   if (partnerVoll) ["p10", "p90"].forEach(k => linie({ unix: partnerDaten.zeitpunkte_unix, werte: partnerDaten[k] },
     { stroke: partnerFarbe, "stroke-width": 1.4, "stroke-dasharray": "4 3", "data-serie": "anderes-band" }));
   if (partnerReihe) linie(partnerReihe, { stroke: partnerFarbe, "stroke-width": partnerVoll ? 3 : 2.6, "data-serie": "anderes-modell" });
-  // Gleitendes 24-h-Mittel des gewaehlten Laufs: die kraeftigste Linie
-  if (eigeneReihe) linie(eigeneReihe, { stroke: modellFarbe, "stroke-width": 3.2, "data-serie": "gleitendes-mittel" });
 
   // Kontrolllauf (nur mit Haken "Haupt-/Kontrolllauf zeigen")
   const dKontrolle = a.hauptlauf && daten.kontrolllauf ? pfad(daten.kontrolllauf) : "";
@@ -1686,7 +1684,6 @@ function zeichneBereich(bereich) {
   const werteZeilen = i => [
     `Ensemble-Mittel: ${nf(daten.mittel[i])} ${bereich.einheit}`,
     `10.–90. Perzentil: ${nf(daten.p10[i])}–${nf(daten.p90[i])} ${bereich.einheit}`,
-    eigeneReihe ? `24-h-Mittel: ${nf(eigeneReihe.werte[i])} ${bereich.einheit}` : null,
     a.hauptlauf && daten.kontrolllauf ? `Kontrolllauf: ${nf(daten.kontrolllauf[i])} ${bereich.einheit}` : null,
     a.hauptlauf && daten.hauptlauf ? `Hauptlauf: ${nf(daten.hauptlauf[i])} ${bereich.einheit}` : null,
     ...vorlaufReihen.map(v => `Lauf ${kurzLauf(v.lauf)}: ${nf(wertBei(v.reihe.unix, v.reihe.werte, xWerte[i]))} ${bereich.einheit}`),
@@ -1733,7 +1730,12 @@ function zeichneBereich(bereich) {
         : "Zeitpunkt (Ortszeit, modellnahe 3-/6-h-Schritte)"));
   }
 
-  $(`#leg-${bereich.id}`).innerHTML = legendeHtml(legendeEintraege(bereich, modellInfo, modellFarbe, daten, lauf, a));
+  // Auf schmalen Bildschirmen wandern die Vergleichseintraege (Vorlaeufe, anderes Modell)
+  // als kleine Tafel INS Diagramm -- ueber dem Diagramm wuerden sie es weit nach unten schieben.
+  const alleEintraege = legendeEintraege(bereich, modellInfo, modellFarbe, daten, lauf, a);
+  const imDiagramm = W < LEGENDE_INS_DIAGRAMM_AB;
+  $(`#leg-${bereich.id}`).innerHTML = legendeHtml(alleEintraege.filter(e => !(imDiagramm && e.vergleich)));
+  if (imDiagramm) legendentafel(svg, alleEintraege.filter(e => e.vergleich), L + 6, O + 6, W - R);
 
   const kontrolleKopf = daten.kontrolllauf ? `<th>Kontrolllauf (${bereich.einheit})</th>` : "";
   const tabellenZeile = (u, i) =>
@@ -1745,23 +1747,13 @@ function zeichneBereich(bereich) {
     + xWerte.map(tabellenZeile).join("") + `</tbody>`;
 }
 
-/** Haken auf den Zustand bringen. 2-m-Temperatur: Solange Vorlaeufe oder das andere
- * Modell gezeigt werden, ist das gleitende 24-h-Mittel angehakt und gesperrt -- die
- * Vergleiche laufen ueber diese Kurve. */
+/** Haken auf den Zustand bringen (Beschriftung des anderen Modells folgt der Modellwahl). */
 function schalterAbgleichen(bereich) {
   const z = ZUSTAND[bereich.id], id = bereich.id;
   $(`#hauptlaufEin-${id}`).checked = z.hauptlauf;
   $(`#vorlaeufeEin-${id}`).checked = z.vorlaeufe;
   $(`#anderesEin-${id}`).checked = z.anderes;
   $(`#schalter-${id} .anderes-name`).textContent = anderesModell(z.modell).name;
-  const g = $(`#glattEin-${id}`);
-  if (g) {
-    const gesperrt = z.vorlaeufe || z.anderes;
-    g.checked = z.glatt || gesperrt;
-    g.disabled = gesperrt;
-    g.closest("label").title = gesperrt
-      ? "Vorläufe und das andere Modell werden über das gleitende 24-h-Mittel verglichen." : "";
-  }
 }
 function bereichNeuZeichnen(bereich) {
   modellwahlZeichnen(bereich);
@@ -1776,7 +1768,7 @@ let vorhersageBreite = 0;
 function vorhersageLayouten() {
   BEREICHE.forEach(bereich => { reserviereHoehen(bereich); });
   BEREICHE.forEach(bereich => bereichNeuZeichnen(bereich));
-  vorhersageBreite = $("#seite-vorhersage").getBoundingClientRect().width;
+  vorhersageBreite = $("#seite-vorhersage-analyse").getBoundingClientRect().width;
 }
 
 BEREICHE.forEach(bereich => {
@@ -1786,10 +1778,8 @@ BEREICHE.forEach(bereich => {
     if (eingabe) eingabe.addEventListener("change", e => { setzen(e.target.checked); schalterAbgleichen(bereich); zeichneBereich(bereich); });
   };
   haken("hauptlauf", an => { z.hauptlauf = an; });
-  haken("glatt", an => { z.glatt = an; });
-  // Wer vergleicht, bekommt das 24-h-Mittel dazu -- und behaelt es, bis er es selbst abwaehlt.
-  haken("vorlaeufe", an => { z.vorlaeufe = an; if (an && bereich.id === "temp2m") z.glatt = true; });
-  haken("anderes", an => { z.anderes = an; if (an && bereich.id === "temp2m") z.glatt = true; });
+  haken("vorlaeufe", an => { z.vorlaeufe = an; });
+  haken("anderes", an => { z.anderes = an; });
 });
 
 /* ======================================================================
@@ -2287,7 +2277,7 @@ function analyseLayouten() {
 }
 function breiteGeaendert() {
   analyseLayouten();
-  const seite = $("#seite-vorhersage");
+  const seite = $("#seite-vorhersage-analyse");
   if (seite.hidden || Math.abs(seite.getBoundingClientRect().width - vorhersageBreite) < 1) return;
   if (++layoutVersuche > 6) return;
   vorhersageLayouten();
@@ -2302,11 +2292,11 @@ if (typeof ResizeObserver === "function") {
   let resizeTimer = null;
   addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(breiteGeaendert, 100); });
 }
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { kopfzoneMessen(); if (!$("#seite-vorhersage").hidden) vorhersageLayouten(); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { kopfzoneMessen(); if (!$("#seite-vorhersage-analyse").hidden) vorhersageLayouten(); });
 
 /* Test-Hook: reine Berechnungsfunktionen fuer automatisierte Tests freigeben.
    Aendert kein Verhalten der Seite selbst, wird von keiner UI-Funktion gelesen. */
-window.__TEST__ = { gleitendesMittel, wertBei, vergleichsreihe, vorlaeufeVon, partnerLauf, ansicht, gemeinsamesP90Maximum, kopfzoneMessen, paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, formatAktuell, laufLabel, zeitachsenWerte, temperaturSkala, gemeinsameTemperaturwerte, bereichsfarbe,
+window.__TEST__ = { wertBei, vergleichsreihe, vorlaeufeVon, partnerLauf, ansicht, gemeinsamesP90Maximum, kopfzoneMessen, paare, mae, bias, kontingenz, fensterAuswertung, kategorie, kategorieSchwellen, FENSTER, KATEGORIE_TAGESRATE, SCHWELLE_5MM, laufPasstFuer, BEREICHE, ZUSTAND, datenAusLauf, formatAktuell, laufLabel, zeitachsenWerte, temperaturSkala, gemeinsameTemperaturwerte, bereichsfarbe,
   ortsTeile, ortsMitternacht, ortsMitternaechte, zeitgewichteterMittelwert, temperaturNiveau, bezugslinieWert };
 
 
@@ -2326,6 +2316,8 @@ const nf = (v, d = 1) => v == null || Number.isNaN(v) ? "–" : v.toFixed(d).rep
 let H = null;          // wird beim ersten Oeffnen eines Stationsreiters geladen
 let N = null;          // langjaehriges Mittel (DWD-Normalwerte 1991-2020), optional
 const normalText = () => N ? `Mittel ${N.zeitraum} (DWD ${N.station.name})` : "";
+const vergleichswerte = () => (N && N.vergleich && (N.vergleich.temperatur_c || []).length === 12) ? N.vergleich : null;
+const vergleichText = () => vergleichswerte() ? `Mittel ${vergleichswerte().zeitraum}` : "";
 const ZONE = "Europe/Berlin";
 const VERALTET_S = 90 * 60;
 
@@ -2358,6 +2350,7 @@ function tipAn(e, text) { tip.textContent = text; tip.style.opacity = "1"; const
 function tipAus() { tip.style.opacity = "0"; }
 const markLinie = (farbe, breit = 2) => `<svg width="22" height="10" aria-hidden="true"><line x1="1" y1="5" x2="21" y2="5" stroke="${farbe}" stroke-width="${breit}" stroke-linecap="round"/></svg>`;
 const markFlaeche = farbe => `<svg width="14" height="10" aria-hidden="true"><rect x="1" y="1" width="12" height="8" rx="1.5" fill="${farbe}"/></svg>`;
+const markLinieGestrichelt = farbe => `<svg width="22" height="10" aria-hidden="true"><line x1="1" y1="5" x2="21" y2="5" stroke="${farbe}" stroke-width="1.5" stroke-dasharray="5 3"/></svg>`;
 const leg = (mark, text) => `<span class="leg">${mark}${text}</span>`;
 
 function schoeneTicks(min, max, ziel = 5, minSchritt = 0) {
@@ -2424,7 +2417,8 @@ function diagramm(ziel, o) {
   for (const m of o.marken || []) {
     if (m.v == null) continue;
     g.appendChild(el("line", { x1: x(m.von) + 1, x2: x(m.bis) - 1, y1: y(m.v), y2: y(m.v),
-      stroke: o.markenFarbe, "stroke-width": 1.5, "stroke-linecap": "round" }));
+      stroke: m.farbe || o.markenFarbe, "stroke-width": 1.5, "stroke-linecap": "round",
+      "stroke-dasharray": m.strich || null }));
   }
   // Band (Tiefst bis Hoechst)
   if (o.band && o.band.length) {
@@ -2439,7 +2433,8 @@ function diagramm(ziel, o) {
     for (const stueck of zerlegen(linie.punkte.filter(p => p.v != null), linie.lueckeS || o.lueckeS)) {
       if (stueck.length === 1) { g.appendChild(el("circle", { cx: x(stueck[0].ts), cy: y(stueck[0].v), r: 2, fill: linie.farbe })); continue; }
       g.appendChild(el("path", { d: stueck.map((p, i) => `${i ? "L" : "M"}${x(p.ts).toFixed(1)},${y(p.v).toFixed(1)}`).join(""),
-        fill: "none", stroke: linie.farbe, "stroke-width": linie.breite || 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+        fill: "none", stroke: linie.farbe, "stroke-width": linie.breite || 2, "stroke-linejoin": "round",
+        "stroke-linecap": "round", "stroke-dasharray": linie.strich || null }));
     }
   }
   // Hover-Ebene: senkrechte Linie + Tooltip am naechsten Zeitpunkt
@@ -2714,16 +2709,28 @@ async function verlaufZeichnen() {
       tooltips: stunden.filter(z => z[1] != null).map(z => ({ ts: z[0] + 1800, text: `${datum(z[0])} ${uhr(z[0])} Uhr\n${nf(z[1])} °C (${nf(z[2])} bis ${nf(z[3])})\n${nf(z[4], 0)} % Luftfeuchte` })) });
   } else {
     // Jahresansicht: zusaetzlich das langjaehrige Mittel (DWD-Normalwerte 1991-2020)
+    // Jahr: weiche Jahreskurven beider Normalperioden; Monat: waagrechte Marken fuer den Monat
+    const alt = vergleichswerte();
     const normalKurve = V.art === "jahr" && N ? jahreskurve(N.temperatur_c, x0, x1) : [];
+    const altKurve = V.art === "jahr" && alt ? jahreskurve(alt.temperatur_c, x0, x1) : [];
+    const monatsIndex = ort(x0 + 43200).m - 1;
+    const normalMarken = V.art === "monat" && N
+      ? [{ von: x0, bis: x1, v: N.temperatur_c[monatsIndex] },
+         ...(alt ? [{ von: x0, bis: x1, v: alt.temperatur_c[monatsIndex], strich: "6 4" }] : [])]
+      : [];
     $("#st-legVerlaufTemp").innerHTML = leg(markFlaeche("var(--temp-band)"), "Tiefst bis Höchst") + " " + leg(markLinie("var(--temp)"), "Tagesmittel")
-      + (normalKurve.length ? " " + leg(markLinie("var(--normal)", 1.5), normalText()) : "");
+      + (normalKurve.length || normalMarken.length ? " " + leg(markLinie("var(--normal)", 1.5), normalText()) : "")
+      + ((altKurve.length || normalMarken.length > 1) ? " " + leg(markLinieGestrichelt("var(--normal)"), vergleichText()) : "");
     diagramm("#st-plotVerlaufTemp", { titel: "Temperatur je Tag", x0, x1, einheit: "°C", lueckeS: 1.6 * 86400, xTicks: ticks,
-      yWerte: mitT.flatMap(t => [t.min, t.max]).concat(normalKurve.map(p => p.v)),
+      yWerte: mitT.flatMap(t => [t.min, t.max]).concat(normalKurve.map(p => p.v), altKurve.map(p => p.v), normalMarken.map(m => m.v)),
       band: mitT.map(t => ({ ts: t.ts + 43200, min: t.min, max: t.max })), bandFarbe: "var(--temp-band)",
-      linien: [{ farbe: "var(--normal)", punkte: normalKurve, breite: 1.5, lueckeS: Infinity },
+      marken: normalMarken, markenFarbe: "var(--normal)",
+      linien: [{ farbe: "var(--normal)", punkte: altKurve, breite: 1.5, lueckeS: Infinity, strich: "6 4" },
+               { farbe: "var(--normal)", punkte: normalKurve, breite: 1.5, lueckeS: Infinity },
                { farbe: "var(--temp)", punkte: tage.map(t => ({ ts: t.ts + 43200, v: t.mittel })) }],
       tooltips: tage.map(t => ({ ts: t.ts + 43200, text: `${datum(t.ts)}${t.vollstaendig ? "" : " (unvollständig)"}\nMittel ${nf(t.mittel)} °C\n${nf(t.min)} bis ${nf(t.max)} °C`
-        + (N && V.art === "jahr" ? `\nMonatsmittel 1991–2020: ${nf(N.temperatur_c[ort(t.ts).m - 1])} °C` : "") })) });
+        + (N ? `\nMonatsmittel ${N.zeitraum}: ${nf(N.temperatur_c[ort(t.ts).m - 1])} °C` : "")
+        + (alt ? `\nMonatsmittel ${alt.zeitraum}: ${nf(alt.temperatur_c[ort(t.ts).m - 1])} °C` : "") })) });
   }
 
   // Niederschlag: Balken je Stunde (Woche), je Tag (Monat) bzw. je Monat (Jahr).
@@ -2742,17 +2749,23 @@ async function verlaufZeichnen() {
     }
   }
   // Jahresansicht: je Monat eine waagrechte Linie auf Hoehe des Normalwerts 1991-2020
-  const normalBalken = V.art === "jahr" && N ? balken.map((b, i) => ({ ...b, normal: N.niederschlag_mm[i] })) : [];
+  const altWerte = vergleichswerte();
+  const normalBalken = V.art === "jahr" && N ? balken.map((b, i) => ({ ...b, normal: N.niederschlag_mm[i],
+    normalAlt: altWerte ? altWerte.niederschlag_mm[i] : null })) : [];
   $("#st-legVerlaufRegen").innerHTML = H.regen_vorhanden
     ? leg(markFlaeche("var(--regen)"), { woche: "Menge je Stunde", monat: "Menge je Tag", jahr: "Menge je Monat" }[V.art])
-      + (normalBalken.length ? " " + leg(markLinie("var(--normal)", 1.5), normalText()) : "") : "";
+      + (normalBalken.length ? " " + leg(markLinie("var(--normal)", 1.5), normalText()) : "")
+      + (normalBalken.length && altWerte ? " " + leg(markLinieGestrichelt("var(--normal)"), vergleichText()) : "") : "";
   diagramm("#st-plotVerlaufRegen", { titel: "Niederschlag", x0, x1, einheit: "mm", yNull: true, yMinSpanne: 1, hoehe: 180,
     lueckeS: 0, xTicks: ticks,
-    yWerte: (H.regen_vorhanden ? balken.map(b => b.v) : []).concat(normalBalken.map(b => b.normal)),
+    yWerte: (H.regen_vorhanden ? balken.map(b => b.v) : []).concat(normalBalken.map(b => b.normal), normalBalken.map(b => b.normalAlt)),
     balken, balkenFarbe: "var(--regen)",
-    marken: normalBalken.map(b => ({ von: b.von, bis: b.bis, v: b.normal })), markenFarbe: "var(--normal)",
+    marken: normalBalken.flatMap(b => [{ von: b.von, bis: b.bis, v: b.normal },
+      ...(b.normalAlt != null ? [{ von: b.von, bis: b.bis, v: b.normalAlt, strich: "6 4" }] : [])]), markenFarbe: "var(--normal)",
     tooltips: balken.filter(b => b.v != null).map((b, i) => ({ ts: (b.von + b.bis) / 2,
-      text: `${b.text}\n${nf(b.v, 1)} mm` + (normalBalken.length ? `\n1991–2020: ${nf(N.niederschlag_mm[ort(b.von).m - 1], 0)} mm` : "") })) });
+      text: `${b.text}\n${nf(b.v, 1)} mm`
+        + (normalBalken.length ? `\n${N.zeitraum}: ${nf(N.niederschlag_mm[ort(b.von).m - 1], 0)} mm` : "")
+        + (normalBalken.length && altWerte ? `\n${altWerte.zeitraum}: ${nf(altWerte.niederschlag_mm[ort(b.von).m - 1], 0)} mm` : "") })) });
 
   $("#st-tabVerlauf").innerHTML = `<thead><tr><th>Tag</th><th>Tiefst °C</th><th>Höchst °C</th><th>Mittel °C</th><th>Luftfeuchte %</th>${H.regen_vorhanden ? "<th>Regen mm</th>" : ""}<th>Stunden mit Daten</th></tr></thead><tbody>`
     + tage.slice().reverse().map(t => `<tr${t.vollstaendig ? "" : ' class="luecke"'}><td${t.vollstaendig ? "" : ' class="luecke"'}>${datum(t.ts)}${ort(t.ts).j}</td><td>${nf(t.min)}</td><td>${nf(t.max)}</td><td>${nf(t.mittel)}</td><td>${nf(t.feuchteMittel, 0)}</td>${H.regen_vorhanden ? `<td>${nf(t.regen, 1)}</td>` : ""}<td>${t.stunden}</td></tr>`).join("")
@@ -3144,7 +3157,316 @@ addEventListener("resize", () => {
   if (b !== breite48 && sichtbar()) { breite48 = b; clearTimeout(window._w48); window._w48 = setTimeout(zeichnen, 120); }
 });
 if (sichtbar()) zeichnen();
+// Der Reiter "Vorhersage" nutzt dieselben Wettersymbole (ein Code je Tag).
+window.WW_SYMBOL = (code, tag) => symbol(wetterArt(code).art, tag !== false);
 window.__TEST48__ = { extremwerte, aufbereiten, glaetten, aufStunden, wetterArt, zeichnen, setzeModell: m => { modell = m; zeichnen(); } };
+})();
+</script>
+<script>
+/* ============================ REITER "VORHERSAGE" (Mittelfrist) ============================
+   Eigener, abgeschlossener Block. Quelle ist der juengste gespeicherte Ensemble-Lauf je
+   Modell (DATEN.vorhersage) -- dieselben Daten wie im Reiter "Vorhersage Analyse", nur
+   anders dargestellt:
+     Temperatur (2 m)   Ensemble-Mittel mit 10.-90.-Perzentil-Band, Hauptlauf zuschaltbar
+     Niederschlag       Menge je 3 Stunden (Mittel ueber die Mitglieder) als Flaeche,
+                        eingefaerbt nach dem Anteil der Mitglieder mit mindestens 0,1 mm
+     Wettersymbole      ein WMO-Code je Kalendertag aus DATEN.wetter48 (Hauptlauf)
+   ========================================================================================= */
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+const el = (n, a = {}, t) => { const e = document.createElementNS(NS, n); for (const k in a) if (a[k] != null) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; return e; };
+const nf = (v, d = 1) => v == null || Number.isNaN(v) ? "–" : v.toFixed(d).replace(".", ",").replace("-", "−");
+const D = () => (typeof DATEN !== "undefined" && DATEN) || window.DATEN || {};
+// Temperaturfarben wie im Reiter "Vorhersage Analyse" (warme Toene); der Niederschlag
+// bleibt blau, damit Kurve und Flaeche nicht zu verwechseln sind.
+const MOD = [{ id: "ecmwf", name: "ECMWF-IFS", farbe: "#b77900" }, { id: "gfs", name: "GFS", farbe: "#c1500f" }];
+const REGEN_SCHWELLE = 0.1;          // ab dieser Menge je Zeitschritt zaehlt ein Mitglied als "Regen"
+const BEZUG_STUNDEN = 3;             // Mengen werden auf 3 Stunden normiert (Langfrist: 6-h-Schritte)
+let modell = "ecmwf", hauptlaufZeigen = false, anderesZeigen = false;
+
+/* ---------- Ortszeit ---------- */
+const teileFmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit",
+  day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", weekday: "short" });
+const WT = { Mon: "Mo", Tue: "Di", Wed: "Mi", Thu: "Do", Fri: "Fr", Sat: "Sa", Sun: "So" };
+function ort(ts) {
+  const p = {}; for (const x of teileFmt.formatToParts(new Date(ts * 1000))) p[x.type] = x.value;
+  return { j: +p.year, m: +p.month, t: +p.day, h: +p.hour, min: +p.minute, wt: WT[p.weekday] };
+}
+const tagText = ts => { const o = ort(ts); return `${o.wt} ${o.t}.${o.m}.`; };
+const zeitText = ts => { const o = ort(ts); return `${o.wt} ${o.t}.${o.m}., ${String(o.h).padStart(2, "0")} Uhr`; };
+const tagSchluessel = ts => { const o = ort(ts); return `${o.j}-${o.m}-${o.t}`; };
+/** Unixzeit von 00:00 Ortszeit (Monat/Tag duerfen ueberlaufen). */
+function ortsMitternacht(j, m, t) {
+  const utc = Date.UTC(j, m - 1, t) / 1000;
+  let ts = utc - 3600;
+  for (let i = 0; i < 3; i++) { const o = ort(ts); ts -= (Date.UTC(o.j, o.m - 1, o.t, o.h, o.min) / 1000 - utc); }
+  return ts;
+}
+/** Alle Ortsmitternaechte im Zeitraum -- die Zeitschritte selbst treffen Mitternacht
+ * nicht unbedingt (ein 12-UTC-Lauf liegt im Sommer auf 14, 17, 20, 23, 02 Uhr Ortszeit). */
+function mitternaechte(von, bis) {
+  const o = ort(von), aus = [];
+  for (let k = 0; k < 40; k++) {
+    const ts = ortsMitternacht(o.j, o.m, o.t + k);
+    if (ts > bis) break;
+    if (ts >= von) aus.push(ts);
+  }
+  return aus;
+}
+
+/* ---------- Daten ---------- */
+const laeufe = id => (D().vorhersage || {})[id] || [];
+/** Der juengste gespeicherte Lauf eines Modells mit brauchbaren Reihen. */
+function lauf(id) {
+  return laeufe(id).find(l => l && l.temperatur_2m && Array.isArray(l.temperatur_2m.zeitpunkte_unix)
+    && l.niederschlag && Array.isArray(l.niederschlag.mitglieder)) || null;
+}
+/** Menge je Zeitschritt (auf 3 Stunden normiert) und Anteil der Mitglieder mit Regen.
+ * Die gespeicherten Niederschlagsreihen sind je Mitglied AUFSUMMIERT; die Menge eines
+ * Schritts ist deshalb die Differenz zum vorherigen Zeitpunkt. */
+function niederschlagsschritte(l) {
+  const n = l.niederschlag, u = n.zeitpunkte_unix, start = Date.parse(l.init) / 1000;
+  return u.map((ts, i) => {
+    const vorherZeit = i === 0 ? start : u[i - 1];
+    const stunden = Math.max(1, (ts - vorherZeit) / 3600);
+    const menge = [], regen = [];
+    n.mitglieder.forEach(m => {
+      const a = i === 0 ? 0 : m[i - 1], b = m[i];
+      if (!Number.isFinite(a) || !Number.isFinite(b)) return;
+      const d = Math.max(0, b - a);
+      menge.push(d * BEZUG_STUNDEN / stunden);
+      regen.push(d >= REGEN_SCHWELLE ? 1 : 0);
+    });
+    return { ts, von: vorherZeit, mittel: menge.length ? menge.reduce((s, v) => s + v, 0) / menge.length : null,
+             anteil: regen.length ? regen.reduce((s, v) => s + v, 0) / regen.length : null, n: menge.length };
+  });
+}
+/** Tageswettercodes (Hauptlauf) aus dem 48-Stunden-Datensatz, nach Kalendertag. */
+function tagescodes(id) {
+  const w = (D().wetter48 || {})[id];
+  const zeiten = w && w.tage_unix, codes = w && w.tageswettercode;
+  const aus = {};
+  if (Array.isArray(zeiten) && Array.isArray(codes)) zeiten.forEach((ts, i) => {
+    if (codes[i] != null) aus[tagSchluessel(ts + 43200)] = codes[i];
+  });
+  return aus;
+}
+
+/* ---------- Zeichnen ---------- */
+function zeichnen() {
+  const box = $("#plot-mittelfrist");
+  if (!box) return;
+  const m = MOD.find(x => x.id === modell), anderes = MOD.find(x => x.id !== modell);
+  const l = lauf(modell), lAnderes = anderesZeigen ? lauf(anderes.id) : null;
+  box.innerHTML = "";
+  ["#laufinfoZeile-mittelfrist", "#laufwarnung-mittelfrist", "#leg-mittelfrist"].forEach(s => { const e = $(s); if (e) e.innerHTML = ""; });
+  $("#schalter-mittelfrist .anderes-name").textContent = anderes.name;
+  $("#hauptlaufEin-mittelfrist").checked = hauptlaufZeigen && !anderesZeigen;
+  $("#hauptlaufEin-mittelfrist").disabled = anderesZeigen;
+  $("#hauptlaufEin-mittelfrist").closest("label").title = anderesZeigen
+    ? "Beim Vergleich beider Modelle entfallen die Hauptläufe." : "";
+  $("#anderesEin-mittelfrist").checked = anderesZeigen;
+  if (!l) {
+    box.innerHTML = '<p class="kurzhinweis" style="margin:8px 4px">Für dieses Modell liegt noch kein gespeicherter Lauf vor.</p>';
+    return;
+  }
+  const t = l.temperatur_2m, u = t.zeitpunkte_unix;
+  const regen = niederschlagsschritte(l);
+  const hauptlauf = hauptlaufZeigen && !anderesZeigen ? t.hauptlauf : null;
+  const andereTemp = lAnderes && lAnderes.temperatur_2m;
+  const andererRegen = lAnderes ? niederschlagsschritte(lAnderes) : null;
+
+  const W = Math.max(340, Math.round(box.clientWidth - 28)), H = W < 620 ? 340 : 420;
+  const L = 44, R = 46, T = 52, B = 46, iw = W - L - R, ih = H - T - B;
+  const x0 = u[0], x1 = u[u.length - 1];
+  const x = ts => L + (ts - x0) / (x1 - x0) * iw;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img",
+    "aria-label": `Temperatur und Niederschlag der nächsten Tage, ${m.name}` });
+  box.appendChild(svg);
+  const g = el("g"); svg.appendChild(g);
+
+  // Temperaturskala (beide Modelle, damit sie beim Umschalten steht)
+  const tWerte = [t.mittel, t.p10, t.p90, hauptlauf,
+                  andereTemp && andereTemp.mittel, andereTemp && andereTemp.p10, andereTemp && andereTemp.p90]
+    .flatMap(r => r || []).filter(Number.isFinite);
+  if (!tWerte.length) { box.innerHTML = '<p class="kurzhinweis" style="margin:8px 4px">Keine Temperaturwerte in diesem Lauf.</p>'; return; }
+  let lo = Math.min(...tWerte), hi = Math.max(...tWerte);
+  const spanne = Math.max(4, hi - lo);
+  const schritt = spanne > 22 ? 5 : spanne > 9 ? 2 : 1;
+  lo = Math.floor((lo - spanne * .05) / schritt) * schritt;
+  hi = Math.ceil((hi + spanne * .05) / schritt) * schritt;
+  // Der Niederschlag nimmt hoechstens 40 % der Hoehe ein und sitzt unten.
+  const y = v => T + ih - (v - lo) / (hi - lo) * ih;
+  const regenWerte = [...regen, ...(andererRegen || [])].map(s => s.mittel).filter(Number.isFinite);
+  const rMax = Math.max(1, ...regenWerte);
+  const rOben = rMax <= 1 ? 1 : rMax <= 2 ? 2 : rMax <= 5 ? 5 : Math.ceil(rMax / 5) * 5;
+  const rHoehe = ih * .4;
+  const yr = v => T + ih - (v / rOben) * rHoehe;
+
+  // Gitter, Achsen
+  for (let v = lo; v <= hi + 1e-6; v += schritt) {
+    g.appendChild(el("line", { x1: L, x2: L + iw, y1: y(v), y2: y(v), class: v === 0 ? "achse" : "gitter" }));
+    g.appendChild(el("text", { x: L - 6, y: y(v) + 3.5, "text-anchor": "end", class: "ax" }, nf(v, 0)));
+  }
+  g.appendChild(el("text", { x: L - 6, y: T - 8, "text-anchor": "end", class: "ax" }, "°C"));
+  [0, rOben / 2, rOben].forEach(v => g.appendChild(el("text", { x: L + iw + 6, y: yr(v) + 3.5, class: "ax" }, nf(v, v % 1 ? 1 : 0))));
+  g.appendChild(el("text", { x: L + iw + 6, y: yr(rOben) - 12, class: "ax" }, `mm/${BEZUG_STUNDEN}h`));
+
+  // Tagesgrenzen (Ortsmitternacht) und Datum
+  const tage = mitternaechte(x0, x1);
+  const platzProTag = tage.length > 1 ? (x(tage[1]) - x(tage[0])) : iw;
+  tage.forEach((ts, k) => {
+    g.appendChild(el("line", { x1: x(ts), x2: x(ts), y1: T, y2: T + ih, class: "gitter", "data-serie": "tageslinie" }));
+    if (platzProTag >= 34 || k % 2 === 0)
+      g.appendChild(el("text", { x: x(ts) + 3, y: H - B + 16, class: "ax", "data-serie": "tagesbeschriftung" }, tagText(ts)));
+  });
+  g.appendChild(el("text", { x: L, y: H - 6, class: "ax" }, "Zeitpunkt (Ortszeit)"));
+
+  /* Niederschlagsflaeche: je Zeitschritt ein Stueck, Deckkraft nach dem Anteil der
+     Mitglieder mit Regen. So zeigt dieselbe Flaeche Menge UND Einigkeit. */
+  const flaeche = (schritte, farbe, nurLinie) => {
+    if (nurLinie) {
+      const d = schritte.filter(s => Number.isFinite(s.mittel))
+        .map((s, i) => `${i ? "L" : "M"}${x((s.von + s.ts) / 2).toFixed(1)},${yr(s.mittel).toFixed(1)}`).join("");
+      if (d) g.appendChild(el("path", { d, fill: "none", stroke: farbe, "stroke-width": 1.6, opacity: .9,
+        "stroke-dasharray": "5 3", "data-serie": "anderes-niederschlag" }));
+      return;
+    }
+    schritte.forEach(s => {
+      if (!Number.isFinite(s.mittel) || s.mittel <= 0) return;
+      const a = x(s.von), b = x(s.ts), unten = T + ih;
+      g.appendChild(el("path", { d: `M${a.toFixed(1)},${unten}L${a.toFixed(1)},${yr(s.mittel).toFixed(1)}L${b.toFixed(1)},${yr(s.mittel).toFixed(1)}L${b.toFixed(1)},${unten}Z`,
+        fill: farbe, opacity: (0.12 + 0.68 * (s.anteil ?? 0)).toFixed(3), stroke: "none",
+        "data-serie": "niederschlag", "data-anteil": Math.round((s.anteil ?? 0) * 100) }));
+    });
+  };
+  flaeche(regen, "var(--regen)", false);
+  if (andererRegen) flaeche(andererRegen, "var(--regen)", true);
+
+  // Perzentilband und Mittel
+  const bandPfad = (reihe, unix) => {
+    const p = unix.map((ts, i) => ({ ts, u: reihe.p10[i], o: reihe.p90[i] })).filter(s => Number.isFinite(s.u) && Number.isFinite(s.o));
+    return p.length > 1 ? p.map((s, i) => `${i ? "L" : "M"}${x(s.ts).toFixed(1)},${y(s.o).toFixed(1)}`).join("")
+      + p.slice().reverse().map(s => `L${x(s.ts).toFixed(1)},${y(s.u).toFixed(1)}`).join("") + "Z" : "";
+  };
+  const linie = (werte, unix, attr) => {
+    const d = unix.map((ts, i) => ({ ts, v: werte[i] })).filter(s => Number.isFinite(s.v))
+      .map((s, i) => `${i ? "L" : "M"}${x(s.ts).toFixed(1)},${y(s.v).toFixed(1)}`).join("");
+    if (d) g.appendChild(el("path", { d, fill: "none", "stroke-linejoin": "round", "stroke-linecap": "round", ...attr }));
+  };
+  const bandD = bandPfad(t, u);
+  if (bandD) g.appendChild(el("path", { d: bandD, fill: m.farbe, opacity: .16, "data-serie": "band" }));
+  if (andereTemp) {
+    // Zweites Band nur als gestrichelte Grenzen -- zwei Flaechen liessen sich nicht unterscheiden.
+    ["p10", "p90"].forEach(k => linie(andereTemp[k], andereTemp.zeitpunkte_unix,
+      { stroke: anderes.farbe, "stroke-width": 1.3, "stroke-dasharray": "4 3", "data-serie": "anderes-band" }));
+    linie(andereTemp.mittel, andereTemp.zeitpunkte_unix, { stroke: anderes.farbe, "stroke-width": 2.6, "data-serie": "anderes-mittel" });
+  }
+  linie(t.mittel, u, { stroke: m.farbe, "stroke-width": 3, "data-serie": "mittel" });
+  if (hauptlauf) linie(hauptlauf, u, { stroke: "var(--ink)", "stroke-width": 2, "data-serie": "hauptlauf" });
+
+  // Wettersymbole je Kalendertag (nur ohne Modellvergleich)
+  const codes = anderesZeigen ? {} : tagescodes(modell);
+  if (!anderesZeigen) tage.forEach(ts => {
+    const mittag = ts + 43200;
+    if (mittag > x1) return;
+    const code = codes[tagSchluessel(mittag)];
+    if (code == null || platzProTag < 26) return;
+    const sym = window.WW_SYMBOL ? window.WW_SYMBOL(code, true) : null;
+    if (!sym) return;
+    sym.setAttribute("transform", `translate(${x(mittag)},${T - 26})`);
+    sym.setAttribute("data-serie", "tagessymbol");
+    g.appendChild(sym);
+  });
+
+  // Hover
+  const tip = $("#tip");
+  const kreuz = el("line", { y1: T, y2: T + ih, class: "achse", opacity: 0 });
+  g.appendChild(kreuz);
+  const hoverFlaeche = el("rect", { x: L, y: T, width: iw, height: ih, fill: "transparent" });
+  g.appendChild(hoverFlaeche);
+  const zeigen = e => {
+    const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const lx = pt.matrixTransform(svg.getScreenCTM().inverse()).x;
+    const ziel = x0 + (lx - L) / iw * (x1 - x0);
+    let i = 0; u.forEach((ts, k) => { if (Math.abs(ts - ziel) < Math.abs(u[i] - ziel)) i = k; });
+    kreuz.setAttribute("x1", x(u[i])); kreuz.setAttribute("x2", x(u[i])); kreuz.setAttribute("opacity", 1);
+    const s = regen[i];
+    const zeilen = [zeitText(u[i]) + " (Ortszeit)",
+      `${m.name} Ensemble-Mittel: ${nf(t.mittel[i])} °C`,
+      `10.–90. Perzentil: ${nf(t.p10[i])}–${nf(t.p90[i])} °C`,
+      hauptlauf ? `Hauptlauf: ${nf(hauptlauf[i])} °C` : null,
+      `Niederschlag: ${nf(s.mittel, 1)} mm/${BEZUG_STUNDEN}h · ${s.anteil == null ? "–" : Math.round(s.anteil * 100) + " %"} der Mitglieder mit Regen`,
+      andereTemp ? `${anderes.name} Mittel: ${nf(wertBeiZeit(andereTemp.zeitpunkte_unix, andereTemp.mittel, u[i]))} °C` : null,
+    ].filter(Boolean);
+    if (tip) { tip.textContent = zeilen.join("\n"); tip.style.opacity = "1";
+      const r = tip.getBoundingClientRect();
+      let px = e.clientX + 14, py = e.clientY - r.height - 10;
+      if (px + r.width > innerWidth - 8) px = e.clientX - r.width - 14;
+      if (py < 8) py = e.clientY + 18;
+      tip.style.left = px + "px"; tip.style.top = py + "px"; }
+  };
+  hoverFlaeche.addEventListener("pointermove", zeigen);
+  hoverFlaeche.addEventListener("pointerdown", zeigen);
+  hoverFlaeche.addEventListener("pointerleave", () => { kreuz.setAttribute("opacity", 0); if (tip) tip.style.opacity = "0"; });
+
+  // Legende und Laufangabe
+  const strich = (farbe, breite, dash) => `<svg width="22" height="10" aria-hidden="true"><line x1="1" y1="5" x2="21" y2="5" stroke="${farbe}" stroke-width="${breite}" stroke-linecap="round"${dash ? ` stroke-dasharray="${dash}"` : ""}/></svg>`;
+  const flaechenMark = (farbe, deckkraft) => `<svg width="22" height="10" aria-hidden="true"><rect x="1" y="1" width="20" height="8" rx="1.5" fill="${farbe}" opacity="${deckkraft}"/></svg>`;
+  $("#leg-mittelfrist").innerHTML = [
+    `<span class="leg">${strich(m.farbe, 3)}${m.name} Ensemble-Mittel</span>`,
+    `<span class="leg">${flaechenMark(m.farbe, .16)}10.–90. Perzentil</span>`,
+    `<span class="leg">${flaechenMark("var(--regen)", .8)}viele Mitglieder mit Regen</span>`,
+    `<span class="leg">${flaechenMark("var(--regen)", .2)}wenige (Höhe = Menge je ${BEZUG_STUNDEN} h)</span>`,
+    hauptlauf ? `<span class="leg">${strich("var(--ink)", 2)}Hauptlauf</span>` : "",
+    andereTemp ? `<span class="leg">${strich(anderes.farbe, 2.6)}${anderes.name} Mittel</span>` : "",
+    andereTemp ? `<span class="leg">${strich(anderes.farbe, 1.3, "4 3")}${anderes.name} 10.–90. Perzentil</span>` : "",
+    andererRegen ? `<span class="leg">${strich("var(--regen)", 1.6, "5 3")}${anderes.name} Niederschlag</span>` : "",
+  ].filter(Boolean).join("");
+  const kurz = i => `${i.slice(8, 10)}.${i.slice(5, 7)}., ${i.slice(11, 13)} UTC`;
+  $("#laufinfoZeile-mittelfrist").innerHTML =
+    `<b>${m.name}, Lauf vom ${kurz(l.init)}</b> · ${l.mitglieder_n} Ensemblemitglieder · Horizont ${l.horizont_tage} Tage`
+    + (lAnderes ? ` · ${anderes.name}: Lauf ${kurz(lAnderes.init)}` : "");
+  if (anderesZeigen && !lAnderes) $("#laufwarnung-mittelfrist").innerHTML =
+    `<p class="warnzeile">Für ${anderes.name} liegt gerade kein Lauf vor.</p>`;
+}
+function wertBeiZeit(unix, werte, t) {
+  for (let i = 0; i + 1 < unix.length; i++) {
+    if (t < unix[i] || t > unix[i + 1]) continue;
+    const a = werte[i], b = werte[i + 1];
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+    return unix[i + 1] === unix[i] ? a : a + (b - a) * (t - unix[i]) / (unix[i + 1] - unix[i]);
+  }
+  return null;
+}
+
+/* ---------- Bedienung ---------- */
+function modellwahlBauen() {
+  const ziel = $("#modellwahl-mittelfrist");
+  if (!ziel) return;
+  ziel.innerHTML = MOD.map(m => `<button type="button" data-modell="${m.id}" aria-pressed="${m.id === modell}">${m.name}</button>`).join("");
+  ziel.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    modell = b.dataset.modell;
+    ziel.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    zeichnen();
+  }));
+}
+const sichtbar = () => { const m = $("#seite-vorhersage"); return m && !m.hidden; };
+modellwahlBauen();
+$("#hauptlaufEin-mittelfrist").addEventListener("change", e => { hauptlaufZeigen = e.target.checked; zeichnen(); });
+$("#anderesEin-mittelfrist").addEventListener("change", e => { anderesZeigen = e.target.checked; zeichnen(); });
+addEventListener("seitewechsel", () => { if (sichtbar()) zeichnen(); });
+let breiteMf = 0;
+addEventListener("resize", () => {
+  const b = document.body.clientWidth;
+  if (b !== breiteMf && sichtbar()) { breiteMf = b; clearTimeout(window._mf); window._mf = setTimeout(zeichnen, 120); }
+});
+if (sichtbar()) zeichnen();
+window.__TESTMF__ = { niederschlagsschritte, tagescodes, lauf, zeichnen,
+  setzeModell: x => { modell = x; zeichnen(); },
+  setzeHaken: (h, a) => { hauptlaufZeigen = h; anderesZeigen = a; zeichnen(); } };
 })();
 </script>
 

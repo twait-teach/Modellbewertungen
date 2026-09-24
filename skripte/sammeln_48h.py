@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Stundenwerte der naechsten 48 Stunden fuer den Reiter "48h Wetter".
+"""Stundenwerte der naechsten 48 Stunden ("48h Wetter") und Tageswettercodes ("Vorhersage").
 
 Je Modell (GFS und ECMWF-IFS) ein Abruf der Open-Meteo-Vorhersage-Schnittstelle
 mit dem jeweiligen Hauptlauf in Stundenaufloesung:
 
     Temperatur (2 m) · Niederschlag je Stunde · WMO-Wettercode · Tag/Nacht
+
+Derselbe Abruf liefert zusaetzlich den WMO-Wettercode je KALENDERTAG fuer 16 Tage
+(Ortszeit). Er traegt die Tagessymbole im Reiter "Vorhersage" -- ohne zusaetzlichen
+Abruf. Achtung: Dieser Code stammt aus dem Hauptlauf, waehrend Kurve und
+Niederschlagswahrscheinlichkeit dort aus dem Ensemble kommen; in der zweiten Woche
+koennen beide auseinanderlaufen.
 
 Der Wettercode ist die Quelle fuer die Wettersymbole; er kommt direkt vom
 gewaehlten Modell, es braucht also keine zweite Wetterquelle. Ensemble-Mittel
@@ -27,6 +33,7 @@ from sammeln_vorhersage import LAT, LON, MODELLE  # noqa: E402
 
 OUT = Path(__file__).resolve().parent.parent / "daten" / "48h"
 STUNDEN = 48
+TAGE = 16                      # Tageswettercodes fuer den Reiter "Vorhersage"
 FELDER = ("temperature_2m", "precipitation", "weather_code", "is_day")
 NAMEN = {"temperature_2m": "temperatur_2m", "precipitation": "niederschlag",
          "weather_code": "wettercode", "is_day": "tag"}
@@ -38,6 +45,9 @@ def abrufen(modell, fehler, hole_=hole):
     d = hole_("https://api.open-meteo.com/v1/forecast", params={
         "latitude": LAT, "longitude": LON, "hourly": ",".join(FELDER),
         "models": cfg["hauptlauf_datensatz"], "forecast_hours": STUNDEN + 1,
+        # Die Tageswerte laufen in Ortszeit (ein Wettercode je Kalendertag),
+        # die Stundenwerte weiterhin in UTC-Unixzeit.
+        "daily": "weather_code", "forecast_days": TAGE,
         "timezone": "UTC", "timeformat": "unixtime"}, fehlerliste=fehler)
     stunden = (d or {}).get("hourly") or {}
     zeiten = stunden.get("time") or []
@@ -46,8 +56,14 @@ def abrufen(modell, fehler, hole_=hole):
     reihen = {NAMEN[f]: list(stunden[f]) for f in FELDER}
     if any(len(r) != len(zeiten) for r in reihen.values()):
         return None
+    # Tageswettercodes sind ein Zusatz: Fehlen sie, bleibt der 48-Stunden-Teil trotzdem gueltig.
+    tage = (d or {}).get("daily") or {}
+    tageszeiten, tagescodes = tage.get("time") or [], tage.get("weather_code") or []
+    tagesteil = {}
+    if tageszeiten and len(tagescodes) == len(tageszeiten):
+        tagesteil = {"tage_unix": [int(t) for t in tageszeiten], "tageswettercode": list(tagescodes)}
     return {"modell": modell, "modellname": cfg["name"], "datensatz": cfg["hauptlauf_datensatz"],
-            "zeitpunkte_unix": [int(t) for t in zeiten], **reihen}
+            "zeitpunkte_unix": [int(t) for t in zeiten], **reihen, **tagesteil}
 
 
 def speichern(datensatz, pfad):
