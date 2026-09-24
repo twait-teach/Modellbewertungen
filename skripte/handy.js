@@ -365,7 +365,9 @@ function aufbauen() {
       const box = $(id); if (box) stationGesten(box, g);
     }
   }
-  const andere = ["#plot-wetter48", "#seite-vorhersage .plot", "#seite-analyse .plot"];
+  // Die Mittelfrist besitzt bereits eine lesbare feste Breite und natives Scrollen.
+  // Der generische Pinch-Reset wuerde diese Breite wieder entfernen.
+  const andere = ["#plot-wetter48", "#seite-vorhersage-analyse .plot", "#seite-analyse .plot"];
   for (const sel of andere) document.querySelectorAll(sel).forEach(wachsenGesten);
   // Adresse ohne Zeitstempel zeigen (wie bei der normalen Seite): Neuladen und Anheften bleiben sauber.
   try { history.replaceState(null, "", "handy.html" + location.hash); } catch (e) { /* z. B. file:// */ }

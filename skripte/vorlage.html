@@ -3354,12 +3354,21 @@ function zeichnen() {
   const andereTemp = lAnderes && lAnderes.temperatur_2m;
   const andererRegen = lAnderes ? niederschlagsschritte(lAnderes) : null;
 
-  const W = Math.max(340, Math.round(box.clientWidth - 28)), H = W < 620 ? 340 : 420;
+  // In der Handy-App etwa drei Tage gleichzeitig, der Rest ist nativ wischbar.
+  const handy = document.body.classList.contains("handy");
+  const breite = Math.max(340, Math.round(box.clientWidth - 28));
+  const dauerTage = (u[u.length - 1] - u[0]) / 86400;
+  const W = handy ? Math.max(breite, Math.ceil(90 + dauerTage * Math.max(90, (breite - 90) / 3))) : breite;
+  const H = handy || W < 620 ? 340 : 420;
   const L = 44, R = 46, T = 52, B = 46, iw = W - L - R, ih = H - T - B;
   const x0 = u[0], x1 = u[u.length - 1];
   const x = ts => L + (ts - x0) / (x1 - x0) * iw;
   const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img",
     "aria-label": `Temperatur und Niederschlag der nächsten Tage, ${m.name}` });
+  if (handy) {
+    svg.style.width = `${W}px`;
+    svg.style.minWidth = `${W}px`;
+  }
   box.appendChild(svg);
   const g = el("g"); svg.appendChild(g);
   // Kurven werden am Diagrammrand abgeschnitten, statt die Achse zu stauchen: Beim
@@ -3455,16 +3464,24 @@ function zeichnen() {
   // Ensemble desselben Modells korrigiert (siehe tagesart).
   const codes = anderesZeigen ? {} : tagescodes(modell);
   const tw = anderesZeigen ? {} : tageswerte(l);
-  if (!anderesZeigen) tage.forEach(ts => {
-    const mittag = ts + 43200;
-    if (mittag > x1) return;
-    const k = tagSchluessel(mittag);
+  // Tagesabschnitte statt nur Mitternaechte im Plot: auch den ersten und letzten
+  // angebrochenen Tag aufnehmen. Kalendergrenzen bleiben bei Zeitumstellung korrekt.
+  const startTag = ort(x0);
+  const symbolTage = mitternaechte(ortsMitternacht(startTag.j, startTag.m, startTag.t), x1);
+  if (!anderesZeigen) symbolTage.forEach(ts => {
+    const datum = ort(ts);
+    const ende = ortsMitternacht(datum.j, datum.m, datum.t + 1);
+    const von = Math.max(ts, x0), bis = Math.min(ende, x1);
+    if (bis <= von) return;
+    const mitte = (von + bis) / 2;
+    const k = tagSchluessel(mitte);
     const code = codes[k];
     if (code == null || platzProTag < 26 || !window.WW_ART || !window.WW_SYMBOL_ART) return;
     const art = tagesart(window.WW_ART(code), tw[k]);
     const sym = window.WW_SYMBOL_ART(art, true);
     if (!sym) return;
-    sym.setAttribute("transform", `translate(${x(mittag)},${T - 26})`);
+    sym.setAttribute("transform", `translate(${x(mitte)},${T - 26})`);
+    sym.setAttribute("data-tag", k);
     sym.setAttribute("data-serie", "tagessymbol");
     sym.setAttribute("data-art", art);
     const d = tw[k];
@@ -3510,8 +3527,8 @@ function zeichnen() {
   $("#leg-mittelfrist").innerHTML = [
     `<span class="leg">${strich(m.farbe, 3)}${m.name} Ensemble-Mittel</span>`,
     `<span class="leg">${flaechenMark(m.farbe, .16)}10.–90. Perzentil</span>`,
-    `<span class="leg">${flaechenMark("var(--regen)", .8)}viele Mitglieder mit Regen</span>`,
-    `<span class="leg">${flaechenMark("var(--regen)", .2)}wenige (Höhe = Menge je ${BEZUG_STUNDEN} h)</span>`,
+    `<span class="leg">${flaechenMark("var(--regen)", .8)}Höhere Regenwahrscheinlichkeit</span>`,
+    `<span class="leg">${flaechenMark("var(--regen)", .2)}Geringere Regenwahrscheinlichkeit (Höhe = mm/${BEZUG_STUNDEN} h)</span>`,
     hauptlauf ? `<span class="leg">${strich("var(--ink)", 2)}Hauptlauf</span>` : "",
     andereTemp ? `<span class="leg">${strich(anderes.farbe, 2.6)}${anderes.name} Mittel</span>` : "",
     andereTemp ? `<span class="leg">${strich(anderes.farbe, 1.3, "4 3")}${anderes.name} 10.–90. Perzentil</span>` : "",

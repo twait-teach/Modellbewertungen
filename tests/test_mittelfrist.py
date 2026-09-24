@@ -1,6 +1,7 @@
 """Browsertests fuer den Reiter "Vorhersage" (Mittelfrist): Temperaturkurve mit Band,
 Niederschlagsflaeche mit Wahrscheinlichkeitsfaerbung, Tagessymbole, Modellvergleich."""
 import datetime as dt
+from pathlib import Path
 
 import pytest
 
@@ -76,6 +77,47 @@ def test_tagessymbole_stammen_aus_den_tageswettercodes(browser, mittelfrist):
     assert not fehler, fehler
 
 
+def test_angebrochene_tage_haben_symbole_auch_am_zeitumstellungstag(browser, mittelfrist):
+    seite = _oeffnen(browser, mittelfrist)
+    symbole = seite.locator('#plot-mittelfrist [data-serie="tagessymbol"]')
+    assert symbole.first.get_attribute("data-tag") == "2026-10-25"
+    assert symbole.last.get_attribute("data-tag") == "2026-10-31"
+    assert symbole.count() == 7
+    assert not seite.fehler
+    seite.close()
+
+
+@pytest.mark.parametrize("breite", [320, 390, 430])
+def test_handy_mittelfrist_scrollt_mit_symbolen_und_desktop_reiterfolge(browser, mittelfrist, tmp_path, breite):
+    from bauen import handy_seite
+
+    skripte = Path(__file__).resolve().parent.parent / "skripte"
+    datei = tmp_path / "handy-app.html"
+    datei.write_text(handy_seite(
+        mittelfrist.read_text(encoding="utf-8").replace("<head>", '<head>\n<meta name="robots" content="index,follow">'),
+        (skripte / "handy.css").read_text(encoding="utf-8"),
+        (skripte / "handy.js").read_text(encoding="utf-8")), encoding="utf-8")
+    seite = _oeffnen(browser, datei, breite)
+    box = seite.locator("#plot-mittelfrist")
+    assert box.evaluate("e => e.scrollWidth > e.clientWidth * 1.5")
+    assert seite.locator('#plot-mittelfrist [data-serie="tagessymbol"]').count() == 7
+    box.evaluate("e => { e.scrollLeft = 200; }")
+    assert box.evaluate("e => e.scrollLeft") == 200
+    assert seite.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    folge = seite.locator("nav.hauptnav a").evaluate_all(
+        "es => es.sort((a,b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left).map(e => e.dataset.seite)")
+    assert folge == ["wetter48", "vorhersage", "station-heute", "station-verlauf", "vorhersage-analyse", "analyse"]
+    legende = seite.locator("#leg-mittelfrist").inner_text()
+    assert "Höhere Regenwahrscheinlichkeit" in legende
+    assert "Geringere Regenwahrscheinlichkeit" in legende
+    assert not seite.locator("#erklaerung-mittelfrist").is_visible()
+    seite.locator("#modellwahl-mittelfrist").get_by_text("GFS", exact=True).click()
+    assert box.evaluate("e => e.scrollWidth > e.clientWidth * 1.5")
+    assert seite.locator('#plot-mittelfrist [data-tag="2026-10-25"]').count() == 1
+    assert not seite.fehler
+    seite.close()
+
+
 def test_modellvergleich_blendet_die_hauptlaeufe_aus(browser, mittelfrist):
     seite = _oeffnen(browser, mittelfrist)
     seite.locator("#hauptlaufEin-mittelfrist").check()
@@ -135,7 +177,10 @@ def test_tagessymbol_folgt_der_entscheidungsregel(browser, mittelfrist):
     assert r == {"trocken": "klar", "schauer": "schauer", "entregnet": "bedeckt", "regen": "regen",
                  "schnee": "schnee", "gewitter": "gewitter", "bedeckt": "bedeckt", "ohneEnsemble": "wolkig"}
     assert arten and all(a for a, _ in arten)
-    assert all("% der Mitglieder" in titel for _, titel in arten), arten
+    assert all("% der Mitglieder" in titel for _, titel in arten[:-1]), arten
+    # Der letzte angebrochene Tag hat einen Wettercode, aber in diesen Testdaten
+    # keinen Niederschlagsschritt. Dafuer darf keine Wahrscheinlichkeit erfunden werden.
+    assert "31.10." in arten[-1][1] and "%" not in arten[-1][1]
     assert not fehler, fehler
 
 
