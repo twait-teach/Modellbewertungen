@@ -95,6 +95,50 @@ def test_modellvergleich_blendet_die_hauptlaeufe_aus(browser, mittelfrist):
     assert not fehler, fehler
 
 
+def test_achse_bleibt_beim_zuschalten_des_anderen_modells_stehen(browser, mittelfrist):
+    """Die Skalen richten sich nur nach dem gewaehlten Modell; das andere darf aus dem Bild laufen."""
+    seite = _oeffnen(browser, mittelfrist)
+    skala = "() => { const s = document.querySelector('#plot-mittelfrist svg'); return [s.dataset.unten, s.dataset.oben, s.dataset.regenOben]; }"
+    vorher = seite.evaluate(skala)
+    seite.locator("#anderesEin-mittelfrist").check()
+    seite.wait_for_timeout(120)
+    nachher = seite.evaluate(skala)
+    geklemmt = seite.evaluate("""() => {
+        const e = document.querySelector('#plot-mittelfrist [data-serie=anderes-mittel]');
+        return !!(e && e.parentNode.getAttribute('clip-path')); }""")
+    fehler = list(seite.fehler)
+    seite.close()
+    assert vorher == nachher, (vorher, nachher)
+    assert geklemmt, "Kurven des anderen Modells muessen am Diagrammrand abgeschnitten werden"
+    assert not fehler, fehler
+
+
+def test_tagessymbol_folgt_der_entscheidungsregel(browser, mittelfrist):
+    """Hauptlauf-Code liefert die Art, das Ensemble entscheidet ueber den Niederschlag."""
+    seite = _oeffnen(browser, mittelfrist)
+    r = seite.evaluate("""() => { const t = window.__TESTMF__.tagesart;
+        const tag = (p, pr, menge, temp) => ({ pNass: p, pRegen: pr, menge, temp, n: 20 });
+        return {
+          trocken:      t('klar',     tag(0.05, 0.00, 0.1, 10)),
+          schauer:      t('klar',     tag(0.40, 0.10, 1.0, 10)),
+          entregnet:    t('regen',    tag(0.10, 0.00, 0.2, 10)),
+          regen:        t('klar',     tag(0.90, 0.80, 5.0, 10)),
+          schnee:       t('klar',     tag(0.90, 0.80, 5.0, -2)),
+          gewitter:     t('gewitter', tag(0.90, 0.80, 5.0, 10)),
+          bedeckt:      t('bedeckt',  tag(0.05, 0.00, 0.1, 10)),
+          ohneEnsemble: t('wolkig',   null),
+        }; }""")
+    arten = seite.evaluate("""() => [...document.querySelectorAll('#plot-mittelfrist [data-serie=tagessymbol]')]
+        .map(e => [e.dataset.art, (e.querySelector('title') || {}).textContent || ''])""")
+    fehler = list(seite.fehler)
+    seite.close()
+    assert r == {"trocken": "klar", "schauer": "schauer", "entregnet": "bedeckt", "regen": "regen",
+                 "schnee": "schnee", "gewitter": "gewitter", "bedeckt": "bedeckt", "ohneEnsemble": "wolkig"}
+    assert arten and all(a for a, _ in arten)
+    assert all("% der Mitglieder" in titel for _, titel in arten), arten
+    assert not fehler, fehler
+
+
 def test_ohne_gespeicherten_lauf_erscheint_ein_hinweis(browser, tmp_path_factory):
     leer = _seite(tmp_path_factory.mktemp("mf_leer"), _daten([], []), "leer.html")
     seite = _oeffnen(browser, leer)

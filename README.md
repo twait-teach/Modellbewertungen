@@ -17,10 +17,12 @@ Mühldorf-Reitern:
   in 3-Stunden-Schritten, darüber je Tag ein **Wettersymbol**. Die Höhe einer Niederschlagsfläche ist
   die mittlere Menge (mm/3 h), ihre Einfärbung die Wahrscheinlichkeit: Anteil der Mitglieder mit
   mindestens **0,1 mm** im jeweiligen Schritt — je wahrscheinlicher, desto kräftiger blau, je
-  unwahrscheinlicher, desto transparenter. Bedienung: Modellumschaltung GFS/ECMWF-IFS, Haken für den
-  **Hauptlauf** und Haken für das **andere Modell**. Beim Modellvergleich werden Hauptlauf und
-  Tagessymbole ausgeblendet, damit nur die beiden Ensembles nebeneinander stehen; das zweite Modell
-  wird gestrichelt gezeichnet (Mittel, p10/p90 und Niederschlag als Linie).
+  unwahrscheinlicher, desto transparenter. Das Tagessymbol entsteht aus dem Wettercode des Hauptlaufs,
+  korrigiert mit der Regenwahrscheinlichkeit des Ensembles (Regel siehe unten). Bedienung:
+  Modellumschaltung GFS/ECMWF-IFS, Haken für den **Hauptlauf** und Haken für das **andere Modell**.
+  Beim Modellvergleich werden Hauptlauf und Tagessymbole ausgeblendet, damit nur die beiden Ensembles
+  nebeneinander stehen; das zweite Modell wird gestrichelt gezeichnet (Mittel, p10/p90 und Niederschlag
+  als Linie) und läuft notfalls aus dem Bild, weil die Achsen stehen bleiben.
 - **Vorhersage Analyse** (früher „Vorhersage Mühldorf") — das ausführliche Ensemble-Meteogramm für
   Fachleser, mit zwei Bereichen untereinander: **850-hPa-Temperatur** und **aufsummierter
   Niederschlag**, jeweils für **GFS** und **ECMWF-IFS** (das klassische physikalische Modell, nicht die
@@ -453,19 +455,43 @@ ab +240 h nicht doppelt so hoch aussehen. Für jeden Schritt ergibt das zwei Zah
   bringen, steht also blass da, ein einhelliger Schritt kräftig blau. Die Deckkraft ist bewusst nie 0
   und nie 1, damit auch ein seltener Fall sichtbar bleibt und ein sicherer nicht wie ein Balken wirkt.
 
-**Tagessymbole.** Ein Symbol je Tag, gesetzt zur örtlichen Mittagszeit, aus dem Tageswettercode des
-Hauptlaufs (`tageswettercode` aus `daten/48h/<modell>.json`, gezeichnet über `window.WW_SYMBOL` des
-48-h-Blocks). Die Tagesgrenzen werden als **echte Ortsmitternächte** berechnet und nicht aus dem
-3-Stunden-Raster abgeleitet — ein 12-UTC-Lauf trifft 00:00 Ortszeit nie.
+**Tagessymbole.** Ein Symbol je Tag, gesetzt zur örtlichen Mittagszeit. Die Tagesgrenzen werden als
+**echte Ortsmitternächte** berechnet und nicht aus dem 3-Stunden-Raster abgeleitet — ein 12-UTC-Lauf
+trifft 00:00 Ortszeit nie.
+
+Die Art des Symbols entsteht aus **zwei** Quellen, weil keine für sich genügt: Der Tageswettercode des
+Hauptlaufs (`tageswettercode` aus `daten/48h/<modell>.json`) ist die einzige Aussage über Bewölkung und
+über die Art des Niederschlags; ob an einem Tag überhaupt Niederschlag fällt, weiß das Ensemble besser,
+besonders in der zweiten Woche. `tageswerte()` bildet dafür je Kalendertag aus den gespeicherten,
+mitgliedsweise aufsummierten Reihen: Anteil der Mitglieder mit ≥ 0,2 mm (`pNass`), Anteil mit ≥ 1 mm
+(`pRegen`), mittlere Tagessumme und das Tagesmittel der 2-m-Temperatur. `tagesart()` verrechnet beides:
+
+| Ensemble | Ergebnis |
+|---|---|
+| `pNass` < 30 % **und** Menge < 0,5 mm | Tag gilt als trocken; ein nasses Hauptlauf-Symbol wird zu „bedeckt“, ein trockenes bleibt unverändert |
+| `pRegen` ≥ 60 % **und** Menge ≥ 2 mm | „Regen“ |
+| dazwischen | „Schauer“ — auch wenn der Hauptlauf für den Tag klar zeigt; „Niesel“ des Hauptlaufs bleibt Niesel |
+| Tagesmittel ≤ 1 °C und Niederschlag | „Schnee“ |
+| Hauptlauf „Gewitter“ | bleibt „Gewitter“ (einzelne Schauerzellen sieht nur der Hauptlauf) |
+
+Fehlt der Tageswettercode, wird kein Symbol gezeichnet — aus dem Ensemble allein lässt sich der
+Bewölkungsgrad nicht ableiten. Der Mauszeiger auf einem Symbol nennt Tageswahrscheinlichkeit und Menge.
+Die Symbole selbst sind dieselben SVG-Zeichnungen wie im 48-h-Reiter (`window.WW_ART`, `window.WW_TEXT`,
+`window.WW_SYMBOL_ART`), keine Bilddateien.
 
 **Modellvergleich.** Der Haken *anderes Modell zeigen* legt das zweite Ensemble gestrichelt darüber
 (Mittel durchgezogen in seiner Farbe, p10/p90 als gestrichelte Grenzen statt Fläche, Niederschlag als
 gestrichelte Linie). Solange er gesetzt ist, sind Hauptlauf und Tagessymbole ausgeblendet und der
 Hauptlauf-Haken gesperrt: Zwei Ensembles plus Hauptlauf plus Symbole wären nicht mehr lesbar.
+**Beide Achsen richten sich allein nach dem gewählten Modell** und bleiben beim Zuschalten stehen; die
+Kurven des anderen Modells werden am Diagrammrand abgeschnitten (`clipPath`), wie die ausbrechenden
+Mitglieder im Niederschlagsdiagramm der Vorhersage-Analyse. Eine mitwandernde Achse würde das Bild des
+eigenen Modells beim Anhaken verändern und den Vergleich wertlos machen.
 
 Getestet wird der Reiter von `tests/test_mittelfrist.py` (Playwright): Normierung und Wahrscheinlichkeit
-der Niederschlagsschritte, Monotonie und Grenzen der Deckkraft, mindestens vier Tagessymbole, das
-Ausblenden beim Modellvergleich und der Hinweis bei fehlenden Daten.
+der Niederschlagsschritte, Monotonie und Grenzen der Deckkraft, mindestens vier Tagessymbole, die
+Entscheidungsregel der Symbolart, das Stehenbleiben der Achsen samt Abschneiden, das Ausblenden beim
+Modellvergleich und der Hinweis bei fehlenden Daten.
 
 ---
 

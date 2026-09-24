@@ -390,12 +390,24 @@ nav.hauptnav a{white-space:nowrap; flex:none}
           Die <strong>Färbung</strong> zeigt, wie einig sich das Ensemble ist: Der Anteil der Mitglieder mit mindestens
           0,1 mm in diesem Zeitschritt bestimmt die Deckkraft — kräftiges Blau heißt, fast alle Mitglieder bringen Regen,
           blass heißt, nur wenige. Eine hohe, blasse Fläche bedeutet also: wenige Mitglieder mit viel Regen.</p>
-          <p><strong>Wettersymbole:</strong> ein Symbol je Kalendertag aus dem WMO-Wettercode des <strong>Hauptlaufs</strong>
-          (open-meteo). Kurve und Wahrscheinlichkeit stammen dagegen aus dem <strong>Ensemble</strong>; in der zweiten Woche
-          können beide auseinanderlaufen. Beim Vergleich beider Modelle entfallen die Symbole.</p>
+          <p><strong>Wettersymbole:</strong> ein Symbol je Kalendertag. Ausgangspunkt ist der WMO-Wettercode des
+          <strong>Hauptlaufs</strong> (open-meteo) — nur er weiß etwas über Bewölkung und Art des Niederschlags.
+          Ob an diesem Tag überhaupt Niederschlag fällt, entscheidet dagegen das <strong>Ensemble</strong>, das in der
+          zweiten Woche deutlich verlässlicher ist als ein einzelner Lauf:</p>
+          <ul>
+            <li>Weniger als 30 % der Mitglieder mit Niederschlag <em>und</em> im Mittel unter 0,5 mm am Tag → der Tag gilt
+            als trocken. Zeigt der Hauptlauf trotzdem Regen, wird daraus „bewölkt“.</li>
+            <li>Mindestens 60 % der Mitglieder mit 1 mm oder mehr <em>und</em> im Mittel mindestens 2 mm → „Regen“.</li>
+            <li>Dazwischen → „Schauer“, auch wenn der Hauptlauf für diesen Tag sonnig zeigt.</li>
+            <li>Liegt das Tagesmittel der Temperatur bei 1 °C oder darunter, wird aus Niederschlag „Schnee“. Gewitter
+            bleibt Gewitter, weil einzelne Schauerzellen nur der Hauptlauf sieht.</li>
+          </ul>
+          <p>Der Mauszeiger auf einem Symbol nennt die Tageswahrscheinlichkeit und die mittlere Menge. Beim Vergleich
+          beider Modelle entfallen die Symbole.</p>
           <p><strong>Beide Modelle:</strong> Mit dem Haken erscheint das andere Modell in seiner Farbe — Temperatur als
           Mittel mit gestrichelten Bandgrenzen, Niederschlag als Linie ohne Füllung. Die Hauptläufe entfallen dabei,
-          sonst wären es zu viele Linien.</p>
+          sonst wären es zu viele Linien. Die Achsen richten sich immer nach dem <strong>gewählten</strong> Modell und
+          bleiben beim Zuschalten stehen; das andere Modell läuft notfalls aus dem Bild.</p>
           <p>Alle Zeiten in Ortszeit. Die senkrechten Linien markieren Mitternacht.</p>
         </div>
       </details>
@@ -3146,8 +3158,14 @@ addEventListener("resize", () => {
   if (b !== breite48 && sichtbar()) { breite48 = b; clearTimeout(window._w48); window._w48 = setTimeout(zeichnen, 120); }
 });
 if (sichtbar()) zeichnen();
-// Der Reiter "Vorhersage" nutzt dieselben Wettersymbole (ein Code je Tag).
+// Der Reiter "Vorhersage" nutzt dieselben Wettersymbole (ein Code je Tag). Dort wird die
+// Art aus dem Wettercode zusaetzlich mit dem Ensemble verrechnet, deshalb sind Zuordnung
+// (WW_ART), Beschriftung (WW_TEXT) und Zeichnung (WW_SYMBOL_ART) einzeln zugaenglich.
 window.WW_SYMBOL = (code, tag) => symbol(wetterArt(code).art, tag !== false);
+window.WW_ART = code => wetterArt(code).art;
+window.WW_TEXT = art => ({ klar: "sonnig", wolkig: "teils bewölkt", bedeckt: "bewölkt", nebel: "Nebel",
+  niesel: "Niesel", regen: "Regen", schauer: "Schauer", schnee: "Schnee", gewitter: "Gewitter" })[art] || art;
+window.WW_SYMBOL_ART = (art, tag) => symbol(art, tag !== false);
 window.__TEST48__ = { extremwerte, aufbereiten, glaetten, aufStunden, wetterArt, zeichnen, setzeModell: m => { modell = m; zeichnen(); } };
 })();
 </script>
@@ -3173,6 +3191,14 @@ const D = () => (typeof DATEN !== "undefined" && DATEN) || window.DATEN || {};
 const MOD = [{ id: "ecmwf", name: "ECMWF-IFS", farbe: "#b77900" }, { id: "gfs", name: "GFS", farbe: "#c1500f" }];
 const REGEN_SCHWELLE = 0.1;          // ab dieser Menge je Zeitschritt zaehlt ein Mitglied als "Regen"
 const BEZUG_STUNDEN = 3;             // Mengen werden auf 3 Stunden normiert (Langfrist: 6-h-Schritte)
+// Schwellen der Tagessymbole (siehe tagesart)
+const TAG_NASS_MM = 0.2;             // ab dieser Tagessumme gilt ein Mitglied als "nass"
+const TAG_REGEN_MM = 1.0;            // ab dieser Tagessumme gilt ein Mitglied als "Regentag"
+const MENGE_TROCKEN = 0.5;           // mittlere Tagesmenge, unter der ein Tag trocken bleiben darf
+const MENGE_REGEN = 2.0;             // mittlere Tagesmenge fuer "verbreitet Regen"
+const P_SCHAUER = 0.3;               // ab diesem Anteil nasser Mitglieder ersetzt Schauer einen trockenen Hauptlauf
+const P_REGEN = 0.6;                 // ab diesem Anteil Regentage wird aus Schauer Regen
+const SCHNEE_GRAD = 1.0;             // Tagesmittel der 2-m-Temperatur, unter dem Niederschlag als Schnee gilt
 let modell = "ecmwf", hauptlaufZeigen = false, anderesZeigen = false;
 
 /* ---------- Ortszeit ---------- */
@@ -3242,6 +3268,67 @@ function tagescodes(id) {
   });
   return aus;
 }
+/** Tageswerte aus dem Ensemble, je Kalendertag (Ortszeit):
+ *   pNass  Anteil der Mitglieder mit mindestens TAG_NASS_MM an diesem Tag
+ *   pRegen Anteil der Mitglieder mit mindestens TAG_REGEN_MM an diesem Tag
+ *   menge  mittlere Tagessumme in mm
+ *   temp   Tagesmittel der 2-m-Temperatur (Ensemble-Mittel)
+ * Ein Zeitschritt wird dem Tag zugeordnet, in dessen Mitte er liegt. */
+function tageswerte(l) {
+  const n = l.niederschlag, u = n.zeitpunkte_unix, start = Date.parse(l.init) / 1000;
+  const summen = {};   // Tag -> Array je Mitglied
+  u.forEach((ts, i) => {
+    const vorherZeit = i === 0 ? start : u[i - 1];
+    const k = tagSchluessel((vorherZeit + ts) / 2);
+    const ziel = summen[k] || (summen[k] = n.mitglieder.map(() => null));
+    n.mitglieder.forEach((m, j) => {
+      const a = i === 0 ? 0 : m[i - 1], b = m[i];
+      if (!Number.isFinite(a) || !Number.isFinite(b)) return;
+      ziel[j] = (ziel[j] ?? 0) + Math.max(0, b - a);
+    });
+  });
+  const temps = {};
+  const t = l.temperatur_2m;
+  (t.zeitpunkte_unix || []).forEach((ts, i) => {
+    const v = t.mittel && t.mittel[i];
+    if (!Number.isFinite(v)) return;
+    const k = tagSchluessel(ts), e = temps[k] || (temps[k] = { s: 0, n: 0 });
+    e.s += v; e.n++;
+  });
+  const aus = {};
+  for (const k in summen) {
+    const w = summen[k].filter(Number.isFinite);
+    if (!w.length) continue;
+    aus[k] = {
+      pNass: w.filter(v => v >= TAG_NASS_MM).length / w.length,
+      pRegen: w.filter(v => v >= TAG_REGEN_MM).length / w.length,
+      menge: w.reduce((s, v) => s + v, 0) / w.length,
+      temp: temps[k] && temps[k].n ? temps[k].s / temps[k].n : null,
+      n: w.length,
+    };
+  }
+  return aus;
+}
+/** Symbolart eines Tages: Wettercode des Hauptlaufs, korrigiert mit dem Ensemble.
+ * Der Hauptlauf weiss etwas ueber Bewoelkung und Art des Niederschlags, das Ensemble
+ * weiss besser, OB an diesem Tag ueberhaupt Niederschlag faellt -- besonders in der
+ * zweiten Woche, wo ein einzelner Lauf wenig aussagt.
+ *   Stufe 0 (trocken)   wenige Mitglieder, wenig Menge -> Niederschlag aus dem Symbol nehmen
+ *   Stufe 1 (Schauer)   uneinheitlich -> Schauer, auch wenn der Hauptlauf sonnig zeigt
+ *   Stufe 2 (Regen)     viele Mitglieder und nennenswerte Menge -> Regen
+ * Gewitter bleibt Gewitter (Konvektion sieht nur der Hauptlauf), und unter
+ * SCHNEE_GRAD Tagesmittel wird aus Niederschlag Schnee. */
+function tagesart(art0, tw) {
+  if (!tw || tw.pNass == null) return art0;
+  const nass0 = ["niesel", "regen", "schauer", "schnee", "gewitter"].includes(art0);
+  const stufe = (tw.pNass < P_SCHAUER && tw.menge < MENGE_TROCKEN) ? 0
+              : (tw.pRegen >= P_REGEN && tw.menge >= MENGE_REGEN) ? 2 : 1;
+  if (stufe === 0) return nass0 ? "bedeckt" : art0;
+  if (art0 === "gewitter") return "gewitter";
+  if (tw.temp != null && tw.temp <= SCHNEE_GRAD) return "schnee";
+  if (stufe === 2) return "regen";
+  return art0 === "niesel" ? "niesel" : "schauer";
+}
 
 /* ---------- Zeichnen ---------- */
 function zeichnen() {
@@ -3275,11 +3362,18 @@ function zeichnen() {
     "aria-label": `Temperatur und Niederschlag der nächsten Tage, ${m.name}` });
   box.appendChild(svg);
   const g = el("g"); svg.appendChild(g);
+  // Kurven werden am Diagrammrand abgeschnitten, statt die Achse zu stauchen: Beim
+  // Zuschalten des anderen Modells soll das Bild des eigenen Modells stehen bleiben.
+  const cp = el("clipPath", { id: "klemme-mittelfrist" });
+  cp.appendChild(el("rect", { x: L, y: T, width: iw, height: ih }));
+  svg.appendChild(cp);
+  const gk = el("g", { "clip-path": "url(#klemme-mittelfrist)" }); svg.appendChild(gk);
+  const gOben = el("g"); svg.appendChild(gOben);
+  const skalaMerken = () => { svg.dataset.unten = lo; svg.dataset.oben = hi; svg.dataset.regenOben = rOben; };
 
-  // Temperaturskala (beide Modelle, damit sie beim Umschalten steht)
-  const tWerte = [t.mittel, t.p10, t.p90, hauptlauf,
-                  andereTemp && andereTemp.mittel, andereTemp && andereTemp.p10, andereTemp && andereTemp.p90]
-    .flatMap(r => r || []).filter(Number.isFinite);
+  // Beim Zuschalten des anderen Modells soll die Achse stehen bleiben; seine Kurven
+  // laufen notfalls oben oder unten aus dem Bild (siehe klemme).
+  const tWerte = [t.mittel, t.p10, t.p90, hauptlauf].flatMap(r => r || []).filter(Number.isFinite);
   if (!tWerte.length) { box.innerHTML = '<p class="kurzhinweis" style="margin:8px 4px">Keine Temperaturwerte in diesem Lauf.</p>'; return; }
   let lo = Math.min(...tWerte), hi = Math.max(...tWerte);
   const spanne = Math.max(4, hi - lo);
@@ -3288,11 +3382,12 @@ function zeichnen() {
   hi = Math.ceil((hi + spanne * .05) / schritt) * schritt;
   // Der Niederschlag nimmt hoechstens 40 % der Hoehe ein und sitzt unten.
   const y = v => T + ih - (v - lo) / (hi - lo) * ih;
-  const regenWerte = [...regen, ...(andererRegen || [])].map(s => s.mittel).filter(Number.isFinite);
+  const regenWerte = regen.map(s => s.mittel).filter(Number.isFinite);
   const rMax = Math.max(1, ...regenWerte);
   const rOben = rMax <= 1 ? 1 : rMax <= 2 ? 2 : rMax <= 5 ? 5 : Math.ceil(rMax / 5) * 5;
   const rHoehe = ih * .4;
   const yr = v => T + ih - (v / rOben) * rHoehe;
+  skalaMerken();   // Skalen auch als Attribute, damit sie nachvollziehbar und pruefbar sind
 
   // Gitter, Achsen
   for (let v = lo; v <= hi + 1e-6; v += schritt) {
@@ -3319,14 +3414,14 @@ function zeichnen() {
     if (nurLinie) {
       const d = schritte.filter(s => Number.isFinite(s.mittel))
         .map((s, i) => `${i ? "L" : "M"}${x((s.von + s.ts) / 2).toFixed(1)},${yr(s.mittel).toFixed(1)}`).join("");
-      if (d) g.appendChild(el("path", { d, fill: "none", stroke: farbe, "stroke-width": 1.6, opacity: .9,
+      if (d) gk.appendChild(el("path", { d, fill: "none", stroke: farbe, "stroke-width": 1.6, opacity: .9,
         "stroke-dasharray": "5 3", "data-serie": "anderes-niederschlag" }));
       return;
     }
     schritte.forEach(s => {
       if (!Number.isFinite(s.mittel) || s.mittel <= 0) return;
       const a = x(s.von), b = x(s.ts), unten = T + ih;
-      g.appendChild(el("path", { d: `M${a.toFixed(1)},${unten}L${a.toFixed(1)},${yr(s.mittel).toFixed(1)}L${b.toFixed(1)},${yr(s.mittel).toFixed(1)}L${b.toFixed(1)},${unten}Z`,
+      gk.appendChild(el("path", { d: `M${a.toFixed(1)},${unten}L${a.toFixed(1)},${yr(s.mittel).toFixed(1)}L${b.toFixed(1)},${yr(s.mittel).toFixed(1)}L${b.toFixed(1)},${unten}Z`,
         fill: farbe, opacity: (0.12 + 0.68 * (s.anteil ?? 0)).toFixed(3), stroke: "none",
         "data-serie": "niederschlag", "data-anteil": Math.round((s.anteil ?? 0) * 100) }));
     });
@@ -3343,10 +3438,10 @@ function zeichnen() {
   const linie = (werte, unix, attr) => {
     const d = unix.map((ts, i) => ({ ts, v: werte[i] })).filter(s => Number.isFinite(s.v))
       .map((s, i) => `${i ? "L" : "M"}${x(s.ts).toFixed(1)},${y(s.v).toFixed(1)}`).join("");
-    if (d) g.appendChild(el("path", { d, fill: "none", "stroke-linejoin": "round", "stroke-linecap": "round", ...attr }));
+    if (d) gk.appendChild(el("path", { d, fill: "none", "stroke-linejoin": "round", "stroke-linecap": "round", ...attr }));
   };
   const bandD = bandPfad(t, u);
-  if (bandD) g.appendChild(el("path", { d: bandD, fill: m.farbe, opacity: .16, "data-serie": "band" }));
+  if (bandD) gk.appendChild(el("path", { d: bandD, fill: m.farbe, opacity: .16, "data-serie": "band" }));
   if (andereTemp) {
     // Zweites Band nur als gestrichelte Grenzen -- zwei Flaechen liessen sich nicht unterscheiden.
     ["p10", "p90"].forEach(k => linie(andereTemp[k], andereTemp.zeitpunkte_unix,
@@ -3356,26 +3451,34 @@ function zeichnen() {
   linie(t.mittel, u, { stroke: m.farbe, "stroke-width": 3, "data-serie": "mittel" });
   if (hauptlauf) linie(hauptlauf, u, { stroke: "var(--ink)", "stroke-width": 2, "data-serie": "hauptlauf" });
 
-  // Wettersymbole je Kalendertag (nur ohne Modellvergleich)
+  // Wettersymbole je Kalendertag (nur ohne Modellvergleich): Hauptlauf-Code, mit dem
+  // Ensemble desselben Modells korrigiert (siehe tagesart).
   const codes = anderesZeigen ? {} : tagescodes(modell);
+  const tw = anderesZeigen ? {} : tageswerte(l);
   if (!anderesZeigen) tage.forEach(ts => {
     const mittag = ts + 43200;
     if (mittag > x1) return;
-    const code = codes[tagSchluessel(mittag)];
-    if (code == null || platzProTag < 26) return;
-    const sym = window.WW_SYMBOL ? window.WW_SYMBOL(code, true) : null;
+    const k = tagSchluessel(mittag);
+    const code = codes[k];
+    if (code == null || platzProTag < 26 || !window.WW_ART || !window.WW_SYMBOL_ART) return;
+    const art = tagesart(window.WW_ART(code), tw[k]);
+    const sym = window.WW_SYMBOL_ART(art, true);
     if (!sym) return;
     sym.setAttribute("transform", `translate(${x(mittag)},${T - 26})`);
     sym.setAttribute("data-serie", "tagessymbol");
-    g.appendChild(sym);
+    sym.setAttribute("data-art", art);
+    const d = tw[k];
+    sym.appendChild(el("title", {}, `${tagText(ts)}: ${window.WW_TEXT ? window.WW_TEXT(art) : art}`
+      + (d ? ` · ${Math.round(d.pNass * 100)} % der Mitglieder mit Niederschlag · im Mittel ${nf(d.menge, 1)} mm` : "")));
+    gOben.appendChild(sym);
   });
 
   // Hover
   const tip = $("#tip");
   const kreuz = el("line", { y1: T, y2: T + ih, class: "achse", opacity: 0 });
-  g.appendChild(kreuz);
+  gOben.appendChild(kreuz);
   const hoverFlaeche = el("rect", { x: L, y: T, width: iw, height: ih, fill: "transparent" });
-  g.appendChild(hoverFlaeche);
+  gOben.appendChild(hoverFlaeche);
   const zeigen = e => {
     const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
     const lx = pt.matrixTransform(svg.getScreenCTM().inverse()).x;
@@ -3453,7 +3556,7 @@ addEventListener("resize", () => {
   if (b !== breiteMf && sichtbar()) { breiteMf = b; clearTimeout(window._mf); window._mf = setTimeout(zeichnen, 120); }
 });
 if (sichtbar()) zeichnen();
-window.__TESTMF__ = { niederschlagsschritte, tagescodes, lauf, zeichnen,
+window.__TESTMF__ = { niederschlagsschritte, tagescodes, tageswerte, tagesart, lauf, zeichnen,
   setzeModell: x => { modell = x; zeichnen(); },
   setzeHaken: (h, a) => { hauptlaufZeigen = h; anderesZeigen = a; zeichnen(); } };
 })();
