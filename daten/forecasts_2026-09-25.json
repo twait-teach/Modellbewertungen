@@ -1,6 +1,6 @@
 {
  "lauf": "2026-09-25",
- "abgerufen": "2026-09-25T17:56+02:00",
+ "abgerufen": "2026-09-25T18:32+02:00",
  "erfasste_modelle": [
   "ecmwf",
   "gfs"
@@ -23,14 +23,14 @@
    "verfuegbar_seit": "2026-09-25T13:20Z"
   },
   "ecmwf/ens": {
-   "lauf": "2026-09-24T18:00Z",
-   "verfuegbar_seit": "2026-09-25T03:16Z"
+   "lauf": "2026-09-25T06:00Z",
+   "verfuegbar_seit": "2026-09-25T15:58Z"
   }
  },
  "lauf_wie_erwartet": false,
  "laufhinweise": [
   "ecmwf hl: 25.09. 06Z statt 25.09. 00Z",
-  "ecmwf ens: 24.09. 18Z statt 25.09. 00Z"
+  "ecmwf ens: 25.09. 06Z statt 25.09. 00Z"
  ],
  "leads": [
   {
@@ -51,7 +51,7 @@
     "p10": 0.0,
     "p90": 0.0,
     "min": 0.0,
-    "max": 0.4,
+    "max": 0.2,
     "p_ueber5": 0.0
    }
   },
@@ -95,7 +95,7 @@
     "p10": 0.0,
     "p90": 0.0,
     "min": 0.0,
-    "max": 0.0,
+    "max": 0.2,
     "p_ueber5": 0.0
    }
   },
