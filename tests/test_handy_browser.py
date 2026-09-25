@@ -7,6 +7,7 @@ und dass die normale Seite (app.html) davon nichts abbekommt. Testdaten sind rei
 import datetime as dt
 import json
 import math
+import shutil
 import sys
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -82,6 +83,62 @@ def _handy(browser, url, breite=390, warten="#st-plotHeuteTemp svg"):
 
 def _beschriftungen(seite, box):
     return seite.evaluate("s => [...document.querySelectorAll(s + ' svg text.ax')].map(t => t.textContent)", box)
+
+
+def test_klimamittel_monatskurven_und_nur_aktueller_regenvergleich(browser, docs, tmp_path):
+    ziel = tmp_path / "klima"
+    shutil.copytree(docs, ziel)
+    pfad = ziel / "station" / "heute.js"
+    daten = json.loads(pfad.read_text(encoding="utf-8").split("=", 1)[1].rstrip(";\n"))
+    daten["normal"] = json.loads((WURZEL / "daten/klima/normalwerte.json").read_text(encoding="utf-8"))
+    pfad.write_text("window.STATION_HEUTE=" + json.dumps(daten) + ";\n", encoding="utf-8")
+    ctx, seite, fehler = _handy(browser, f"file://{ziel}/handy-app.html#station-verlauf", warten="#st-plotVerlaufTemp svg")
+    seite.locator('#seite-station-verlauf [data-art="monat"]').click()
+    seite.wait_for_function("document.querySelectorAll('#st-plotVerlaufTemp path[stroke=\"var(--normal)\"]').length === 2")
+    kurven = seite.locator('#st-plotVerlaufTemp path[stroke="var(--normal)"]').evaluate_all(
+        "es => es.map(e => ({d:e.getAttribute('d'), dash:e.getAttribute('stroke-dasharray')}))")
+    assert len(kurven) == 2 and any(k["dash"] for k in kurven)
+    assert all(k["d"].count("L") >= 4 for k in kurven)
+    legende = seite.locator("#st-legVerlaufTemp").inner_text()
+    assert "1961-1990" in legende and "1991-2020" in legende
+    seite.locator('#seite-station-verlauf [data-art="jahr"]').click()
+    seite.wait_for_function("document.querySelector('#st-legVerlaufRegen').textContent.includes('1991-2020')")
+    assert "1961-1990" not in seite.locator("#st-legVerlaufRegen").inner_text()
+    marken = seite.locator('#st-plotVerlaufRegen line[stroke="var(--normal)"]')
+    assert marken.count() == 12
+    assert marken.evaluate_all("es => es.every(e => ['null', 'none', null].includes(e.getAttribute('stroke-dasharray')))")
+    assert not fehler
+    ctx.close()
+
+
+@pytest.mark.parametrize("jahr", [2024, 2026])
+def test_monatskurve_ist_ausschnitt_der_jahreskurve(browser, jahr):
+    vorlage = (WURZEL / "skripte/vorlage.html").read_text(encoding="utf-8")
+    station = vorlage.split('let H = null;', 1)[1]
+    zeit = station.split('const teileFmt =', 1)[1].split('const WOCHENTAG', 1)[0]
+    kurve = station.split('function jahreskurve(', 1)[1].split('function kacheln(', 1)[0]
+    seite = browser.new_page()
+    ergebnis = seite.evaluate("""jahr => {
+        const ZONE = 'Europe/Berlin';
+        const teileFmt = """ + zeit + "\nfunction jahreskurve(" + kurve + """
+        const werte = [-2.1,-.3,3.2,7.6,12.2,15.7,17.4,16.7,13,8,2.9,-.8];
+        const ganz = jahreskurve(werte, ortsMitternacht(jahr,1,1), ortsMitternacht(jahr+1,1,1));
+        const wert = ts => {
+            const i = ganz.findIndex(p => p.ts >= ts);
+            if (i === 0) return ganz[0].v;
+            const a=ganz[i-1], b=ganz[i];
+            return a.v+(b.v-a.v)*(ts-a.ts)/(b.ts-a.ts);
+        };
+        return Array.from({length:12}, (_,i) => {
+            const x0=ortsMitternacht(jahr,i+1,1), x1=ortsMitternacht(jahr,i+2,1);
+            const monat=jahreskurve(werte,x0,x1);
+            return {rand:monat[0].ts===x0 && monat.at(-1).ts===x1,
+                fehler:Math.max(...monat.map(p=>Math.abs(p.v-wert(p.ts)))),
+                spanne:Math.max(...monat.map(p=>p.v))-Math.min(...monat.map(p=>p.v))};
+        });
+    }""", jahr)
+    seite.close()
+    assert all(m["rand"] and m["fehler"] < 1e-9 and m["spanne"] > 0 for m in ergebnis)
 
 
 class _Finger:

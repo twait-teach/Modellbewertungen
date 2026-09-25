@@ -1158,7 +1158,7 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
         <summary>Erklärung</summary>
         <div class="erklaerungstext">
           <p>In der <strong>Wochenansicht</strong> sind Stundenwerte zu sehen. In der <strong>Monats- und Jahresansicht</strong> zeigt das Band je Tag die Spanne vom Tiefst- zum Höchstwert, die Linie das Tagesmittel (Mittel der Stundenmittel). Ein Tagesmittel gibt es nur für vollständige Tage, also nicht für den laufenden Tag.</p>
-          <p><strong>Langjähriges Mittel:</strong> die amtlichen Normalwerte des Deutschen Wetterdienstes für die Station Mühldorf am Inn. Durchgezogen das aktuelle Klimamittel <strong>1991–2020</strong>, gestrichelt die ältere Normalperiode <strong>1961–1990</strong> (Jahresmittel 8,8 gegen 7,9 °C, Jahresniederschlag 809 gegen 897 mm). In der Jahresansicht als weiche Jahreskurve aus den zwölf Monatsmitteln, beim Niederschlag als waagrechte Marke je Monat; in der Monatsansicht als waagrechte Marke für das Monatsmittel der Temperatur. Die Werte stammen von einer anderen Station als dem eigenen Garten; Höhenlage und Aufstellung erklären einen Teil jeder Abweichung.</p>
+          <p><strong>Langjähriges Mittel:</strong> die amtlichen Normalwerte des Deutschen Wetterdienstes für die Station Mühldorf am Inn. Bei der Temperatur durchgezogen das Klimamittel <strong>1991–2020</strong>, gestrichelt die ältere Normalperiode <strong>1961–1990</strong> (Jahresmittel 8,8 gegen 7,9 °C). Beide erscheinen als geglättete Jahreskurven aus den zwölf Monatsmitteln; die Monatsansicht zeigt den passenden Ausschnitt derselben Kurven. Die Zwischenwerte sind interpolierte Orientierungswerte, keine amtlichen Tagesnormalwerte. Beim Niederschlag wird ausschließlich <strong>1991–2020</strong> als waagrechte Marke je Monat in der Jahresansicht gezeigt (Jahresniederschlag 809 mm). Die Werte stammen von einer anderen Station als dem eigenen Garten; Höhenlage und Aufstellung erklären einen Teil jeder Abweichung.</p>
           <p><strong>Niederschlag</strong>: Balken je Stunde (Woche), je Tag (Monat) bzw. je Monat (Jahr). Die Summe des gewählten Zeitraums steht oben in der Kachel. Als Regentag zählt ein Tag mit mindestens 1 mm.</p>
           <p>Ein Tag gilt als unvollständig, wenn für weniger als 20 Stunden Außenwerte vorliegen; er ist in der Tabelle grau. Summen über Lücken sind dann zu niedrig, nicht geschätzt.</p>
         </div>
@@ -3008,14 +3008,16 @@ function zerlegen(punkte, lueckeS) {
    Monatsmitte; dazwischen wird mit einer Catmull-Rom-Kurve interpoliert (ueber
    den Jahreswechsel hinweg fortgesetzt, damit Dezember und Januar zusammenpassen). */
 function jahreskurve(monatswerte, x0, x1, punkteJeMonat = 6) {
+  const j = ort(x0).j;
   const mitte = [], werte = [];
   for (let m = 0; m < 12; m++) {
     const von = ortsMitternacht(ort(x0).j, m + 1, 1), bis = ortsMitternacht(ort(x0).j, m + 2, 1);
     mitte.push((von + bis) / 2); werte.push(monatswerte[m]);
   }
-  const jahr = x1 - x0;
   const w = i => werte[(i + 12) % 12];
-  const t = i => i < 0 ? mitte[i + 12] - jahr : i > 11 ? mitte[i - 12] + jahr : mitte[i];
+  // Nachbarmonate aus dem Kalender, unabhaengig von der Laenge des Ausschnitts.
+  const t = i => i >= 0 && i < 12 ? mitte[i]
+    : (ortsMitternacht(j, i + 1, 1) + ortsMitternacht(j, i + 2, 1)) / 2;
   const punkte = [];
   for (let i = -1; i < 12; i++) {
     for (let k = 0; k < punkteJeMonat; k++) {
@@ -3024,10 +3026,17 @@ function jahreskurve(monatswerte, x0, x1, punkteJeMonat = 6) {
         + (2 * w(i - 1) - 5 * w(i) + 4 * w(i + 1) - w(i + 2)) * s2
         + (-w(i - 1) + 3 * w(i) - 3 * w(i + 1) + w(i + 2)) * s3);
       const ts = t(i) + (t(i + 1) - t(i)) * s;
-      if (ts >= x0 && ts <= x1) punkte.push({ ts, v: Math.round(v * 100) / 100 });
+      punkte.push({ ts, v: Math.round(v * 100) / 100 });
     }
   }
-  return punkte;
+  // Dieselbe abgetastete Jahreskurve beschneiden, inklusive exakter Randpunkte.
+  const rand = ts => {
+    const i = punkte.findIndex(p => p.ts >= ts);
+    if (i < 1) return punkte[i];
+    const a = punkte[i - 1], b = punkte[i];
+    return { ts, v: a.v + (b.v - a.v) * (ts - a.ts) / (b.ts - a.ts) };
+  };
+  return [rand(x0), ...punkte.filter(p => p.ts > x0 && p.ts < x1), rand(x1)].filter(Boolean);
 }
 function kacheln(ziel, liste) {
   $(ziel).innerHTML = liste.map(k => `<div class="kachel"><div class="k-label">${k.label}</div><div class="k-zahl">${k.zahl}</div><div class="k-fuss">${k.fuss || "&nbsp;"}</div></div>`).join("");
@@ -3246,23 +3255,16 @@ async function verlaufZeichnen() {
       yWerte: stunden.map(z => z[1]), linien: [{ farbe: "var(--temp)", punkte: stunden.map(z => ({ ts: z[0] + 1800, v: z[1] })) }],
       tooltips: stunden.filter(z => z[1] != null).map(z => ({ ts: z[0] + 1800, text: `${datum(z[0])} ${uhr(z[0])} Uhr\n${nf(z[1])} °C (${nf(z[2])} bis ${nf(z[3])})\n${nf(z[4], 0)} % Luftfeuchte` })) });
   } else {
-    // Jahresansicht: zusaetzlich das langjaehrige Mittel (DWD-Normalwerte 1991-2020)
-    // Jahr: weiche Jahreskurven beider Normalperioden; Monat: waagrechte Marken fuer den Monat
+    // Jahr und Monat verwenden dieselben Jahreskurven, auf den Zeitraum beschnitten.
     const alt = vergleichswerte();
-    const normalKurve = V.art === "jahr" && N ? jahreskurve(N.temperatur_c, x0, x1) : [];
-    const altKurve = V.art === "jahr" && alt ? jahreskurve(alt.temperatur_c, x0, x1) : [];
-    const monatsIndex = ort(x0 + 43200).m - 1;
-    const normalMarken = V.art === "monat" && N
-      ? [{ von: x0, bis: x1, v: N.temperatur_c[monatsIndex] },
-         ...(alt ? [{ von: x0, bis: x1, v: alt.temperatur_c[monatsIndex], strich: "6 4" }] : [])]
-      : [];
+    const normalKurve = N ? jahreskurve(N.temperatur_c, x0, x1) : [];
+    const altKurve = alt ? jahreskurve(alt.temperatur_c, x0, x1) : [];
     $("#st-legVerlaufTemp").innerHTML = leg(markFlaeche("var(--temp-band)"), "Tiefst bis Höchst") + " " + leg(markLinie("var(--temp)"), "Tagesmittel")
-      + (normalKurve.length || normalMarken.length ? " " + leg(markLinie("var(--normal)", 1.5), normalText()) : "")
-      + ((altKurve.length || normalMarken.length > 1) ? " " + leg(markLinieGestrichelt("var(--normal)"), vergleichText()) : "");
+      + (normalKurve.length ? " " + leg(markLinie("var(--normal)", 1.5), normalText()) : "")
+      + (altKurve.length ? " " + leg(markLinieGestrichelt("var(--normal)"), vergleichText()) : "");
     diagramm("#st-plotVerlaufTemp", { titel: "Temperatur je Tag", x0, x1, einheit: "°C", lueckeS: 1.6 * 86400, xTicks: ticks,
-      yWerte: mitT.flatMap(t => [t.min, t.max]).concat(normalKurve.map(p => p.v), altKurve.map(p => p.v), normalMarken.map(m => m.v)),
+      yWerte: mitT.flatMap(t => [t.min, t.max]).concat(normalKurve.map(p => p.v), altKurve.map(p => p.v)),
       band: mitT.map(t => ({ ts: t.ts + 43200, min: t.min, max: t.max })), bandFarbe: "var(--temp-band)",
-      marken: normalMarken, markenFarbe: "var(--normal)",
       linien: [{ farbe: "var(--normal)", punkte: altKurve, breite: 1.5, lueckeS: Infinity, strich: "6 4" },
                { farbe: "var(--normal)", punkte: normalKurve, breite: 1.5, lueckeS: Infinity },
                { farbe: "var(--temp)", punkte: tage.map(t => ({ ts: t.ts + 43200, v: t.mittel })) }],
@@ -3287,23 +3289,18 @@ async function verlaufZeichnen() {
     }
   }
   // Jahresansicht: je Monat eine waagrechte Linie auf Hoehe des Normalwerts 1991-2020
-  const altWerte = vergleichswerte();
-  const normalBalken = V.art === "jahr" && N ? balken.map((b, i) => ({ ...b, normal: N.niederschlag_mm[i],
-    normalAlt: altWerte ? altWerte.niederschlag_mm[i] : null })) : [];
+  const normalBalken = V.art === "jahr" && N ? balken.map((b, i) => ({ ...b, normal: N.niederschlag_mm[i] })) : [];
   $("#st-legVerlaufRegen").innerHTML = H.regen_vorhanden
     ? leg(markFlaeche("var(--regen)"), { woche: "Menge je Stunde", monat: "Menge je Tag", jahr: "Menge je Monat" }[V.art])
-      + (normalBalken.length ? " " + leg(markLinie("var(--normal)", 1.5), normalText()) : "")
-      + (normalBalken.length && altWerte ? " " + leg(markLinieGestrichelt("var(--normal)"), vergleichText()) : "") : "";
+      + (normalBalken.length ? " " + leg(markLinie("var(--normal)", 1.5), normalText()) : "") : "";
   diagramm("#st-plotVerlaufRegen", { titel: "Niederschlag", x0, x1, einheit: "mm", yNull: true, yMinSpanne: 1, hoehe: 180,
     lueckeS: 0, xTicks: ticks,
-    yWerte: (H.regen_vorhanden ? balken.map(b => b.v) : []).concat(normalBalken.map(b => b.normal), normalBalken.map(b => b.normalAlt)),
+    yWerte: (H.regen_vorhanden ? balken.map(b => b.v) : []).concat(normalBalken.map(b => b.normal)),
     balken, balkenFarbe: "var(--regen)",
-    marken: normalBalken.flatMap(b => [{ von: b.von, bis: b.bis, v: b.normal },
-      ...(b.normalAlt != null ? [{ von: b.von, bis: b.bis, v: b.normalAlt, strich: "6 4" }] : [])]), markenFarbe: "var(--normal)",
+    marken: normalBalken.map(b => ({ von: b.von, bis: b.bis, v: b.normal })), markenFarbe: "var(--normal)",
     tooltips: balken.filter(b => b.v != null).map((b, i) => ({ ts: (b.von + b.bis) / 2,
       text: `${b.text}\n${nf(b.v, 1)} mm`
-        + (normalBalken.length ? `\n${N.zeitraum}: ${nf(N.niederschlag_mm[ort(b.von).m - 1], 0)} mm` : "")
-        + (normalBalken.length && altWerte ? `\n${altWerte.zeitraum}: ${nf(altWerte.niederschlag_mm[ort(b.von).m - 1], 0)} mm` : "") })) });
+        + (normalBalken.length ? `\n${N.zeitraum}: ${nf(N.niederschlag_mm[ort(b.von).m - 1], 0)} mm` : "") })) });
 
   $("#st-tabVerlauf").innerHTML = `<thead><tr><th>Tag</th><th>Tiefst °C</th><th>Höchst °C</th><th>Mittel °C</th><th>Luftfeuchte %</th>${H.regen_vorhanden ? "<th>Regen mm</th>" : ""}<th>Stunden mit Daten</th></tr></thead><tbody>`
     + tage.slice().reverse().map(t => `<tr${t.vollstaendig ? "" : ' class="luecke"'}><td${t.vollstaendig ? "" : ' class="luecke"'}>${datum(t.ts)}${ort(t.ts).j}</td><td>${nf(t.min)}</td><td>${nf(t.max)}</td><td>${nf(t.mittel)}</td><td>${nf(t.feuchteMittel, 0)}</td>${H.regen_vorhanden ? `<td>${nf(t.regen, 1)}</td>` : ""}<td>${t.stunden}</td></tr>`).join("")
