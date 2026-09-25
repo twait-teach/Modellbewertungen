@@ -413,6 +413,10 @@ nav.hauptnav a{white-space:nowrap; flex:none}
             <li>Liegt das Tagesmittel der Temperatur bei 1 °C oder darunter, wird aus Niederschlag „Schnee“. Gewitter
             bleibt Gewitter, weil einzelne Schauerzellen nur der Hauptlauf sieht.</li>
           </ul>
+          <p><strong>Tropfenanzahl:</strong> bei Niesel, Regen und Schauern zeigt ein Tropfen eine mittlere
+          Tagesmenge unter 6 mm, zwei Tropfen 6 bis unter 12 mm und drei Tropfen mindestens 12 mm.
+          Diese Darstellungsregel gilt nur hier, nicht für die Wettercodes in „48h Wetter“.
+          Ohne Ensemble-Tagesmenge bleibt das ursprüngliche Symbol erhalten.</p>
           <p>Der Mauszeiger auf einem Symbol nennt die Tageswahrscheinlichkeit und die mittlere Menge. Beim Vergleich
           beider Modelle entfallen die Symbole.</p>
           <p><strong>Beide Modelle:</strong> Mit dem Haken erscheint das andere Modell in seiner Farbe — Temperatur als
@@ -2850,7 +2854,7 @@ function wetterArt(code) {
   return treffer ? { text: treffer[1], art: treffer[2] } : { text: "unbekannt", art: "bedeckt" };
 }
 /* Symbole als kleine SVG-Gruppen (keine externen Bilder, keine Schriftzeichen). */
-function symbol(art, tag) {
+function symbol(art, tag, tropfenAnzahl = null) {
   const g = el("g", { class: "wsym" });
   const wolke = (x, y, s, klasse) => {
     g.appendChild(el("path", { class: klasse || "w-wolke", transform: `translate(${x},${y}) scale(${s})`,
@@ -2877,9 +2881,15 @@ function symbol(art, tag) {
   }
   if (art === "wolkig") { tag ? sonne(-5, -5, 3.6) : mond(-5, -5, 4.2); wolke(2, 1, 0.85); return g; }
   wolke(0, art === "bedeckt" ? 0 : -2, 1);
-  if (art === "niesel") { tropfen(-3, 6); tropfen(3, 6); }
-  if (art === "regen") { tropfen(-5, 6); tropfen(0, 8); tropfen(5, 6); }
-  if (art === "schauer") { if (tag) sonne(-8, -8, 2.8); tropfen(-2, 6); tropfen(4, 6); }
+  if (art === "schauer" && tag) sonne(-8, -8, 2.8);
+  if (["niesel", "regen", "schauer"].includes(art)) {
+    // Ohne explizite Tagesstaffelung bleiben die bisherigen WMO-Symbole unveraendert.
+    if (tropfenAnzahl === 1) tropfen(0, 6);
+    else if (tropfenAnzahl === 2) { tropfen(-3, 6); tropfen(3, 6); }
+    else if (tropfenAnzahl === 3 || art === "regen") { tropfen(-5, 6); tropfen(0, 8); tropfen(5, 6); }
+    else if (art === "schauer") { tropfen(-2, 6); tropfen(4, 6); }
+    else { tropfen(-3, 6); tropfen(3, 6); }
+  }
   if (art === "schnee") { flocke(-4, 8); flocke(4, 8); }
   if (art === "gewitter") { g.appendChild(el("path", { class: "w-blitz", d: "M1,3 l-6,7 h4 l-2,6 l7,-8 h-4 Z" })); }
   return g;
@@ -3173,7 +3183,7 @@ window.WW_SYMBOL = (code, tag) => symbol(wetterArt(code).art, tag !== false);
 window.WW_ART = code => wetterArt(code).art;
 window.WW_TEXT = art => ({ klar: "sonnig", wolkig: "teils bewölkt", bedeckt: "bewölkt", nebel: "Nebel",
   niesel: "Niesel", regen: "Regen", schauer: "Schauer", schnee: "Schnee", gewitter: "Gewitter" })[art] || art;
-window.WW_SYMBOL_ART = (art, tag) => symbol(art, tag !== false);
+window.WW_SYMBOL_ART = (art, tag, tropfenAnzahl = null) => symbol(art, tag !== false, tropfenAnzahl);
 window.__TEST48__ = { extremwerte, aufbereiten, glaetten, aufStunden, wetterArt, zeichnen, setzeModell: m => { modell = m; zeichnen(); } };
 })();
 </script>
@@ -3207,6 +3217,8 @@ const MENGE_REGEN = 2.0;             // mittlere Tagesmenge fuer "verbreitet Reg
 const P_SCHAUER = 0.3;               // ab diesem Anteil nasser Mitglieder ersetzt Schauer einen trockenen Hauptlauf
 const P_REGEN = 0.6;                 // ab diesem Anteil Regentage wird aus Schauer Regen
 const SCHNEE_GRAD = 1.0;             // Tagesmittel der 2-m-Temperatur, unter dem Niederschlag als Schnee gilt
+const TROPFEN_ZWEI_MM = 6;          // Ensemble-Mittel der Tagesmenge, nur fuer die Mittelfrist
+const TROPFEN_DREI_MM = 12;
 let modell = "ecmwf", hauptlaufZeigen = false, anderesZeigen = false;
 
 /* ---------- Ortszeit ---------- */
@@ -3326,6 +3338,10 @@ function tageswerte(l) {
  *   Stufe 2 (Regen)     viele Mitglieder und nennenswerte Menge -> Regen
  * Gewitter bleibt Gewitter (Konvektion sieht nur der Hauptlauf), und unter
  * SCHNEE_GRAD Tagesmittel wird aus Niederschlag Schnee. */
+function tagestropfen(tw) {
+  if (!tw || !Number.isFinite(tw.menge) || tw.menge < 0) return null;
+  return tw.menge >= TROPFEN_DREI_MM ? 3 : tw.menge >= TROPFEN_ZWEI_MM ? 2 : 1;
+}
 function tagesart(art0, tw) {
   if (!tw || tw.pNass == null) return art0;
   const nass0 = ["niesel", "regen", "schauer", "schnee", "gewitter"].includes(art0);
@@ -3486,7 +3502,7 @@ function zeichnen() {
     const code = codes[k];
     if (code == null || platzProTag < 26 || !window.WW_ART || !window.WW_SYMBOL_ART) return;
     const art = tagesart(window.WW_ART(code), tw[k]);
-    const sym = window.WW_SYMBOL_ART(art, true);
+    const sym = window.WW_SYMBOL_ART(art, true, tagestropfen(tw[k]));
     if (!sym) return;
     sym.setAttribute("transform", `translate(${x(mitte)},${T - 26})`);
     sym.setAttribute("data-tag", k);
@@ -3581,7 +3597,7 @@ addEventListener("resize", () => {
   if (b !== breiteMf && sichtbar()) { breiteMf = b; clearTimeout(window._mf); window._mf = setTimeout(zeichnen, 120); }
 });
 if (sichtbar()) zeichnen();
-window.__TESTMF__ = { niederschlagsschritte, tagescodes, tageswerte, tagesart, lauf, zeichnen,
+window.__TESTMF__ = { niederschlagsschritte, tagescodes, tageswerte, tagesart, tagestropfen, lauf, zeichnen,
   setzeModell: x => { modell = x; zeichnen(); },
   setzeHaken: (h, a) => { hauptlaufZeigen = h; anderesZeigen = a; zeichnen(); } };
 })();

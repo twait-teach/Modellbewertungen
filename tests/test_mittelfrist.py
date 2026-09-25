@@ -191,3 +191,30 @@ def test_ohne_gespeicherten_lauf_erscheint_ein_hinweis(browser, tmp_path_factory
     fehler = list(seite.fehler)
     seite.close()
     assert "noch kein gespeicherter Lauf" in text and not fehler
+
+
+def test_tropfen_nach_tagesmenge_und_48h_symbole_unveraendert(browser, mittelfrist):
+    seite = _oeffnen(browser, mittelfrist)
+    r = seite.evaluate("""() => {
+        const n = window.__TESTMF__.tagestropfen;
+        const mengen = [0, 0.5, 5.999, 6, 11.999, 12, 30];
+        const arten = ['niesel', 'regen', 'schauer'];
+        const anzahl = (art, menge) => window.WW_SYMBOL_ART(art, true, menge).querySelectorAll('.w-nass').length;
+        return {
+            grenzen: mengen.map(menge => n({menge})),
+            gezeichnet: arten.map(art => mengen.map(menge => anzahl(art, n({menge})))),
+            fallback: [null, {}, {menge:null}, {menge:NaN}, {menge:-1}].map(n),
+            original: arten.map(art => anzahl(art, undefined)),
+            sonderwetter: ['klar','bedeckt','schnee','gewitter'].map(art => anzahl(art, 3)),
+            sichtbar: [...document.querySelectorAll('#plot-mittelfrist [data-serie="tagessymbol"]')]
+                .filter(e => arten.includes(e.dataset.art)).map(e => e.querySelectorAll('.w-nass').length)
+        };
+    }""")
+    assert r["grenzen"] == [1, 1, 1, 2, 2, 3, 3]
+    assert r["gezeichnet"] == [r["grenzen"]] * 3
+    assert r["fallback"] == [None] * 5
+    assert r["original"] == [2, 3, 2]
+    assert r["sonderwetter"] == [0, 0, 0, 0]
+    assert r["sichtbar"] and all(n == 1 for n in r["sichtbar"])
+    assert not seite.fehler
+    seite.close()
