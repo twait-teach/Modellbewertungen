@@ -1,6 +1,6 @@
 {
  "lauf": "2026-09-29",
- "abgerufen": "2026-09-29T04:57+02:00",
+ "abgerufen": "2026-09-29T05:36+02:00",
  "erfasste_modelle": [
   "ecmwf",
   "gfs"
@@ -12,19 +12,19 @@
  "modelllaeufe": {
   "gfs/hl": {
    "lauf": "2026-09-28T18:00Z",
-   "verfuegbar_seit": "2026-09-28T23:41Z"
+   "verfuegbar_seit": "2026-09-29T00:13Z"
   },
   "gfs/ens": {
    "lauf": "2026-09-28T18:00Z",
-   "verfuegbar_seit": "2026-09-28T23:47Z"
+   "verfuegbar_seit": "2026-09-28T23:41Z"
   },
   "ecmwf/hl": {
    "lauf": "2026-09-28T18:00Z",
-   "verfuegbar_seit": "2026-09-29T01:12Z"
+   "verfuegbar_seit": "2026-09-29T01:13Z"
   },
   "ecmwf/ens": {
-   "lauf": "2026-09-28T12:00Z",
-   "verfuegbar_seit": "2026-09-28T23:47Z"
+   "lauf": "2026-09-28T18:00Z",
+   "verfuegbar_seit": "2026-09-29T03:28Z"
   }
  },
  "lauf_wie_erwartet": false,
@@ -32,7 +32,7 @@
   "gfs hl: 28.09. 18Z statt 29.09. 00Z",
   "gfs ens: 28.09. 18Z statt 29.09. 00Z",
   "ecmwf hl: 28.09. 18Z statt 29.09. 00Z",
-  "ecmwf ens: 28.09. 12Z statt 29.09. 00Z"
+  "ecmwf ens: 28.09. 18Z statt 29.09. 00Z"
  ],
  "leads": [
   {
@@ -93,12 +93,12 @@
    },
    "ecmwf": {
     "hl": 0.4,
-    "ens": 0.38,
+    "ens": 0.7,
     "p10": 0.0,
-    "p90": 0.2,
+    "p90": 2.8,
     "min": 0.0,
-    "max": 13.5,
-    "p_ueber5": 0.02
+    "max": 7.3,
+    "p_ueber5": 0.039
    }
   },
   {
@@ -115,12 +115,12 @@
    },
    "ecmwf": {
     "hl": 0.0,
-    "ens": 0.08,
+    "ens": 0.44,
     "p10": 0.0,
-    "p90": 0.0,
+    "p90": 0.1,
     "min": 0.0,
-    "max": 4.0,
-    "p_ueber5": 0.0
+    "max": 21.3,
+    "p_ueber5": 0.02
    }
   },
   {
@@ -137,11 +137,11 @@
    },
    "ecmwf": {
     "hl": 0.0,
-    "ens": 0.72,
+    "ens": 1.38,
     "p10": 0.0,
-    "p90": 1.4,
+    "p90": 4.2,
     "min": 0.0,
-    "max": 15.7,
+    "max": 26.2,
     "p_ueber5": 0.059
    }
   },
