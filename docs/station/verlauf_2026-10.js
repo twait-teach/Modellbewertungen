@@ -1,1 +1,1 @@
-window.STATION_VERLAUF=window.STATION_VERLAUF||{};window.STATION_VERLAUF["2026-10"]={"monat":"2026-10","stunden":[[1790805600,8.9,8.7,9.2,100.0,0.0,7]]};
+window.STATION_VERLAUF=window.STATION_VERLAUF||{};window.STATION_VERLAUF["2026-10"]={"monat":"2026-10","stunden":[[1790805600,8.8,8.4,9.2,100.0,0.0,12],[1790809200,8.3,8.3,8.3,100.0,0.0,1]]};
