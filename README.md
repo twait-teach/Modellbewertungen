@@ -686,9 +686,32 @@ könnte jeder die Datenabrufe auslösen und die Abruflimits von open-meteo aufbr
 geänderten Daten gebaut wird, dass die Sperre existiert und bei Abbruch wieder verschwindet, und dass im
 Startknopf kein Geheimwort steht.
 
-**Noch offen:** Die Wetterstation (`station_netatmo.py`) holt ihre Zugangsdaten bisher aus den
-GitHub-Secrets und schreibt den erneuerten Refresh Token dorthin zurück. Auf dem Webspace muss beides
-auf eine Datei außerhalb des Repositories umgestellt werden.
+**Die Wetterstation** läuft getrennt (`skripte/lauf_station.sh`, Vorbild: `station.yml`), weil Netatmo
+alle paar Minuten neue Messwerte liefert, neue Modellläufe aber nur alle sechs Stunden — der
+Stationslauf darf also viel häufiger laufen, der Wetterlauf hätte davon nichts. **Beide benutzen
+dieselbe Sperre**, damit sich ihre Commits nie in die Quere kommen; das entspricht der gemeinsamen
+`concurrency`-Gruppe „daten" der beiden Workflows.
+
+Die Zugangsdaten liegen nicht in GitHub-Secrets, sondern in `wetter/netatmo.json`, außerhalb von
+Repository und Webverzeichnis:
+
+```json
+{ "client_id": "…", "client_secret": "…", "refresh_token": "…" }
+```
+
+`station_netatmo.py` erkennt die Datei am Pfad `<Repository>/../netatmo.json` (oder an `NETATMO_DATEI`)
+und benutzt sie **statt** der GitHub-Secrets; ohne Datei bleibt alles beim bisherigen Weg, beide
+Betriebsarten stehen also nebeneinander. Die Reihenfolge ist dieselbe und aus demselben Grund
+verbindlich: erst prüfen, ob die Datei beschreibbar ist, dann erst den Token bei Netatmo eintauschen,
+dann den neuen sofort zurückschreiben (mit `chmod 600`). Netatmo macht den alten Refresh Token beim
+Eintausch ungültig — wäre der neue nirgends gespeichert, käme der nächste Lauf nicht mehr hinein.
+
+**Cronjobs im KAS** (Adresse jeweils mit dem Geheimwort):
+
+| Zweck | Adresse | Takt |
+|---|---|---|
+| Wetter | `…/cron.php?schluessel=…` | 30 Minuten |
+| Station | `…/cron.php?schluessel=…&teil=station` | 10 Minuten |
 
 ---
 

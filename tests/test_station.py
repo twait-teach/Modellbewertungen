@@ -390,3 +390,51 @@ def test_jahresansicht_zeigt_das_langjaehrige_mittel():
     assert "marken: normalBalken" in seite             # waagrechte Linie je Monat
     assert 'V.art === "jahr" && N' in seite            # nur in der Jahresansicht
     assert "Mittel ${N.zeitraum} (DWD ${N.station.name})" in seite
+
+
+# --------------------------------------- Zugangsdatei statt GitHub-Secrets
+# Auf dem eigenen Webspace gibt es keine GitHub-Secrets. Dieselben drei Angaben
+# stehen dann in einer JSON-Datei ausserhalb des Repositories, und der bei jedem
+# Lauf erneuerte Refresh Token wird dorthin zurueckgeschrieben.
+
+def _tresor(tmp_path, **felder):
+    pfad = tmp_path / "netatmo.json"
+    inhalt = {"client_id": "cid", "client_secret": "gehe",
+              "refresh_token": UMGEBUNG["NETATMO_REFRESH_TOKEN"]}
+    inhalt.update(felder)
+    pfad.write_text(json.dumps(inhalt), encoding="utf-8")
+    return pfad
+
+
+def test_zugangsdatei_wird_statt_der_github_secrets_benutzt(tmp_path):
+    welt = Welt()
+    pfad = _tresor(tmp_path)
+    ergebnis = sn.main([], umgebung={}, post=welt.post, get=welt.get, run=welt.run,
+                       verzeichnis=tmp_path / "station", tresor=pfad)
+    assert ergebnis == 0
+    assert "vorab" not in welt.log and "secret" not in welt.log, "kein GitHub-Weg mehr"
+    assert welt.log[0] == "token"
+    # Der neue Token steht in der Datei, die uebrigen Felder sind unveraendert.
+    danach = json.loads(pfad.read_text(encoding="utf-8"))
+    assert danach["refresh_token"] == "neu-refresh"
+    assert danach["client_id"] == "cid" and danach["client_secret"] == "gehe"
+
+
+def test_unvollstaendige_zugangsdatei_fragt_nichts_an(tmp_path):
+    welt = Welt()
+    pfad = _tresor(tmp_path, client_secret="")
+    assert sn.main([], umgebung={}, post=welt.post, get=welt.get, run=welt.run,
+                   verzeichnis=tmp_path / "station", tresor=pfad) == 1
+    assert welt.log == []
+
+
+def test_nicht_beschreibbare_zugangsdatei_laesst_den_token_unberuehrt(tmp_path, monkeypatch):
+    """Sonst waere der alte Token bei Netatmo verbraucht und der neue nirgends
+    gespeichert -- der naechste Lauf kaeme nicht mehr hinein."""
+    welt = Welt()
+    pfad = _tresor(tmp_path)
+    monkeypatch.setattr(sn.os, "access", lambda *a, **k: False)
+    assert sn.main([], umgebung={}, post=welt.post, get=welt.get, run=welt.run,
+                   verzeichnis=tmp_path / "station", tresor=pfad) == 1
+    assert welt.log == [], "vor dem Schreibtest darf nichts angefragt werden"
+    assert not (tmp_path / "station").exists()

@@ -44,6 +44,9 @@ API = "https://api.netatmo.com"
 SECRET_NAME = "NETATMO_REFRESH_TOKEN"
 PFLICHT = ("NETATMO_CLIENT_ID", "NETATMO_CLIENT_SECRET", "NETATMO_REFRESH_TOKEN",
            "SECRETS_PAT", "GITHUB_REPOSITORY")
+# Betrieb auf eigenem Webspace: Zugangsdaten in einer Datei neben dem
+# Repository (also ausserhalb von Programm und Webverzeichnis).
+STANDARD_TRESOR = WURZEL.parent / "netatmo.json"
 
 # getmeasure liefert hoechstens 1024 Werte je Abfrage. Aussen- und Regenmodul
 # messen etwa alle 5 Minuten; 3 Tage sind rund 864 Werte und passen sicher.
@@ -203,6 +206,65 @@ def zugang_herstellen(umgebung, post=requests.post, run=subprocess.run):
                                  umgebung["NETATMO_REFRESH_TOKEN"], post=post)
     secret_speichern(repo, pat, neu, run=run)
     print("Netatmo-Zugang erneuert und neuer Refresh Token gespeichert.", flush=True)
+    return access
+
+
+# ------------------------------------------- Zugangsdatei (eigener Webspace)
+# Auf GitHub liegen die Zugangsdaten in den verschluesselten Secrets, und der
+# erneuerte Refresh Token wird dorthin zurueckgeschrieben. Auf einem eigenen
+# Webspace gibt es das nicht: Dort liegen dieselben drei Angaben in einer
+# JSON-Datei AUSSERHALB des Repositories und ausserhalb des Webverzeichnisses,
+# und der neue Token wird in dieselbe Datei zurueckgeschrieben. Die Reihenfolge
+# bleibt dieselbe -- erst pruefen, ob geschrieben werden kann, dann erst den
+# Token verbrauchen.
+FELDER = ("client_id", "client_secret", "refresh_token")
+
+
+def tresor_lesen(pfad):
+    """Zugangsdaten aus der Datei. Fehlende Felder sind ein Einrichtungsfehler."""
+    try:
+        daten = json.loads(Path(pfad).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise SecretFehler(f"Zugangsdatei {pfad} nicht lesbar: {e}")
+    fehlend = [f for f in FELDER if not str(daten.get(f) or "").strip()]
+    if fehlend:
+        raise SecretFehler(f"In {pfad} fehlen: {', '.join(fehlend)}")
+    return daten
+
+
+def tresor_pruefen(pfad):
+    """Vor dem Verbrauch des Tokens klaeren, ob der neue ueberhaupt abgelegt
+    werden kann -- sonst sperrt sich der naechste Lauf selbst aus."""
+    p = Path(pfad)
+    if not os.access(p, os.W_OK) or not os.access(p.parent, os.W_OK):
+        raise SecretFehler(
+            f"Die Zugangsdatei {p} oder ihr Verzeichnis ist nicht beschreibbar. Die "
+            "Netatmo-Anmeldung wurde NICHT angefasst; der bisherige Token bleibt gueltig.")
+
+
+def tresor_speichern(pfad, neu):
+    """Neuen Refresh Token ablegen; die uebrigen Felder bleiben unveraendert."""
+    p = Path(pfad)
+    try:
+        daten = json.loads(p.read_text(encoding="utf-8"))
+        daten["refresh_token"] = neu
+        atomar_schreiben_json(p, daten)
+        os.chmod(p, 0o600)
+    except OSError as e:
+        raise SecretFehler(
+            f"Der neue Netatmo-Refresh-Token konnte nicht in {p} gespeichert werden ({e}). "
+            "Der alte Token ist bei Netatmo bereits ungueltig: Zugang neu herstellen.")
+
+
+def zugang_aus_datei(pfad, post=requests.post):
+    """Wie zugang_herstellen, nur mit der Datei statt der GitHub-Secrets."""
+    zugang = tresor_lesen(pfad)
+    tresor_pruefen(pfad)
+    access, neu = token_erneuern(zugang["client_id"], zugang["client_secret"],
+                                 zugang["refresh_token"], post=post)
+    tresor_speichern(pfad, neu)
+    print("Netatmo-Zugang erneuert und neuer Refresh Token in der Zugangsdatei gespeichert.",
+          flush=True)
     return access
 
 
@@ -418,15 +480,21 @@ def abrufen(access, reihen, stand, jetzt, get=requests.get):
 # ------------------------------------------------------------- Hauptprogramm
 
 def main(argv=None, umgebung=None, post=requests.post, get=requests.get, run=subprocess.run,
-         verzeichnis=None):
+         verzeichnis=None, tresor=None):
     argparse.ArgumentParser(description=__doc__.splitlines()[1]).parse_args(argv)
     umgebung = dict(os.environ if umgebung is None else umgebung)
-    fehlend = [n for n in PFLICHT if not umgebung.get(n)]
-    if fehlend:
-        print(f"::error title=Einrichtung unvollstaendig::Es fehlen: {', '.join(fehlend)}", flush=True)
-        return 2
+    # Zwei Betriebsarten: Gibt es eine Zugangsdatei (eigener Webspace), wird sie
+    # benutzt; sonst bleibt es beim bisherigen Weg ueber die GitHub-Secrets.
+    pfad = Path(tresor or umgebung.get("NETATMO_DATEI") or STANDARD_TRESOR)
+    ueber_datei = pfad.exists()
+    if not ueber_datei:
+        fehlend = [n for n in PFLICHT if not umgebung.get(n)]
+        if fehlend:
+            print(f"::error title=Einrichtung unvollstaendig::Es fehlen: {', '.join(fehlend)}", flush=True)
+            return 2
     try:
-        access = zugang_herstellen(umgebung, post=post, run=run)
+        access = (zugang_aus_datei(pfad, post=post) if ueber_datei
+                  else zugang_herstellen(umgebung, post=post, run=run))
     except (SecretFehler, TokenFehler) as e:
         print(f"::error title=Netatmo-Zugang::{e}", flush=True)
         return 1

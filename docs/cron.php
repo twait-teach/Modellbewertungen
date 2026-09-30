@@ -47,8 +47,14 @@ if (!function_exists('shell_exec')) {
     exit;
 }
 
+// Zwei Laeufe, ein Startknopf: ohne Angabe der vollstaendige Wetterlauf,
+// mit "&teil=station" nur die Wetterstation (die darf viel haeufiger laufen).
+$teil   = isset($_GET['teil']) ? (string) $_GET['teil'] : '';
+$skript = ($teil === 'station') ? 'skripte/lauf_station.sh' : 'skripte/lauf.sh';
+
 $befehl = 'cd ' . escapeshellarg($wurzel)
-        . ' && nohup sh skripte/lauf.sh >> ' . escapeshellarg($protokoll) . ' 2>&1 &';
+        . ' && nohup sh ' . escapeshellarg($skript) . ' >> ' . escapeshellarg($protokoll) . ' 2>&1 &';
 shell_exec($befehl);
 
-echo "Lauf gestartet " . gmdate('Y-m-d H:i') . "Z\n";
+echo "Lauf gestartet (" . ($teil === 'station' ? 'Station' : 'Wetter') . ") "
+   . gmdate('Y-m-d H:i') . "Z\n";

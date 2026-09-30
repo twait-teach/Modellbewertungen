@@ -67,3 +67,42 @@ def test_cron_php_startet_im_hintergrund():
     text = CRON.read_text(encoding="utf-8")
     assert "nohup" in text and text.rstrip().count("&") >= 1
     assert "skripte/lauf.sh" in text
+
+
+# --------------------------------------------------------------- Stationslauf
+
+STATION = WURZEL / "skripte" / "lauf_station.sh"
+
+
+def test_stationsskript_ist_syntaktisch_gueltig():
+    assert STATION.exists(), "skripte/lauf_station.sh fehlt"
+    ergebnis = subprocess.run(["sh", "-n", str(STATION)], capture_output=True, text=True)
+    assert ergebnis.returncode == 0, ergebnis.stderr
+
+
+def test_stationsskript_haelt_die_reihenfolge_ein():
+    text = STATION.read_text(encoding="utf-8")
+    reihenfolge = ["station_netatmo.py", "bauen_station.py", "git add", "git commit", "git push"]
+    stellen = [text.index(s) for s in reihenfolge if s in text]
+    assert len(stellen) == len(reihenfolge)
+    assert stellen == sorted(stellen)
+
+
+def test_stationsskript_bricht_bei_netatmo_fehler_ab_ohne_zu_bauen():
+    """Ein gescheiterter Abruf darf den letzten gueltigen Datenstand nicht ueberschreiben."""
+    text = STATION.read_text(encoding="utf-8")
+    assert "if ! python3 skripte/station_netatmo.py" in text
+    assert text.index("exit 1") < text.index("bauen_station.py")
+
+
+def test_beide_laeufe_nutzen_dieselbe_sperre():
+    """Zwei gleichzeitige Laeufe wuerden sich beim Commit in die Quere kommen --
+    bei GitHub war das die gemeinsame concurrency-Gruppe 'daten'."""
+    a = re.search(r'SPERRE="([^"]+)"', LAUF.read_text(encoding="utf-8")).group(1)
+    b = re.search(r'SPERRE="([^"]+)"', STATION.read_text(encoding="utf-8")).group(1)
+    assert a == b
+
+
+def test_cron_php_kennt_beide_laeufe():
+    text = CRON.read_text(encoding="utf-8")
+    assert "skripte/lauf_station.sh" in text and "teil" in text
