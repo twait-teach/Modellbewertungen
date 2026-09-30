@@ -647,6 +647,51 @@ Bilder in `docs/handy/` neu. Die Manifest-Datei bleibt, wie sie ist, solange die
 
 ---
 
+## Betrieb auf dem eigenen Webspace
+
+Die Seite läuft unter **woazeweather.de** auf einem All-Inkl-Paket (Premium, SSH). Dort übernimmt der
+Server selbst, was bisher die GitHub-Workflows getan haben. Vorgefunden wurden Python 3.12, git 2.43,
+`pip install --user` und PHP 8.3 auf der Kommandozeile.
+
+**Aufbau auf dem Server**
+
+```
+/www/htdocs/<konto>/wetter/
+  git/wetter.git        leeres Repository -- die Gegenstelle, früher GitHub
+  programm/             Arbeitskopie: skripte/, daten/, docs/
+  cron-schluessel.txt   Geheimwort für den Cron-Aufruf (nicht im Repository)
+  lauf.log              Protokoll der Läufe
+```
+
+Die Dokumentenwurzel der Domain zeigt auf `programm/docs`. Damit liegen `daten/` und `skripte/`
+**oberhalb** des öffentlichen Bereichs und sind aus dem Netz nicht erreichbar — ohne eine einzige
+`.htaccess`-Regel. Am Programm selbst ändert das nichts: Die Skripte bestimmen ihre Pfade relativ zum
+Repository, die Struktur ist dieselbe wie auf jedem anderen Rechner.
+
+**Ein Lauf** (`skripte/lauf.sh`) macht dasselbe wie der Workflow `aktualisieren.yml` und in derselben
+Reihenfolge: Programmstand auffrischen, die vier Sammler, und **nur bei fachlicher Änderung** bauen,
+committen und ins Repository schieben. Zwei Unterschiede zum Workflow: Die schnellen Selbsttests laufen
+hier nicht mit (Code kommt nur über geprüfte Patches auf den Server), und eine Sperre per `mkdir`
+ersetzt die `concurrency`-Gruppe — eine Sperre, die älter als eine Stunde ist, gilt als verwaist und
+wird übergangen, damit ein abgestürzter Lauf die Automatik nicht dauerhaft anhält.
+
+**Der Cronjob** kann bei All-Inkl nur eine URL aufrufen, keine Kommandozeile. Deshalb liegt
+`docs/cron.php` im öffentlichen Verzeichnis und startet `skripte/lauf.sh` — im Hintergrund (`nohup … &`),
+weil die Zeitgrenze des Webservers einen vollständigen Lauf sonst mittendrin abschneiden würde. Der
+Aufruf verlangt ein Geheimwort aus `wetter/cron-schluessel.txt`, das außerhalb von Webverzeichnis und
+Repository liegt; verglichen wird mit `hash_equals`. Ohne das Wort antwortet die Datei mit 403. Sonst
+könnte jeder die Datenabrufe auslösen und die Abruflimits von open-meteo aufbrauchen.
+
+`tests/test_lauf.py` prüft beides ohne Ausführung: Syntax, Reihenfolge der Schritte, dass nur bei
+geänderten Daten gebaut wird, dass die Sperre existiert und bei Abbruch wieder verschwindet, und dass im
+Startknopf kein Geheimwort steht.
+
+**Noch offen:** Die Wetterstation (`station_netatmo.py`) holt ihre Zugangsdaten bisher aus den
+GitHub-Secrets und schreibt den erneuerten Refresh Token dorthin zurück. Auf dem Webspace muss beides
+auf eine Datei außerhalb des Repositories umgestellt werden.
+
+---
+
 ## Rechtliches
 
 Wer eine Seite rein privat und ohne kommerziellen Zweck betreibt, braucht in Deutschland
