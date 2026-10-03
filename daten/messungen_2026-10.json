@@ -3,6 +3,7 @@
  "station": "03366",
  "quelle": "DWD CDC, Stundenwerte RR, Tagessumme 00-24 Uhr Ortszeit",
  "tage": {
-  "2026-10-01": 0.0
+  "2026-10-01": 0.0,
+  "2026-10-02": 0.0
  }
 }
