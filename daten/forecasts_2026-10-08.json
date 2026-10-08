@@ -1,6 +1,6 @@
 {
  "lauf": "2026-10-08",
- "abgerufen": "2026-10-08T10:01+02:00",
+ "abgerufen": "2026-10-08T11:01+02:00",
  "erfasste_modelle": [
   "ecmwf",
   "gfs"
@@ -20,11 +20,11 @@
   },
   "ecmwf/hl": {
    "lauf": "2026-10-08T00:00Z",
-   "verfuegbar_seit": "2026-10-08T07:40Z"
+   "verfuegbar_seit": "2026-10-08T07:52Z"
   },
   "ecmwf/ens": {
    "lauf": "2026-10-07T18:00Z",
-   "verfuegbar_seit": "2026-10-08T02:47Z"
+   "verfuegbar_seit": "2026-10-08T02:39Z"
   }
  },
  "lauf_wie_erwartet": false,
