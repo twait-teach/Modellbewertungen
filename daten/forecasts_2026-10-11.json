@@ -1,6 +1,6 @@
 {
  "lauf": "2026-10-11",
- "abgerufen": "2026-10-11T02:00+02:00",
+ "abgerufen": "2026-10-11T02:48+02:00",
  "erfasste_modelle": [
   "ecmwf",
   "gfs"
@@ -11,8 +11,8 @@
  },
  "modelllaeufe": {
   "gfs/hl": {
-   "lauf": "2026-10-10T12:00Z",
-   "verfuegbar_seit": "2026-10-10T19:31Z"
+   "lauf": "2026-10-10T18:00Z",
+   "verfuegbar_seit": "2026-10-11T00:35Z"
   },
   "gfs/ens": {
    "lauf": "2026-10-10T18:00Z",
@@ -29,7 +29,7 @@
  },
  "lauf_wie_erwartet": false,
  "laufhinweise": [
-  "gfs hl: 10.10. 12Z statt 11.10. 00Z",
+  "gfs hl: 10.10. 18Z statt 11.10. 00Z",
   "gfs ens: 10.10. 18Z statt 11.10. 00Z",
   "ecmwf hl: 10.10. 12Z statt 11.10. 00Z",
   "ecmwf ens: 10.10. 06Z statt 11.10. 00Z"
